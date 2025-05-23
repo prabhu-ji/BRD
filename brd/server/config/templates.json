@@ -1,0 +1,139 @@
+[
+  {
+    "templateName": "Standard Template 2",
+    "overview": [
+      {
+        "label": "Client",
+        "key": "Client",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Vendor",
+        "key": "Vendor",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Version",
+        "key": "Version",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Doc Owner",
+        "key": "Doc Owner",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Functional Lead",
+        "key": "Functional Lead",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Status",
+        "key": "Status",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DRAFT",
+            "IN REVIEW",
+            "APPROVED",
+            "IN PRODUCTION"
+          ]
+        },
+        "default": "DRAFT"
+      },
+      {
+        "label": "Last updated by",
+        "key": "Last updated by",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Last date updated",
+        "key": "Last date updated",
+        "type": "date",
+        "default": "2025-05-23"
+      },
+      {
+        "label": "Mode of Integration",
+        "key": "Mode of Integration",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "API - BASED",
+            "STANDARD",
+            "CUSTOM DEV"
+          ]
+        },
+        "default": "API - BASED"
+      },
+      {
+        "label": "File Format",
+        "key": "File Format",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Integration Approach",
+        "key": "Integration Approach",
+        "type": "textarea",
+        "default": "HEHEHEHEHEHEH"
+      },
+      {
+        "label": "Employee Selection Criteria",
+        "key": "Employee Selection Criteria",
+        "type": "textarea",
+        "default": ""
+      }
+    ],
+    "technical": {
+      "upload_csv": true,
+      "upload_image": false,
+      "upload_doc": false,
+      "labels": {
+        "csv": "Data Mapping Table",
+        "image": "Upload Image",
+        "doc": "Upload Document"
+      }
+    },
+    "outputs": {
+      "Purpose/Justification": [
+        "content"
+      ],
+      "Flow Diagram": [
+        "image"
+      ],
+      "Data Mapping Table": [
+        "table"
+      ],
+      "Dependencies": [
+        "content"
+      ],
+      "Project Scope": [
+        "content"
+      ],
+      "Test Scenarios": [
+        "content"
+      ],
+      "Diagrams": [
+        "image",
+        "content"
+      ],
+      "Assumptions": [
+        "content"
+      ],
+      "Functional Requirements": [
+        "content"
+      ],
+      "Business Process Flow": [
+        "image",
+        "content"
+      ]
+    },
+    "id": 1747982774112
+  }
+]
