@@ -276,19 +276,36 @@ class ConfluenceGenerator {
         console.log(`🔍 detectContentType called for: ${key}`);
         console.log(`🔍 Value structure:`, {
             type: typeof value,
-            hasTypeField: typeof value === "object" && value !== null && value.hasOwnProperty('type'),
-            explicitType: typeof value === "object" && value !== null ? value.type : 'none',
+            hasTypeField:
+                typeof value === "object" &&
+                value !== null &&
+                value.hasOwnProperty("type"),
+            explicitType:
+                typeof value === "object" && value !== null
+                    ? value.type
+                    : "none",
             isArray: Array.isArray(value),
-            hasContent: typeof value === "object" && value !== null && value.hasOwnProperty('content')
+            hasContent:
+                typeof value === "object" &&
+                value !== null &&
+                value.hasOwnProperty("content"),
         });
 
         // PRIORITY 1: Check if the value is an object with explicit type field (from AI)
-        if (typeof value === "object" && value !== null && value.hasOwnProperty('type')) {
-            console.log(`🎯 AI content detected - using explicit type: ${value.type} for ${key}`);
+        if (
+            typeof value === "object" &&
+            value !== null &&
+            value.hasOwnProperty("type")
+        ) {
+            console.log(
+                `🎯 AI content detected - using explicit type: ${value.type} for ${key}`
+            );
             return value.type;
         }
 
-        console.log(`🔍 No explicit type found, using key-based detection for: ${key}`);
+        console.log(
+            `🔍 No explicit type found, using key-based detection for: ${key}`
+        );
 
         const keyLower = key.toLowerCase();
 
@@ -330,7 +347,9 @@ class ConfluenceGenerator {
                 typeof value[0] === "object" &&
                 !Array.isArray(value[0])
             ) {
-                console.log(`🔍 Structure-based detection: ${key} -> table (array of objects)`);
+                console.log(
+                    `🔍 Structure-based detection: ${key} -> table (array of objects)`
+                );
                 return "table";
             }
             // Regular array (list)
@@ -341,7 +360,9 @@ class ConfluenceGenerator {
         if (typeof value === "object" && value !== null) {
             // Check if it's a structured object that could be a table
             if (this.isTableLikeObject(value)) {
-                console.log(`🔍 Structure-based detection: ${key} -> table (table-like object)`);
+                console.log(
+                    `🔍 Structure-based detection: ${key} -> table (table-like object)`
+                );
                 return "table";
             }
             // Check if it's diagram data
@@ -478,40 +499,70 @@ class ConfluenceGenerator {
         console.log(`🤖 Content type: ${contentType}`);
         console.log(`🤖 Value type: ${typeof value}`);
         console.log(`🤖 Value structure:`, {
-            hasTypeField: typeof value === "object" && value !== null && value.hasOwnProperty('type'),
-            explicitType: typeof value === "object" && value !== null ? value.type : 'none',
-            hasContent: typeof value === "object" && value !== null && value.hasOwnProperty('content'),
-            contentType: typeof value === "object" && value !== null && value.content ? typeof value.content : 'none'
+            hasTypeField:
+                typeof value === "object" &&
+                value !== null &&
+                value.hasOwnProperty("type"),
+            explicitType:
+                typeof value === "object" && value !== null
+                    ? value.type
+                    : "none",
+            hasContent:
+                typeof value === "object" &&
+                value !== null &&
+                value.hasOwnProperty("content"),
+            contentType:
+                typeof value === "object" && value !== null && value.content
+                    ? typeof value.content
+                    : "none",
         });
 
         // Handle AI-generated content structure with explicit type field
-        if (typeof value === "object" && value !== null && value.hasOwnProperty('type')) {
-            console.log(`🤖 Processing AI-generated content: ${key} (type: ${value.type})`);
+        if (
+            typeof value === "object" &&
+            value !== null &&
+            value.hasOwnProperty("type")
+        ) {
+            console.log(
+                `🤖 Processing AI-generated content: ${key} (type: ${value.type})`
+            );
 
             // Handle different AI content structures based on type
             switch (value.type) {
                 case "table":
-                    console.log(`🤖 Routing to generateTableContentFromAI for: ${key}`);
+                    console.log(
+                        `🤖 Routing to generateTableContentFromAI for: ${key}`
+                    );
                     // Tables have headers and data fields
                     return this.generateTableContentFromAI(key, value);
                 case "text":
-                    console.log(`🤖 Routing to generateTextContentFromAI for: ${key}`);
+                    console.log(
+                        `🤖 Routing to generateTextContentFromAI for: ${key}`
+                    );
                     // Text has content field
                     return this.generateTextContentFromAI(key, value.content);
                 case "list":
-                    console.log(`🤖 Routing to generateListContentFromAI for: ${key}`);
+                    console.log(
+                        `🤖 Routing to generateListContentFromAI for: ${key}`
+                    );
                     // Lists have content field
                     return this.generateListContentFromAI(key, value.content);
                 case "diagram":
-                    console.log(`🤖 Routing to generateDiagramContentFromAI for: ${key}`);
+                    console.log(
+                        `🤖 Routing to generateDiagramContentFromAI for: ${key}`
+                    );
                     // Diagrams have content field
                     return await this.generateDiagramContentFromAI(key, value);
                 case "code":
-                    console.log(`🤖 Routing to generateCodeContentFromAI for: ${key}`);
+                    console.log(
+                        `🤖 Routing to generateCodeContentFromAI for: ${key}`
+                    );
                     // Code has content field
                     return this.generateCodeContentFromAI(key, value.content);
                 default:
-                    console.log(`🤖 Unknown AI type ${value.type}, falling back to text for: ${key}`);
+                    console.log(
+                        `🤖 Unknown AI type ${value.type}, falling back to text for: ${key}`
+                    );
                     // Fallback to text if unknown type
                     return this.generateTextContentFromAI(
                         key,
@@ -520,7 +571,9 @@ class ConfluenceGenerator {
             }
         }
 
-        console.log(`🤖 Processing non-AI content with fallback logic for: ${key} (contentType: ${contentType})`);
+        console.log(
+            `🤖 Processing non-AI content with fallback logic for: ${key} (contentType: ${contentType})`
+        );
 
         // Fallback to original detection logic for non-AI content
         switch (contentType) {

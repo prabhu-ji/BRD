@@ -1,0 +1,103 @@
+# AI Generator Improvement Plan (to-do.txt)
+
+## Highest Priority - ✅ COMPLETED
+
+1.  **✅ Deepen `api-docs-manager` Integration in Prompts:**
+    *   [✅] **Modified `buildAPIsUsedPrompt`**:
+        *   [✅] Explicitly instructs AI to use detailed info from `apiContext` (e.g., specific endpoints, request/response structures for *relevant* APIs based on `businessUseCase`).
+        *   [✅] Guides AI on what to output if `apiContext` is sparse or lacks detail for the use case.
+    *   [✅] **Modified `buildTechnicalSpecificationPrompt`**:
+        *   [✅] Explicitly instructs AI to use `apiContext` to detail how specific APIs support the architecture, security, data handling, and error management.
+        *   [✅] Reinforces focus on architectural decisions *derived from* or *interacting with* available API capabilities.
+    *   [✅] **Enhanced `formatApiDocsForPrompt` and created `getDetailedApiContext`**:
+        *   [✅] Now extracts/formats granular, relevant details from `apiContext` that are directly usable by section-specific prompts.
+        *   [✅] Provides specific API objects, endpoint details, authentication info, and module-specific data.
+    *   [✅] **Improved `apiDocsManager.getAPIContext` Query**:
+        *   [✅] Made the `query` more specific by incorporating keywords from `brdData.businessUseCase` and `brdData.businessLogic` to help retrieve more targeted API documentation.
+
+2.  **✅ Enhanced Prompt Specificity for Key Content Sections:**
+    *   [✅] **Reviewed & Strengthened `getEnhancedRequirements` for all major sections**:
+        *   [✅] Requirements now strongly guide the AI to use *all* available context (business logic, form data, API details) for maximum specificity.
+        *   [✅] Reduced reliance on examples being the *sole* driver of specificity; prompts are now paramount.
+        *   [✅] Added context-aware guidance that adapts based on available API documentation.
+    *   [✅] **Refined `getSystemPrompt`**:
+        *   [✅] Added clearer instructions on *how* the AI should synthesize diverse context sources (API docs, business logic, examples) into its output for different sections.
+        *   [✅] Established priority order for context integration and section-specific synthesis guidelines.
+
+## IMPROVEMENTS MADE IN THIS SESSION:
+
+### ✅ Fixed API Context Integration Issues:
+- **Fixed `getApiSummary`**: Now properly extracts data from actual API context structure returned by api-docs-manager
+- **Enhanced `buildContext`**: Makes better, more specific queries to API docs manager using business context
+- **Corrected property checks**: Fixed `hasApiDocs` to check correct properties (`hasDocumentation`, `endpoints`)
+
+### ✅ Created New Helper Methods:
+- **`getDetailedApiContext`**: Filters and provides section-specific API details
+- **`buildContextAwareGuidance`**: Builds dynamic guidance based on available context
+- **Enhanced prompt methods**: Both `buildAPIsUsedPrompt` and `buildTechnicalSpecificationPrompt` now use detailed API context
+
+### ✅ Improved Context Synthesis:
+- **System prompt**: Now provides clear instructions on how to prioritize and synthesize different context sources
+- **Requirements**: All sections now have context-aware requirements that adapt to available data
+- **API integration**: Prompts now explicitly guide AI to use specific endpoints, authentication methods, and business context
+
+## Medium Priority
+
+3.  **✅ Review and Enhance Example (`_examples.md`) Files:**
+    *   [✅] Audited all `_examples.md` files and identified missing `apis_used_examples.md`.
+    *   [✅] Created comprehensive `apis_used_examples.md` with 5 detailed examples demonstrating API context integration.
+    *   [✅] Enhanced `technical_content_or_specification_examples.md` with new example (#4) showing deep contextual integration.
+    *   [✅] Enhanced `integration_description_and_overview_examples.md` with 3 new examples (#7, #8, #9) demonstrating business context weaving.
+    *   [✅] Examples now demonstrate how contextual information (API details, business rules, specific integration requirements) is woven into the output.
+    *   [✅] Updated examples reflect the output of a well-integrated `api-docs-manager` with specific endpoints, authentication methods, and business context.
+
+4.  **✅ Strengthen Diagram Generation Specificity (`generateDiagram`, `buildEnhancedDiagramPrompt`):**
+    *   [✅] Modified `buildEnhancedDiagramPrompt` to guide AI in labeling nodes and edges dynamically based on `brdData.businessUseCase`, `brdData.businessLogic`, and specific API names from `apiContext`.
+    *   [✅] Created `extractBusinessContextForDiagram` helper method to extract business-specific details for diagram labeling.
+    *   [✅] Created `extractApiDetailsForDiagram` helper method to incorporate API endpoint details into diagram generation.
+    *   [✅] Enhanced `getEnhancedDefaultDiagram` to be more contextual by incorporating business keywords, module names, and API authentication types.
+    *   [✅] Diagrams now include business-specific node labels, meaningful edge descriptions, and contextual legends.
+
+5.  **Post-Processing Logic (`postProcessTextContent`, `postProcessDiagramCode`):**
+    *   [ ] Review `postProcessTextContent`: Ensure list conversion logic is robust and doesn't inadvertently mangle pre-formatted (e.g., table-like text from AI) or intentionally non-list content. Check truncation logic.
+    *   [ ] Review `postProcessDiagramCode`: Ensure it correctly handles and cleans various ways an LLM might return DOT code (e.g., with or without markdown, with preamble/postamble text).
+
+## ADDITIONAL IMPROVEMENTS MADE IN THIS SESSION:
+
+### ✅ Enhanced Example Files:
+- **Created `apis_used_examples.md`**: Comprehensive examples showing API-based, Standard, and Custom Development integrations
+- **Enhanced existing examples**: Added contextual depth showing how to integrate business logic, API details, and specific requirements
+- **Improved example quality**: Examples now demonstrate the desired depth of content and contextual information integration
+
+### ✅ Strengthened Diagram Generation:
+- **Business context integration**: Diagrams now use actual business use cases and logic in node/edge labels
+- **API-aware diagrams**: Incorporates specific API endpoints and authentication methods when available
+- **Enhanced default diagrams**: More contextual fallback diagrams with business-specific terminology
+- **Improved labeling**: Dynamic node and edge labels based on actual integration context
+
+### ✅ Better Context Utilization:
+- **Business-driven content**: All generated content now prioritizes business context over generic examples
+- **API-specific details**: When API documentation is available, it's deeply integrated into all content types
+- **Module-aware generation**: Content references actual modules and their specific functionality
+
+## Lower Priority
+
+6.  **Code Structure & Maintainability:**
+    *   [ ] Evaluate if `BRDAIGenerator` class would benefit from breaking down prompt generation logic into smaller, more focused helper functions or even separate modules, especially if more distinct section types are added.
+    *   [ ] Add more detailed JSDoc comments to complex functions, especially those related to prompt engineering and context manipulation.
+
+7.  **Consider AI's Ability for More Structured Output (Long-Term):**
+    *   [ ] For sections like "APIs Used," evaluate if asking the AI for a structured JSON output (e.g., an array of API objects with `name`, `endpoint`, `description` fields) that is then programmatically formatted would be more reliable than parsing text lists. This is a significant change and for future consideration.
+
+8.  **Test Coverage & Iteration:**
+    *   [ ] Develop a more comprehensive test suite that covers various input scenarios:
+        *   [ ] With and without (detailed vs. sparse) `apiContext`.
+        *   [ ] Different `businessUseCase` and `businessLogic` complexities.
+        *   [ ] Different `outputs` configurations.
+    *   [ ] Establish a feedback loop for iteratively testing prompt changes and evaluating AI output quality against defined benchmarks.
+
+---
+**Notes:**
+*   ✅ **Session 1 Complete**: Successfully implemented highest priority API docs integration improvements
+*   **Next Session**: Focus on medium priority tasks - review examples and enhance diagram generation
+*   Consistent and detailed logging will be crucial during the refinement of prompts and context handling. 

@@ -565,18 +565,37 @@ class BRDAIGenerator {
         try {
             // Only try to get API docs if we have a vendor
             if (vendor) {
+                // Build more specific query using business context
+                const businessKeywords = [
+                    brdData.businessUseCase,
+                    brdData.businessLogic,
+                    ...moduleList,
+                    mode.toLowerCase(),
+                    direction.toLowerCase(),
+                ]
+                    .filter(Boolean)
+                    .join(" ");
+
                 apiContext = await this.apiDocsManager.getAPIContext({
                     vendor: vendor,
                     modules: moduleList,
                     integrationMode: mode,
-                    query: `${mode.toLowerCase()} ${direction.toLowerCase()}`,
+                    query:
+                        businessKeywords ||
+                        `${mode.toLowerCase()} ${direction.toLowerCase()}`,
                 });
 
-                hasApiDocs = !!(apiContext && apiContext.totalEndpoints > 0);
+                // FIXED: Check the correct property for API docs availability
+                hasApiDocs = !!(
+                    apiContext &&
+                    apiContext.hasDocumentation &&
+                    apiContext.endpoints &&
+                    apiContext.endpoints.length > 0
+                );
 
                 if (hasApiDocs) {
                     console.log(
-                        `📚 API Documentation loaded for ${vendor}: ${apiContext.totalEndpoints} endpoints available`
+                        `📚 API Documentation loaded for ${vendor}: ${apiContext.endpoints.length} endpoints available`
                     );
                 } else {
                     console.log(`📚 No API documentation found for ${vendor}`);
@@ -654,18 +673,40 @@ class BRDAIGenerator {
         };
     }
 
-    // Extract API summary for context
+    // Extract API summary for context - FIXED TO MATCH ACTUAL API CONTEXT STRUCTURE
     getApiSummary(apiContext) {
-        if (!apiContext || apiContext.totalEndpoints === 0) return null;
+        if (
+            !apiContext ||
+            !apiContext.hasDocumentation ||
+            !apiContext.endpoints ||
+            apiContext.endpoints.length === 0
+        ) {
+            return null;
+        }
+
+        // Extract available modules from the API context
+        const availableModules = Object.keys(apiContext.moduleInfo || {});
+
+        // Get sample endpoints (first 3-5 most relevant ones)
+        const sampleEndpoints = apiContext.endpoints
+            .slice(0, 5)
+            .map((endpoint) => ({
+                method: endpoint.method,
+                path: endpoint.path,
+                description: endpoint.description || "",
+                module: endpoint.module || "",
+            }));
 
         return {
-            totalEndpoints: apiContext.totalEndpoints,
-            availableModules: apiContext.availableModules || [],
-            sampleEndpoints: apiContext.topEndpoints
-                ? apiContext.topEndpoints.slice(0, 3)
-                : [],
-            hasAuthentication: true,
-            baseUrl: apiContext.baseUrl || null,
+            totalEndpoints: apiContext.endpoints.length,
+            availableModules: availableModules,
+            sampleEndpoints: sampleEndpoints,
+            hasAuthentication: !!(
+                apiContext.authentication && apiContext.authentication.type
+            ),
+            authType: apiContext.authentication?.type || null,
+            moduleInfo: apiContext.moduleInfo || {},
+            vendor: apiContext.vendor,
         };
     }
 
@@ -718,7 +759,7 @@ class BRDAIGenerator {
     isTableOutput(outputName, outputTypes) {
         const tableKeywords = ["mapping", "table", "specification", "matrix"];
         const nameCheck = tableKeywords.some((keyword) =>
-            outputName.toLowerCase().includes(keyword)
+            outputName.includes(keyword)
         );
         return outputTypes.includes("table") || nameCheck;
     }
@@ -858,7 +899,7 @@ class BRDAIGenerator {
         );
     }
 
-    // Enhanced system prompt emphasizing lists
+    // Enhanced system prompt emphasizing context synthesis
     getSystemPrompt() {
         return `You are a Business Requirements Document (BRD) specialist with expertise in enterprise integrations, specifically working for Darwinbox's Integration team. 
 
@@ -869,10 +910,29 @@ CRITICAL FORMATTING REQUIREMENTS:
 4. Use bullet points for requirements, features, or specifications
 5. Keep paragraphs short and use lists to break down complex information
 
+CONTENT SYNTHESIS REQUIREMENTS:
+1. PRIORITIZE CONTEXT INTEGRATION: Synthesize ALL available context sources in this order:
+   a) Specific API documentation details (when available) - use actual endpoints, methods, authentication
+   b) Business use case and business logic - align technical details with business requirements
+   c) Integration specifics (mode, direction, modules) - ensure technical approach matches integration type
+   d) Examples - use for style and structure, but adapt content to actual context
+
+2. CONTEXT-DRIVEN SPECIFICITY:
+   - When API documentation is available: Reference specific endpoints, authentication methods, and data structures
+   - When business context is provided: Align all technical details with the stated business use case and logic
+   - When modules are specified: Focus on module-specific functionality and requirements
+   - Always prefer actual context data over generic examples
+
+3. SECTION-SPECIFIC SYNTHESIS:
+   - APIs Used: Prioritize actual API endpoints and authentication from documentation
+   - Technical Specifications: Base architecture on available APIs and business requirements
+   - Dependencies/Assumptions: Reference specific systems, modules, and business processes
+   - Purpose/Overview: Connect technical approach directly to business use case
+
 CONTENT REQUIREMENTS:
 1. Generate content that matches the exact style and length of provided examples
 2. Use professional, technical language appropriate for enterprise documentation
-3. Focus on practical, implementation-ready requirements
+3. Focus on practical, implementation-ready requirements derived from actual context
 4. Include specific technical details when API documentation is available
 5. Keep content concise but comprehensive (similar to example length)
 6. Use proper business terminology and avoid overly casual language
@@ -881,9 +941,10 @@ STYLE GUIDELINES:
 - Write in third person
 - Use clear, declarative statements with bullet points
 - Include specific technical requirements in list format
-- Reference actual systems and processes
+- Reference actual systems, APIs, and processes from provided context
 - Maintain professional tone throughout
-- ALWAYS prefer lists over long paragraphs`;
+- ALWAYS prefer lists over long paragraphs
+- Ensure every bullet point adds specific, actionable value`;
     }
 
     // Enhanced text prompt building - EMPHASIZING LISTS
@@ -936,22 +997,105 @@ Generate ONLY the content with proper list formatting - no explanations.`.trim()
             .join("\n\n");
     }
 
-    // Format API docs for prompting
+    // Format API docs for prompting - ENHANCED TO PROVIDE GRANULAR DETAILS
     formatApiDocsForPrompt(context) {
         if (!context.hasApiDocs || !context.apiSummary) {
             return "";
         }
 
         const summary = context.apiSummary;
-        return `
+        const apiContext = context.apiContext;
+
+        let apiDetails = `
 API DOCUMENTATION CONTEXT:
 - Total Available APIs: ${summary.totalEndpoints}
 - Available Modules: ${summary.availableModules.join(", ")}
-- Sample Endpoints: ${summary.sampleEndpoints
-            .map((ep) => `${ep.method} ${ep.path}`)
-            .join(", ")}
-- Authentication: ${summary.hasAuthentication ? "Required" : "Not specified"}
-${summary.baseUrl ? `- Base URL: ${summary.baseUrl}` : ""}`;
+- Authentication: ${summary.authType || "Required"}`;
+
+        // Add specific endpoint details for better context
+        if (summary.sampleEndpoints && summary.sampleEndpoints.length > 0) {
+            apiDetails += `\n- Key Endpoints:`;
+            summary.sampleEndpoints.forEach((endpoint) => {
+                apiDetails += `\n  • ${endpoint.method} ${endpoint.path}`;
+                if (endpoint.description) {
+                    apiDetails += ` - ${endpoint.description}`;
+                }
+                if (endpoint.module) {
+                    apiDetails += ` [${endpoint.module}]`;
+                }
+            });
+        }
+
+        // Add module-specific information if available
+        if (summary.moduleInfo && Object.keys(summary.moduleInfo).length > 0) {
+            apiDetails += `\n- Module Details:`;
+            Object.entries(summary.moduleInfo).forEach(([module, info]) => {
+                apiDetails += `\n  • ${module}: ${
+                    info.description || "Available"
+                }`;
+                if (info.endpoints && info.endpoints.length > 0) {
+                    apiDetails += ` (${info.endpoints.length} endpoints)`;
+                }
+            });
+        }
+
+        return apiDetails;
+    }
+
+    // NEW: Get detailed API context for specific sections
+    getDetailedApiContext(context, sectionType) {
+        if (!context.hasApiDocs || !context.apiContext) {
+            return null;
+        }
+
+        const apiContext = context.apiContext;
+        const relevantEndpoints = [];
+
+        // Filter endpoints based on section type and business context
+        if (sectionType === "apis_used") {
+            // For APIs Used section, focus on endpoints relevant to the business use case
+            const businessKeywords = [
+                context.businessUseCase?.toLowerCase(),
+                context.businessLogic?.toLowerCase(),
+                ...context.modules.map((m) => m.toLowerCase()),
+            ].filter(Boolean);
+
+            apiContext.endpoints.forEach((endpoint) => {
+                const searchText = [
+                    endpoint.path,
+                    endpoint.description,
+                    endpoint.module,
+                ]
+                    .join(" ")
+                    .toLowerCase();
+
+                const isRelevant =
+                    businessKeywords.some((keyword) =>
+                        searchText.includes(keyword)
+                    ) ||
+                    (endpoint.module &&
+                        context.modules.some((module) =>
+                            endpoint.module
+                                .toLowerCase()
+                                .includes(module.toLowerCase())
+                        ));
+
+                if (isRelevant) {
+                    relevantEndpoints.push(endpoint);
+                }
+            });
+        } else if (sectionType === "technical_specification") {
+            // For technical specs, focus on authentication, data models, and core endpoints
+            relevantEndpoints.push(...apiContext.endpoints.slice(0, 3)); // Top 3 endpoints
+        }
+
+        return {
+            endpoints: relevantEndpoints,
+            authentication: apiContext.authentication,
+            moduleInfo: apiContext.moduleInfo,
+            examples: apiContext.examples || [],
+            totalAvailable: apiContext.endpoints.length,
+        };
     }
 
     // Format business context
@@ -971,59 +1115,155 @@ INTEGRATION CONTEXT:
         } ${context.vendor})`;
     }
 
-    // Enhanced requirements based on output type - WITH LIST EMPHASIS
+    // Enhanced requirements based on output type - STRENGTHENED TO USE ALL CONTEXT
     getEnhancedRequirements(outputName, context) {
         const outputKey = this.getOutputKey(outputName);
+
+        // Build context-aware guidance
+        const contextGuidance = this.buildContextAwareGuidance(context);
 
         const requirements = {
             purpose_justification: `
 - Write 2-3 bullet points maximum (match example length)
-- State the business purpose clearly in bullet format
-- Use bullet points to mention the integration approach (${context.mode})
-- List the specific business needs
-- Use professional, formal language in list format`,
+- State the business purpose clearly referencing: "${
+                context.businessUseCase || "integration requirement"
+            }"
+- Use bullet points to mention the specific ${
+                context.mode
+            } approach and why it's chosen
+- List the specific business needs that this integration addresses
+- Reference the ${context.direction} data flow and its business impact
+- Use professional, formal language in list format
+${contextGuidance.apiGuidance}`,
 
             integration_description_and_overview: `
-- Provide 4-6 bullet points describing the integration
-- Use bullet points to explain the ${context.mode} approach technically
-- List the ${context.direction} data flow specifics in bullet format
-- Include implementation methodology as bullet points
-- Reference specific systems and technologies in list format`,
+- Provide 4-6 bullet points describing the integration comprehensively
+- Use bullet points to explain the ${
+                context.mode
+            } approach technically and its implementation
+- List the ${context.direction} data flow specifics and business logic: "${
+                context.businessLogic || "standard data processing"
+            }"
+- Include implementation methodology referencing available modules: ${
+                context.modules.join(", ") || "core modules"
+            }
+- Reference specific systems (${context.client} and ${
+                context.vendor
+            }) and their roles
+- Include business process integration details
+${contextGuidance.apiGuidance}`,
 
             technical_content_or_specification: `
-- Provide detailed technical specifications in bullet point format
-- List specific API endpoints and methods if available
-- Detail authentication and data formats as bullet points
-- Specify error handling requirements in list format
-- Include data transformation logic as bullet points
-- Reference actual technical implementations in list format`,
+- Provide detailed technical specifications in bullet point format based on available context
+- List specific technical approaches for ${context.mode} ${context.direction} integration
+- Detail authentication, data formats, and security measures from available API information
+- Specify error handling requirements and monitoring approaches
+- Include data transformation logic and validation rules
+- Reference actual technical implementations and architectural decisions
+- Address scalability, performance, and reliability requirements
+${contextGuidance.apiGuidance}`,
 
             dependencies: `
-- List specific technical dependencies for ${context.mode}
-- Include system requirements and configurations as bullet points
-- Mention API access and authentication needs in bullet format
-- Specify data validation requirements as bullet points
-- Keep each item concise and actionable in list format`,
+- List specific technical dependencies for ${context.mode} integration with ${
+                context.vendor
+            }
+- Include system requirements and configurations for ${context.client} system
+- Mention API access, authentication needs, and connectivity requirements
+- Specify data validation requirements and business rule dependencies
+- Include module-specific dependencies: ${
+                context.modules.join(", ") || "core modules"
+            }
+- Reference business process dependencies from: "${
+                context.businessLogic || "standard operations"
+            }"
+- Keep each item concise, actionable, and specific to this integration`,
 
             assumptions: `
-- State clear, specific assumptions in bullet point format
-- Include data quality and availability assumptions as bullet points
-- Mention system uptime and performance expectations in list format
-- Specify business process assumptions as bullet points
-- Keep items realistic and verifiable in bullet format`,
+- State clear, specific assumptions about ${context.client} and ${
+                context.vendor
+            } systems
+- Include data quality and availability assumptions for ${
+                context.direction
+            } flow
+- Mention system uptime and performance expectations for ${
+                context.mode
+            } integration
+- Specify business process assumptions related to: "${
+                context.businessUseCase || "integration requirements"
+            }"
+- Include technical assumptions about API availability and functionality
+- Reference module-specific assumptions: ${
+                context.modules.join(", ") || "core modules"
+            }
+- Keep items realistic, verifiable, and specific to this business context`,
 
             error_handling: `
 - Define specific error scenarios for ${context.mode} ${context.direction} flow in bullet points
-- Include retry mechanisms and fallback procedures as bullet points
-- Specify error notification processes in list format
-- Detail validation and rejection handling as bullet points
-- Provide specific error codes and responses in list format`,
+- Include retry mechanisms and fallback procedures for API interactions
+- Specify error notification processes and escalation procedures
+- Detail validation and rejection handling for business rules
+- Provide specific error codes and responses based on integration type
+- Reference business impact of errors and recovery procedures
+- Include monitoring and alerting requirements for system health`,
+
+            apis_used: `
+- Focus on APIs that directly support: "${
+                context.businessUseCase || "integration requirements"
+            }"
+- Include specific endpoint details, HTTP methods, and authentication
+- Reference actual API modules: ${
+                context.modules.join(", ") || "available modules"
+            }
+- Detail request/response structures and data formats
+- Specify API usage patterns for ${context.direction} data flow
+- Include error handling and rate limiting considerations for each API
+- Use bullet points and structured format with technical specificity`,
         };
 
         return (
             requirements[outputKey] ||
-            `Generate appropriate content for ${outputName} using extensive bullet points and list formatting.`
+            `Generate appropriate content for ${outputName} using extensive bullet points and list formatting.
+${contextGuidance.general}
+- Reference business context: "${
+                context.businessUseCase || "integration requirement"
+            }"
+- Include technical details for ${context.mode} ${context.direction} integration
+- Use specific system names: ${context.client} and ${context.vendor}
+- Reference available modules: ${context.modules.join(", ") || "core modules"}`
         );
+    }
+
+    // NEW: Build context-aware guidance for requirements
+    buildContextAwareGuidance(context) {
+        let apiGuidance = "";
+        let general = "";
+
+        if (context.hasApiDocs && context.apiSummary) {
+            apiGuidance = `
+- Leverage available API documentation: ${
+                context.apiSummary.totalEndpoints
+            } endpoints
+- Reference specific authentication method: ${
+                context.apiSummary.authType || "standard"
+            }
+- Include module-specific API details: ${context.apiSummary.availableModules.join(
+                ", "
+            )}`;
+        } else {
+            apiGuidance = `
+- Generate realistic technical details based on ${context.mode} integration patterns
+- Include standard authentication and security measures for enterprise integrations`;
+        }
+
+        if (context.businessUseCase) {
+            general += `\n- Align all content with business use case: "${context.businessUseCase}"`;
+        }
+
+        if (context.businessLogic) {
+            general += `\n- Reference business logic requirements: "${context.businessLogic}"`;
+        }
+
+        return { apiGuidance, general };
     }
 
     // Post-process content to use lists and match style
@@ -1153,8 +1393,15 @@ FORBIDDEN:
         }
     }
 
-    // Enhanced diagram prompt
+    // Enhanced diagram prompt - IMPROVED WITH BUSINESS CONTEXT AND API DETAILS
     buildEnhancedDiagramPrompt(outputName, context, examples, brdData) {
+        // Extract business-specific details for diagram labeling
+        const businessContext = this.extractBusinessContextForDiagram(
+            context,
+            brdData
+        );
+        const apiDetails = this.extractApiDetailsForDiagram(context);
+
         return `
 Generate a Graphviz DOT diagram for "${outputName}" showing ${context.mode} ${
             context.direction
@@ -1165,10 +1412,29 @@ INTEGRATION DETAILS:
 - Direction: ${context.direction}
 - Client: ${context.client}
 - Vendor: ${context.vendor}
-- Business Logic: ${context.businessLogic}
+- Business Use Case: ${context.businessUseCase || "Standard integration"}
+- Business Logic: ${context.businessLogic || "Standard data processing"}
+- Modules: ${context.modules.join(", ") || "Core modules"}
+
+${businessContext}
+
+${apiDetails}
 
 DIAGRAM REQUIREMENTS:
 ${this.getDiagramRequirements(outputName, context)}
+
+BUSINESS-SPECIFIC LABELING INSTRUCTIONS:
+- Use business use case "${
+            context.businessUseCase || "integration"
+        }" to label key processes
+- Include specific business logic steps: "${
+            context.businessLogic || "data processing"
+        }"
+- Reference actual modules in node labels: ${
+            context.modules.join(", ") || "core modules"
+        }
+- Show data flow that supports the business requirement
+- Use meaningful business terminology in edge labels
 
 CRITICAL: Generate ONLY Graphviz DOT notation syntax. Start with "digraph" and use proper DOT syntax.
 
@@ -1176,10 +1442,73 @@ Example structure:
 digraph integration_flow {
     rankdir=LR;
     node [shape=box, style=rounded];
-    // your nodes and edges here
+    // your nodes and edges here with business-specific labels
 }
 
 Generate the complete DOT code now:`.trim();
+    }
+
+    // NEW: Extract business context for diagram labeling
+    extractBusinessContextForDiagram(context, brdData) {
+        let businessDetails = "BUSINESS CONTEXT FOR DIAGRAM:";
+
+        if (context.businessUseCase) {
+            businessDetails += `\n- Primary Business Purpose: ${context.businessUseCase}`;
+            businessDetails += `\n- Label key nodes with business purpose (e.g., "${context.businessUseCase} Processing")`;
+        }
+
+        if (context.businessLogic) {
+            businessDetails += `\n- Business Logic Flow: ${context.businessLogic}`;
+            businessDetails += `\n- Include business logic steps as intermediate nodes`;
+        }
+
+        if (context.modules && context.modules.length > 0) {
+            businessDetails += `\n- Affected Modules: ${context.modules.join(
+                ", "
+            )}`;
+            businessDetails += `\n- Show module-specific processing nodes (e.g., "${context.modules[0]} Module")`;
+        }
+
+        return businessDetails;
+    }
+
+    // NEW: Extract API details for diagram labeling
+    extractApiDetailsForDiagram(context) {
+        if (!context.hasApiDocs || !context.apiSummary) {
+            return `
+API CONTEXT FOR DIAGRAM:
+- No specific API documentation available
+- Use generic API integration patterns
+- Include standard authentication and data exchange nodes`;
+        }
+
+        const apiSummary = context.apiSummary;
+        let apiDetails = `
+API CONTEXT FOR DIAGRAM:
+- Available APIs: ${apiSummary.totalEndpoints} endpoints
+- Authentication: ${apiSummary.authType || "Standard"}
+- Modules: ${apiSummary.availableModules.join(", ")}`;
+
+        if (
+            apiSummary.sampleEndpoints &&
+            apiSummary.sampleEndpoints.length > 0
+        ) {
+            apiDetails += `\n- Key Endpoints to Reference:`;
+            apiSummary.sampleEndpoints.slice(0, 3).forEach((endpoint) => {
+                apiDetails += `\n  • ${endpoint.method} ${endpoint.path}`;
+                if (endpoint.description) {
+                    apiDetails += ` (${endpoint.description})`;
+                }
+            });
+            apiDetails += `\n- Use specific endpoint names in diagram nodes when relevant`;
+        }
+
+        apiDetails += `\n- Include "${
+            apiSummary.authType || "API"
+        } Authentication" node`;
+        apiDetails += `\n- Show API-specific data processing flows`;
+
+        return apiDetails;
     }
 
     // Post-process diagram code to ensure Graphviz format
@@ -1289,7 +1618,7 @@ Generate the complete DOT code now:`.trim();
 }`;
     }
 
-    // Enhanced default diagram with better context - FIXED DATA HANDLING
+    // Enhanced default diagram with better context - IMPROVED WITH BUSINESS KEYWORDS
     getEnhancedDefaultDiagram(context, brdData) {
         const formData = brdData.formData || {};
         const clientLabel = this.extractFieldValue(
@@ -1307,47 +1636,76 @@ Generate the complete DOT code now:`.trim();
         const vendor = vendorLabel.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
         const mode = context.mode.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 
+        // Extract business context for more meaningful labels
+        const businessUseCase = context.businessUseCase || "Integration";
+        const businessLogic = context.businessLogic || "Data Processing";
+        const primaryModule =
+            context.modules.length > 0 ? context.modules[0] : "Core";
+
+        // Determine authentication type from API context or use default
+        const authType = context.apiSummary?.authType || "Bearer Token";
+
+        // Create business-specific node labels
+        const integrationLabel = businessUseCase.includes("Integration")
+            ? businessUseCase
+            : `${businessUseCase} Integration`;
+        const processingLabel = businessLogic.includes("Processing")
+            ? businessLogic
+            : `${businessLogic} Processing`;
+
         return `digraph ${mode}_integration {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
     edge [fontname="Arial", fontsize=9];
     
-    // Define nodes with proper styling
+    // Define nodes with business-specific styling and labels
     ${client} [label="${clientLabel}\\nSystem", fillcolor=lightblue, width=1.5];
-    api [label="Integration\\nAPI Layer", fillcolor=lightgreen, width=1.5];
-    auth [label="Authentication\\n& Security", fillcolor=yellow, width=1.5];
-    transform [label="Data\\nTransformation", fillcolor=orange, width=1.5];
+    api [label="${integrationLabel}\\nAPI Layer", fillcolor=lightgreen, width=1.5];
+    auth [label="${authType}\\nAuthentication", fillcolor=yellow, width=1.5];
+    transform [label="${processingLabel}\\n& Validation", fillcolor=orange, width=1.5];
+    module [label="${primaryModule}\\nModule", fillcolor=lightgray, width=1.5];
     ${vendor} [label="${vendorLabel}\\nSystem", fillcolor=lightcoral, width=1.5];
     
-    // Define the flow based on direction
+    // Define the flow based on direction with business-specific labels
     ${
         context.direction === "Inbound"
             ? `
-    // Inbound flow: Client -> Darwinbox
-    ${client} -> api [label="Send Request", color=blue];
-    api -> auth [label="Authenticate", color=green];
-    auth -> api [label="Validated", color=green];
-    api -> transform [label="Process Data", color=purple];
-    transform -> ${vendor} [label="Store/Update", color=red];
-    ${vendor} -> transform [label="Confirmation", color=red];
-    transform -> api [label="Response", color=purple];
-    api -> ${client} [label="Success/Error", color=blue];`
+    // Inbound flow: ${clientLabel} -> ${vendorLabel}
+    ${client} -> api [label="${businessUseCase}\\nRequest", color=blue];
+    api -> auth [label="Authenticate\\n& Authorize", color=green];
+    auth -> api [label="Access\\nGranted", color=green];
+    api -> transform [label="${businessLogic}\\nExecution", color=purple];
+    transform -> module [label="${primaryModule}\\nUpdate", color=orange];
+    module -> transform [label="Processing\\nComplete", color=orange];
+    transform -> api [label="Business\\nResponse", color=purple];
+    api -> ${client} [label="Success/Error\\nNotification", color=blue];`
             : `
-    // Outbound flow: Darwinbox -> Client
-    ${vendor} -> api [label="Data Request", color=red];
-    api -> auth [label="Authenticate", color=green];
-    auth -> api [label="Validated", color=green];
-    api -> ${client} [label="Fetch Data", color=blue];
-    ${client} -> api [label="Data Response", color=blue];
-    api -> transform [label="Transform", color=purple];
-    transform -> ${vendor} [label="Processed Data", color=red];`
+    // Outbound flow: ${vendorLabel} -> ${clientLabel}
+    ${vendor} -> api [label="${businessUseCase}\\nTrigger", color=red];
+    api -> auth [label="Authenticate\\n& Authorize", color=green];
+    auth -> api [label="Access\\nGranted", color=green];
+    api -> module [label="${primaryModule}\\nData Request", color=orange];
+    module -> transform [label="Data\\nRetrieval", color=orange];
+    transform -> api [label="${businessLogic}\\nProcessing", color=purple];
+    api -> ${client} [label="Processed\\nData", color=blue];
+    ${client} -> api [label="Delivery\\nConfirmation", color=blue];`
     }
     
-    // Add labels for clarity
-    label="${context.mode} ${context.direction} Integration Flow";
+    // Add business context labels for clarity
+    label="${integrationLabel}\\n${context.mode} ${context.direction} Flow";
     labelloc=t;
     fontsize=12;
     fontname="Arial Bold";
+    
+    // Add legend for business context
+    subgraph cluster_legend {
+        label="Business Context";
+        style=dashed;
+        fontsize=10;
+        legend1 [label="Use Case: ${businessUseCase}", shape=plaintext, fontsize=8];
+        legend2 [label="Logic: ${businessLogic}", shape=plaintext, fontsize=8];
+        legend3 [label="Module: ${primaryModule}", shape=plaintext, fontsize=8];
+    }
 }`;
     }
 
@@ -1558,9 +1916,88 @@ Generate the complete DOT code now:`.trim();
         );
     }
 
-    // Build APIs Used specific prompt
+    // Build APIs Used specific prompt - ENHANCED WITH DETAILED API CONTEXT
     buildAPIsUsedPrompt(context, examples, brdData) {
         const exampleText = this.formatExamplesForPrompt(examples);
+
+        // Get detailed API context for this section
+        const detailedApiContext = this.getDetailedApiContext(
+            context,
+            "apis_used"
+        );
+
+        let apiSpecificGuidance = "";
+        if (detailedApiContext && detailedApiContext.endpoints.length > 0) {
+            apiSpecificGuidance = `
+SPECIFIC API DETAILS TO USE:
+${detailedApiContext.endpoints
+    .map((endpoint) => {
+        let endpointDetail = `• ${endpoint.method} ${endpoint.path}`;
+        if (endpoint.description) {
+            endpointDetail += `\n  Description: ${endpoint.description}`;
+        }
+        if (endpoint.module) {
+            endpointDetail += `\n  Module: ${endpoint.module}`;
+        }
+        if (endpoint.parameters && endpoint.parameters.length > 0) {
+            endpointDetail += `\n  Key Parameters: ${endpoint.parameters
+                .slice(0, 3)
+                .map((p) => p.name)
+                .join(", ")}`;
+        }
+        if (endpoint.body && endpoint.body.example) {
+            endpointDetail += `\n  Has Request Body: Yes`;
+        }
+        return endpointDetail;
+    })
+    .join("\n\n")}
+
+AUTHENTICATION DETAILS:
+${
+    detailedApiContext.authentication?.type
+        ? `- Type: ${detailedApiContext.authentication.type}`
+        : "- Standard API authentication required"
+}
+${
+    detailedApiContext.authentication?.description
+        ? `- Details: ${detailedApiContext.authentication.description}`
+        : ""
+}
+
+INSTRUCTIONS FOR API USAGE:
+- Use the SPECIFIC endpoints listed above that are relevant to "${
+                context.businessUseCase || "this integration"
+            }"
+- Include actual endpoint paths, HTTP methods, and key parameters
+- Reference the authentication method specified above
+- Mention request/response data structures if available
+- Focus on APIs that support the ${context.direction.toLowerCase()} data flow
+- Be specific about which APIs handle which business functions`;
+        } else if (context.hasApiDocs) {
+            apiSpecificGuidance = `
+API CONTEXT AVAILABLE:
+- Total APIs available: ${context.apiSummary?.totalEndpoints || 0}
+- Modules: ${
+                context.apiSummary?.availableModules?.join(", ") ||
+                "Not specified"
+            }
+- Authentication: ${context.apiSummary?.authType || "Required"}
+
+INSTRUCTIONS:
+- Reference the available API modules and authentication method
+- Provide realistic API endpoint examples based on the integration type
+- Focus on APIs that would support "${
+                context.businessUseCase || "this integration"
+            }"`;
+        } else {
+            apiSpecificGuidance = `
+NO SPECIFIC API DOCUMENTATION AVAILABLE:
+- Generate realistic API examples based on the integration requirements
+- Focus on standard ${
+                context.mode
+            } patterns for ${context.direction.toLowerCase()} data flow
+- Include typical authentication and data exchange patterns`;
+        }
 
         return `
 Generate "APIs Used" section for a ${context.mode} ${
@@ -1572,46 +2009,99 @@ INTEGRATION CONTEXT:
 - Client: ${context.client}
 - Vendor: ${context.vendor}
 - Business Use Case: ${context.businessUseCase || ""}
+- Modules: ${context.modules.join(", ") || "Core modules"}
+
+${apiSpecificGuidance}
 
 EXAMPLES TO FOLLOW (Match this style and format exactly):
 ${exampleText}
 
-REQUIREMENTS:
-- Provide simple description of what the APIs do
-- Include API details: endpoints, payload, response
-- Use bullet points and structured format
-- Focus on actual API implementation details
-- NO generic content - be specific to this integration
+CRITICAL REQUIREMENTS:
+- Use SPECIFIC API details provided above when available
+- Include actual endpoint paths, methods, and parameters
+- Reference the specific authentication method mentioned
+- Focus on APIs that directly support the business use case: "${
+            context.businessUseCase || "data integration"
+        }"
+- Use bullet points and structured format matching the examples
+- NO generic content - be specific to this integration and available APIs
+- If no specific APIs are available, create realistic examples based on the integration pattern
 
 Generate ONLY the APIs Used content - no explanations.`.trim();
     }
 
-    // Build Technical Specification specific prompt
+    // Build Technical Specification specific prompt - SIMPLIFIED FOR CONCISE OUTPUT
     buildTechnicalSpecificationPrompt(context, examples, brdData) {
         const exampleText = this.formatExamplesForPrompt(examples);
 
+        // Get simplified API context for technical specifications
+        const detailedApiContext = this.getDetailedApiContext(
+            context,
+            "technical_specification"
+        );
+
+        let technicalGuidance = "";
+        if (detailedApiContext && detailedApiContext.endpoints.length > 0) {
+            const primaryEndpoints = detailedApiContext.endpoints.slice(0, 2);
+            technicalGuidance = `
+AVAILABLE API CONTEXT:
+- Key APIs: ${primaryEndpoints
+                .map((ep) => `${ep.method} ${ep.path}`)
+                .join(", ")}
+- Authentication: ${
+                detailedApiContext.authentication?.type ||
+                "Standard API authentication"
+            }
+- Total endpoints available: ${detailedApiContext.totalAvailable}
+
+TECHNICAL GUIDANCE:
+- Focus on high-level architecture and data flow
+- Reference the ${context.mode} integration approach
+- Include authentication method: ${
+                detailedApiContext.authentication?.type || "standard"
+            }
+- Keep content concise - 3-5 bullet points maximum`;
+        } else {
+            technicalGuidance = `
+TECHNICAL GUIDANCE:
+- Focus on high-level ${context.mode} ${context.direction} architecture
+- Describe overall data flow and integration approach
+- Include standard authentication and security considerations
+- Keep content concise - 3-5 bullet points maximum`;
+        }
+
         return `
-Generate "Technical Design Specifications" section for a ${context.mode} ${
-            context.direction
-        } integration between ${context.client} and ${context.vendor}.
+You are generating ONLY the "Technical Design Specifications" section content for a ${
+            context.mode
+        } ${context.direction} integration between ${context.client} and ${
+            context.vendor
+        }.
+
+DO NOT generate a full document, headers, or multiple sections. Generate ONLY the content for this specific section.
 
 INTEGRATION CONTEXT:
 - Type: ${context.mode} ${context.direction}
 - Client: ${context.client}
 - Vendor: ${context.vendor}
 - Business Logic: ${context.businessLogic || ""}
+- Modules: ${context.modules.join(", ") || "Core modules"}
 
-EXAMPLES TO FOLLOW (Match this style and format exactly):
+${technicalGuidance}
+
+EXAMPLES TO FOLLOW (Match this exact style and length):
 ${exampleText}
 
-REQUIREMENTS:
-- Focus on technical architecture and approach
-- Include integration patterns, security, error handling
-- NO data field mappings - this is about technical design
-- Use bullet points and structured format
-- Be specific to the integration methodology
+CRITICAL REQUIREMENTS:
+- Generate ONLY bullet points for the Technical Design Specifications section
+- NO document headers, section numbers, or multiple sections
+- Keep content CONCISE - exactly like examples (3-5 bullet points maximum)
+- Focus on HIGH-LEVEL architecture and data flow overview
+- NO detailed technical breakdowns, API documentation, or data mapping
+- Include integration approach, authentication method, and basic architecture only
+- Use bullet points format exactly matching the examples
+- Be specific to the integration type but keep descriptions brief
 
-Generate ONLY the Technical Design Specifications content - no explanations.`.trim();
+Generate ONLY the Technical Design Specifications section content as bullet points - nothing else.`.trim();
     }
 
     // Get output key for examples mapping
