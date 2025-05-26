@@ -1,44 +1,67 @@
 {
-    "Client": "input",
-    "Vendor": "input",
-    "Version": "input",
-    "Doc Owner": "input",
-    "Functional Lead": "input",
-    "Status": {
-        "type": "dropdown_single",
-        "options": ["DRAFT", "IN REVIEW", "APPROVED", "IN PRODUCTION"]
-    },
-    "Last updated by": "input",
-    "Last date updated": "date",
-    "Client Approved By [Name, Designation]": "input",
-    "Client Approved Date": "date",
-    "Mode of Integration": {
-        "type": "dropdown_multi",
-        "options": ["API - BASED", "STANDARD", "CUSTOM DEV"]
-    },
-    "Modules": {
-        "type": "dropdown_single",
-        "options": [
-            "Core",
-            "Attendance",
-            "Reports",
-            "Payroll",
-            "PMS",
-            "Recruitment"
-        ]
-    },
-    "Direction": {
-        "type": "dropdown_single",
-        "options": ["INBOUND", "OUTBOUND", "BI-DIRECTION"]
-    },
-    "Frequency": "textarea",
-    "Data Load": "input",
-    "Client email for error/success response": "input",
-    "File Format": "input",
-    "File naming convention": "input",
-    "Encryption": "input",
-    "Integration Approach": "textarea",
-    "Employee Selection Criteria": "textarea",
-    "Data Exclusion Logic": "textarea",
-    "Date Format": "input"
+  "Client": "input",
+  "Vendor": "input",
+  "Version": "input",
+  "Doc Owner": "input",
+  "Functional Lead": "input",
+  "Status": {
+    "type": "dropdown_single",
+    "options": [
+      "DRAFT",
+      "IN REVIEW",
+      "APPROVED",
+      "IN PRODUCTION"
+    ]
+  },
+  "Last updated by": "input",
+  "Last date updated": "date",
+  "Client Approved By [Name, Designation]": "input",
+  "Client Approved Date": "date",
+  "Mode of Integration": {
+    "type": "dropdown_multi",
+    "options": [
+      "API - BASED",
+      "STANDARD",
+      "CUSTOM DEV"
+    ]
+  },
+  "Direction": {
+    "type": "dropdown_single",
+    "options": [
+      "INBOUND",
+      "OUTBOUND",
+      "BI-DIRECTION"
+    ]
+  },
+  "Frequency": "textarea",
+  "Data Load": "input",
+  "Client email for error/success response": "input",
+  "File Format": "input",
+  "File naming convention": "input",
+  "Encryption": "input",
+  "Integration Approach": "textarea",
+  "Employee Selection Criteria": "textarea",
+  "Data Exclusion Logic": "textarea",
+  "Modules": {
+    "type": "dropdown_multi",
+    "options": [
+      "Core",
+      "Attendance",
+      "Reports",
+      "Payroll",
+      "PMS",
+      "Recruitment"
+    ]
+  },
+  "Date Format": {
+    "type": "dropdown_single",
+    "options": [
+      "DD/MM/YYYY",
+      "MM/DD/YYYY",
+      "YYYY/MM/DD",
+      "YYYY/DD/MM",
+      "DD/YYYY/MM",
+      "MM/YYYY/DD"
+    ]
+  }
 }

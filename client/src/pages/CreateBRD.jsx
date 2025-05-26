@@ -13,7 +13,8 @@ import {
   PencilIcon,
   DocumentIcon,
   ArrowsPointingOutIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 function CreateBRD() {
@@ -356,20 +357,59 @@ function CreateBRD() {
         </select>
       );
     } else if (typeof type === 'object' && type.type === 'dropdown_multi' && type.options) {
+      const selectedValues = formData[key] || [];
+      
       return (
-        <select
-          multiple
-          value={formData[key] || []}
-          onChange={(e) => {
-            const values = Array.from(e.target.selectedOptions, option => option.value);
-            handleInputChange(key, values);
-          }}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[80px]"
-        >
-          {type.options.map((option, idx) => (
-            <option key={idx} value={option}>{option}</option>
-          ))}
-        </select>
+        <div className="w-full">
+          {/* Display selected options as tags */}
+          {selectedValues.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1">
+              {selectedValues.map((value, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                >
+                  {value}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newValues = selectedValues.filter(v => v !== value);
+                      handleInputChange(key, newValues);
+                    }}
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                  >
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          
+          {/* Dropdown to add more options */}
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value && !selectedValues.includes(e.target.value)) {
+                const newValues = [...selectedValues, e.target.value];
+                handleInputChange(key, newValues);
+              }
+            }}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">
+              {selectedValues.length === 0 ? 'Select options...' : 'Add more options...'}
+            </option>
+            {type.options
+              .filter(option => !selectedValues.includes(option))
+              .map((option, idx) => (
+                <option key={idx} value={option}>{option}</option>
+              ))}
+          </select>
+          
+          {selectedValues.length === 0 && (
+            <p className="text-xs text-gray-500 mt-1">Click the dropdown to select multiple options</p>
+          )}
+        </div>
       );
     }
     
@@ -444,8 +484,8 @@ function CreateBRD() {
               className={`${baseClass} ${selectedTemplate?.id === template.id ? colorClass : 'bg-white hover:bg-gray-50'}`}
               onClick={() => handleTemplateSelect(template)}
             >
-              <h3 className="font-medium text-md mb-1">{template.templateName}</h3>
-              <p className="text-gray-500 text-xs">
+              <h3 className="font-medium text-md mb-1 text-selectable">{template.templateName}</h3>
+              <p className="text-gray-500 text-xs text-selectable">
                 {template.overview.length} fields, {Object.keys(template.outputs).length} outputs
               </p>
               {selectedTemplate?.id === template.id && (
@@ -598,8 +638,8 @@ function CreateBRD() {
                 <div className="space-y-3 mt-4">
                   {/* Show technical fields based on template configuration */}
                   {selectedTemplate.technical.upload_csv && (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                      <label className="text-gray-700 text-sm md:col-span-1">{selectedTemplate.technical.labels.csv}</label>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-start">
+                      <label className="text-gray-700 text-sm md:col-span-1 mt-2">{selectedTemplate.technical.labels.csv}</label>
                       <div className="md:col-span-3">
                         <div className="flex items-center w-full">
                           <input
@@ -610,11 +650,29 @@ function CreateBRD() {
                           />
                         </div>
                         {technicalFiles.csv && (
-                          <div className="flex items-center mt-1">
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
-                            <span className="text-xs text-green-600">
-                              Selected: {technicalFiles.csv.name}
-                            </span>
+                          <div className="flex items-center justify-between mt-1 p-2 bg-green-50 rounded-md border border-green-200">
+                            <div className="flex items-center">
+                              <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                              <span className="text-xs text-green-600">
+                                Selected: {technicalFiles.csv.name}
+                              </span>
+                            </div>
+                            {/* File remove button */}
+                            <button
+                              onClick={() => {
+                                setTechnicalFiles(prev => {
+                                  const updated = {...prev};
+                                  delete updated.csv;
+                                  return updated;
+                                });
+                                setCsvPreviewData(null);
+                                setCsvError(null);
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Remove uploaded file"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
                         
@@ -679,30 +737,34 @@ function CreateBRD() {
                           </div>
                         )}
                       </div>
+                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
+                            const updatedTemplate = { ...selectedTemplate };
+                            updatedTemplate.technical.upload_csv = false;
+                            setSelectedTemplate(updatedTemplate);
+                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.csv;
                               return updated;
                             });
-                            // Clear CSV preview data when file is removed
                             setCsvPreviewData(null);
                             setCsvError(null);
                           }}
-                          className="text-red-500 hover:text-red-700"
-                          title="Remove"
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove field"
                         >
-                          <XMarkIcon className="h-5 w-5" />
+                          <XMarkIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
                   )}
                   
                   {selectedTemplate.technical.upload_image && (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                      <label className="text-gray-700 text-sm md:col-span-1">{selectedTemplate.technical.labels.image}</label>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-start">
+                      <label className="text-gray-700 text-sm md:col-span-1 mt-2">{selectedTemplate.technical.labels.image}</label>
                       <div className="md:col-span-3">
                         <div className="flex items-center w-full">
                           <input
@@ -713,43 +775,64 @@ function CreateBRD() {
                           />
                         </div>
                         {technicalFiles.image && (
-                          <div className="flex items-center mt-1">
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
-                            <span className="text-xs text-green-600">
-                              Selected: {technicalFiles.image.name}
-                            </span>
-                            {/* Preview thumbnail for images */}
-                            <div className="ml-2 h-8 w-8 border rounded overflow-hidden">
-                              <img 
-                                src={URL.createObjectURL(technicalFiles.image)} 
-                                alt="Preview" 
-                                className="h-full w-full object-cover"
-                              />
+                          <div className="flex items-center justify-between mt-1 p-2 bg-green-50 rounded-md border border-green-200">
+                            <div className="flex items-center">
+                              <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                              <span className="text-xs text-green-600">
+                                Selected: {technicalFiles.image.name}
+                              </span>
+                              {/* Preview thumbnail for images */}
+                              <div className="ml-2 h-8 w-8 border rounded overflow-hidden">
+                                <img 
+                                  src={URL.createObjectURL(technicalFiles.image)} 
+                                  alt="Preview" 
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
                             </div>
+                            {/* File remove button */}
+                            <button
+                              onClick={() => {
+                                setTechnicalFiles(prev => {
+                                  const updated = {...prev};
+                                  delete updated.image;
+                                  return updated;
+                                });
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Remove uploaded file"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
                       </div>
+                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
+                            const updatedTemplate = { ...selectedTemplate };
+                            updatedTemplate.technical.upload_image = false;
+                            setSelectedTemplate(updatedTemplate);
+                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.image;
                               return updated;
                             });
                           }}
-                          className="text-red-500 hover:text-red-700"
-                          title="Remove"
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove field"
                         >
-                          <XMarkIcon className="h-5 w-5" />
+                          <XMarkIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
                   )}
                   
                   {selectedTemplate.technical.upload_doc && (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                      <label className="text-gray-700 text-sm md:col-span-1">{selectedTemplate.technical.labels.doc}</label>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-start">
+                      <label className="text-gray-700 text-sm md:col-span-1 mt-2">{selectedTemplate.technical.labels.doc}</label>
                       <div className="md:col-span-3">
                         <div className="flex items-center w-full">
                           <input
@@ -760,27 +843,48 @@ function CreateBRD() {
                           />
                         </div>
                         {technicalFiles.doc && (
-                          <div className="flex items-center mt-1">
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
-                            <span className="text-xs text-green-600">
-                              Selected: {technicalFiles.doc.name}
-                            </span>
+                          <div className="flex items-center justify-between mt-1 p-2 bg-green-50 rounded-md border border-green-200">
+                            <div className="flex items-center">
+                              <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
+                              <span className="text-xs text-green-600">
+                                Selected: {technicalFiles.doc.name}
+                              </span>
+                            </div>
+                            {/* File remove button */}
+                            <button
+                              onClick={() => {
+                                setTechnicalFiles(prev => {
+                                  const updated = {...prev};
+                                  delete updated.doc;
+                                  return updated;
+                                });
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Remove uploaded file"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
                       </div>
+                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
+                            const updatedTemplate = { ...selectedTemplate };
+                            updatedTemplate.technical.upload_doc = false;
+                            setSelectedTemplate(updatedTemplate);
+                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.doc;
                               return updated;
                             });
                           }}
-                          className="text-red-500 hover:text-red-700"
-                          title="Remove"
+                          className="text-red-500 hover:text-red-700 p-1"
+                          title="Remove field"
                         >
-                          <XMarkIcon className="h-5 w-5" />
+                          <XMarkIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -886,22 +990,29 @@ function CreateBRD() {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`border rounded-md p-3 transition-all ${snapshot.isDragging ? 'bg-yellow-50 shadow-lg border-yellow-300' : selectedOutputs[output.id] ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}
+                                className={`border rounded-md p-3 transition-all ${snapshot.isDragging ? 'bg-yellow-50 shadow-lg border-yellow-300 transform rotate-1' : selectedOutputs[output.id] ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'} hover:shadow-md`}
                                 style={{
-                                  ...provided.draggableProps.style,
-                                  cursor: 'grab'
+                                  ...provided.draggableProps.style
                                 }}
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-3">
+                                    {/* Drag Handle */}
+                                    <div 
+                                      {...provided.dragHandleProps}
+                                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-2 -ml-1 touch-none select-none"
+                                      title="Drag to reorder"
+                                      style={{ touchAction: 'none' }}
+                                    >
+                                      <Bars3Icon className="h-4 w-4" />
+                                    </div>
                                     <input
                                       type="checkbox"
                                       checked={selectedOutputs[output.id] || false}
                                       onChange={() => toggleOutput(output.id)}
                                       className="h-4 w-4 text-blue-600 rounded"
                                     />
-                                    <span className="text-sm font-medium">{output.name}</span>
+                                    <span className="text-sm font-medium select-none">{output.name}</span>
                                   </div>
                                   <div className="flex items-center space-x-3">
                                     <div className="flex items-center space-x-1 text-gray-500">
@@ -917,7 +1028,7 @@ function CreateBRD() {
                                     </div>
                                     <button 
                                       onClick={() => removeOutput(output.id)}
-                                      className="text-gray-400 hover:text-red-500"
+                                      className="text-gray-400 hover:text-red-500 p-1"
                                       title="Remove output"
                                     >
                                       <XMarkIcon className="h-4 w-4" />
