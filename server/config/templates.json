@@ -1,0 +1,561 @@
+[
+  {
+    "templateName": "Standard Template 2",
+    "overview": [
+      {
+        "label": "Client",
+        "key": "Client",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Vendor",
+        "key": "Vendor",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Version",
+        "key": "Version",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Doc Owner",
+        "key": "Doc Owner",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Functional Lead",
+        "key": "Functional Lead",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Status",
+        "key": "Status",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DRAFT",
+            "IN REVIEW",
+            "APPROVED",
+            "IN PRODUCTION"
+          ]
+        },
+        "default": "DRAFT"
+      },
+      {
+        "label": "Last updated by",
+        "key": "Last updated by",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Last date updated",
+        "key": "Last date updated",
+        "type": "date",
+        "default": "2025-05-23"
+      },
+      {
+        "label": "Mode of Integration",
+        "key": "Mode of Integration",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "API - BASED",
+            "STANDARD",
+            "CUSTOM DEV"
+          ]
+        },
+        "default": "API - BASED"
+      },
+      {
+        "label": "File Format",
+        "key": "File Format",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Integration Approach",
+        "key": "Integration Approach",
+        "type": "textarea",
+        "default": "HEHEHEHEHEHEH"
+      },
+      {
+        "label": "Employee Selection Criteria",
+        "key": "Employee Selection Criteria",
+        "type": "textarea",
+        "default": ""
+      }
+    ],
+    "technical": {
+      "upload_csv": true,
+      "upload_image": false,
+      "upload_doc": false,
+      "labels": {
+        "csv": "Data Mapping Table",
+        "image": "Upload Image",
+        "doc": "Upload Document"
+      }
+    },
+    "outputs": {
+      "Purpose/Justification": [
+        "content"
+      ],
+      "Flow Diagram": [
+        "image"
+      ],
+      "Data Mapping Table": [
+        "table"
+      ],
+      "Dependencies": [
+        "content"
+      ],
+      "Project Scope": [
+        "content"
+      ],
+      "Test Scenarios": [
+        "content"
+      ],
+      "Diagrams": [
+        "image",
+        "content"
+      ],
+      "Assumptions": [
+        "content"
+      ],
+      "Functional Requirements": [
+        "content"
+      ],
+      "Business Process Flow": [
+        "image",
+        "content"
+      ]
+    },
+    "id": 1747982774112
+  },
+  {
+    "templateName": "Employee Master Data Integration",
+    "overview": [
+      {
+        "label": "Client",
+        "key": "Client",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Vendor",
+        "key": "Vendor",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Version",
+        "key": "Version",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Doc Owner",
+        "key": "Doc Owner",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Functional Lead",
+        "key": "Functional Lead",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Status",
+        "key": "Status",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DRAFT",
+            "IN REVIEW",
+            "APPROVED",
+            "IN PRODUCTION"
+          ]
+        },
+        "default": "DRAFT"
+      },
+      {
+        "label": "Last updated by",
+        "key": "Last updated by",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Last date updated",
+        "key": "Last date updated",
+        "type": "date",
+        "default": "2025-05-25"
+      },
+      {
+        "label": "Client Approved By [Name, Designation]",
+        "key": "Client Approved By [Name, Designation]",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Client Approved Date",
+        "key": "Client Approved Date",
+        "type": "date",
+        "default": "2025-05-25"
+      },
+      {
+        "label": "Mode of Integration",
+        "key": "Mode of Integration",
+        "type": {
+          "type": "dropdown_multi",
+          "options": [
+            "API - BASED",
+            "STANDARD",
+            "CUSTOM DEV"
+          ]
+        },
+        "default": []
+      },
+      {
+        "label": "Modules",
+        "key": "Modules",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "Core",
+            "Reports",
+            "Payroll",
+            "PMS",
+            "Recruitment"
+          ]
+        },
+        "default": "Core"
+      },
+      {
+        "label": "Direction",
+        "key": "Direction",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "INBOUND",
+            "OUTBOUND",
+            "BI-DIRECTION"
+          ]
+        },
+        "default": "INBOUND"
+      },
+      {
+        "label": "Frequency",
+        "key": "Frequency",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Data Load",
+        "key": "Data Load",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Client email for error/success response",
+        "key": "Client email for error/success response",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "File Format",
+        "key": "File Format",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "File naming convention",
+        "key": "File naming convention",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Encryption",
+        "key": "Encryption",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Integration Approach",
+        "key": "Integration Approach",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Employee Selection Criteria",
+        "key": "Employee Selection Criteria",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Data Exclusion Logic",
+        "key": "Data Exclusion Logic",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Date Format",
+        "key": "Date Format",
+        "type": {
+          "type": "dropdown_multi",
+          "options": [
+            "MM/DD/YYYY",
+            "DD/MM/YYYY",
+            "MM/YYYY/DD"
+          ]
+        },
+        "default": []
+      }
+    ],
+    "technical": {
+      "upload_csv": true,
+      "upload_image": false,
+      "upload_doc": false,
+      "labels": {
+        "csv": "Field Mapping",
+        "image": "Upload Image",
+        "doc": "Upload Document"
+      }
+    },
+    "outputs": {
+      "Purpose/Justification": [
+        "content"
+      ],
+      "Integration Description and Overview": [
+        "content"
+      ],
+      "Flow Diagram": [
+        "image"
+      ],
+      "Technical Design Specifications": [
+        "content"
+      ],
+      "Data Mapping Table": [
+        "table"
+      ],
+      "Assumptions": [
+        "content"
+      ],
+      "Dependencies": [
+        "content"
+      ],
+      "Functional Requirements": [
+        "content"
+      ],
+      "Business Process Flow": [
+        "image",
+        "content"
+      ],
+      "Test Scenarios": [
+        "content"
+      ],
+      "Diagrams": [
+        "image",
+        "content"
+      ]
+    },
+    "id": 1748157638992
+  },
+  {
+    "templateName": "Attendance Inbound Integration",
+    "overview": [
+      {
+        "label": "Client",
+        "key": "Client",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Vendor",
+        "key": "Vendor",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Version",
+        "key": "Version",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Doc Owner",
+        "key": "Doc Owner",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Functional Lead",
+        "key": "Functional Lead",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Status",
+        "key": "Status",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DRAFT",
+            "IN REVIEW",
+            "APPROVED",
+            "IN PRODUCTION"
+          ]
+        },
+        "default": "DRAFT"
+      },
+      {
+        "label": "Last updated by",
+        "key": "Last updated by",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Last date updated",
+        "key": "Last date updated",
+        "type": "date",
+        "default": "2025-05-25"
+      },
+      {
+        "label": "Client Approved By [Name, Designation]",
+        "key": "Client Approved By [Name, Designation]",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Client Approved Date",
+        "key": "Client Approved Date",
+        "type": "date",
+        "default": "2025-05-25"
+      },
+      {
+        "label": "Mode of Integration",
+        "key": "Mode of Integration",
+        "type": {
+          "type": "dropdown_multi",
+          "options": [
+            "API - BASED",
+            "STANDARD",
+            "CUSTOM DEV"
+          ]
+        },
+        "default": []
+      },
+      {
+        "label": "Modules",
+        "key": "Modules",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "Core",
+            "Attendance",
+            "Reports",
+            "Payroll",
+            "PMS",
+            "Recruitment"
+          ]
+        },
+        "default": "Core"
+      },
+      {
+        "label": "Direction",
+        "key": "Direction",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "INBOUND",
+            "OUTBOUND",
+            "BI-DIRECTION"
+          ]
+        },
+        "default": "INBOUND"
+      },
+      {
+        "label": "Frequency",
+        "key": "Frequency",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Data Load",
+        "key": "Data Load",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Client email for error/success response",
+        "key": "Client email for error/success response",
+        "type": "input",
+        "default": ""
+      },
+      {
+        "label": "Employee Selection Criteria",
+        "key": "Employee Selection Criteria",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Data Exclusion Logic",
+        "key": "Data Exclusion Logic",
+        "type": "textarea",
+        "default": ""
+      },
+      {
+        "label": "Date Format",
+        "key": "Date Format",
+        "type": "input",
+        "default": ""
+      }
+    ],
+    "technical": {
+      "upload_csv": true,
+      "upload_image": false,
+      "upload_doc": false,
+      "labels": {
+        "csv": "Data Mapping Table",
+        "image": "Upload Image",
+        "doc": "Upload Document"
+      }
+    },
+    "outputs": {
+      "Purpose/Justification": [
+        "content"
+      ],
+      "Integration Description and Overview": [
+        "content"
+      ],
+      "Technical Design Specifications": [
+        "content"
+      ],
+      "Data Mapping Table": [
+        "table"
+      ],
+      "Assumptions": [
+        "content"
+      ],
+      "Dependencies": [
+        "content"
+      ],
+      "APIs Used": [
+        "table",
+        "content"
+      ],
+      "Test Cases": [
+        "content"
+      ],
+      "Data Flow Diagram": [
+        "image",
+        "content"
+      ]
+    },
+    "id": 1748172636585
+  }
+]

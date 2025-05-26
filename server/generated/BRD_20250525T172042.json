@@ -1,0 +1,271 @@
+{
+  "title": "TS-0525 Shoppers Stop :: Darwinbox - this is to update the biometric data for them for payroll and performance purpose Integration BRD",
+  "detailsTable": {
+    "Client": "Shoppers Stop",
+    "Vendor": "Darwinbox",
+    "Version": "2.0",
+    "Doc Owner": "@Integration Team",
+    "Functional Lead": "@Technical Lead",
+    "Status": "IN REVIEW [DRAFT / IN REVIEW / APPROVED / IN PRODUCTION]",
+    "Last updated by": "@Integration Team",
+    "Last date updated": "05-25-2025",
+    "Client Approved By [Name, Designation]": "",
+    "Client Approved Date": "",
+    "Mode of Integration": "API - BASED [API-BASED / STANDARD / CUSTOM DEV]",
+    "Modules": "Attendance",
+    "Direction": "INBOUND [INBOUND / OUTBOUND / BI-DIRECTION]",
+    "Frequency": "Monthly, Last Thursday, 6pm",
+    "Data Load": "Incremental",
+    "Client email for communication": "integration@client.com"
+  },
+  "sections": {
+    "Purpose/Justification": {
+      "type": "text",
+      "content": "*   This document outlines the business requirements defined by Shoppers Stop and technical details associated with the Attendance integration using API approach defined by the Darwinbox Integrations team to have an updated integration in place between Darwinbox and Shoppers Stop.\n*   The purpose of this integration is to update employee biometric data in Darwinbox from Shoppers Stop for accurate payroll processing and performance management."
+    },
+    "Integration Description and Overview": {
+      "type": "text",
+      "content": "Integration Description and Overview\n*   This is an API-based inbound integration between Shoppers Stop and Darwinbox.\n*   Shoppers Stop will consume Darwinbox APIs to push employee biometric data updates.\n*   The integration aims to update biometric data for payroll and performance purposes within Darwinbox.\n*   The scope is limited to 10,000 employees, with an estimated maximum of 100,000 attendance punches pushed daily.\n*   Data flow is inbound, with data originating from Shoppers Stop and flowing into Darwinbox.\n*   This integration focuses on the Attendance module within Darwinbox.\nAPI-Based Approach"
+    },
+    "Technical Design Specifications": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Data Mapping Table": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Assumptions": {
+      "type": "text",
+      "content": "**Assumptions**\n*   Shoppers Stop will provide accurate and complete employee data.\n*   Shoppers Stop will ensure the Employee IDs sent in the attendance punches payload are valid and exist in Darwinbox.\n*   Shoppers Stop will adhere to the Darwinbox API specifications and data format requirements.\n*   Shoppers Stop will handle any data transformations required to map their data to the Darwinbox data model.\n*   Darwinbox API uptime will be maintained at agreed-upon service levels.\n*   Shoppers Stop will manage and resolve any network connectivity issues on their end.\n*   Shoppers Stop will implement appropriate error handling and retry mechanisms on their end.\n*   Shoppers Stop will provide necessary authentication credentials for accessing the Darwinbox API.\n*   Employee shift, policy, and week-off assignments are pre-configured in Darwinbox before attendance punches are pushed.\n*   The volume of attendance punches pushed daily will not exceed the agreed-upon limit of 100,000."
+    },
+    "Dependencies": {
+      "type": "text",
+      "content": "- Darwinbox API access must be provisioned for Shoppers Stop.\n    - API endpoint details and documentation will be provided.\n    - Shoppers Stop's IP address(es) must be whitelisted.\n- Authentication credentials must be established and securely shared.\n    - API Key or OAuth 2.0 credentials will be used.\n    - Secure key exchange mechanism to be defined.\n- The Darwinbox Attendance module must be configured.\n    - Attendance policies must be defined."
+    },
+    "APIs Used": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Test Cases": {
+      "type": "text",
+      "content": "**Test Cases: Attendance Data Integration (Shoppers Stop to Darwinbox)**\n\n*   **Objective:** Validate the successful integration of attendance data from Shoppers Stop to Darwinbox via API.\n\n*   **General Test Case Requirements:**\n\n    *   All test cases must be executed in a test environment mirroring production.\n    *   Data validation should include checks for data type, format, and range.\n    *   Error handling and logging must be verified for all scenarios.\n    *   Performance testing should ensure acceptable response times.\n\n*   **Test Case Group 1: Successful Data Transfer**\n\n    *   **TC_1.1: Single Employee Punch In:**\n        *   Scenario: A single employee records a punch-in time.\n        *   Expected Result: Darwinbox Attendance module reflects the punch-in time accurately.\n    *   **TC_1.2: Single Employee Punch Out:**\n        *   Scenario: A single employee records a punch-out time.\n        *   Expected Result: Darwinbox Attendance module reflects the punch-out time accurately.\n    *   **TC_1.3: Multiple Punches for Single Employee:**\n        *   Scenario: An employee records multiple punches (e.g., in, out, in, out) in a day.\n        *   Expected Result: All punches are accurately recorded in Darwinbox.\n    *   **TC_1.4: Data Integrity Check:**\n        *   Scenario: Verify data integrity after transfer.\n        *   Expected Result: No data corruption or loss during transfer.\n\n*   **Test Case Group 2: Error Handling**\n\n    *   **TC_2.1: Invalid Employee ID:**\n        *   Scenario: Shoppers Stop sends attendance data with an invalid employee ID.\n        *   Expected Result: Darwinbox rejects the data and logs an error.\n    *   **TC_2.2: Invalid Date/Time Format:**\n        *   Scenario: Shoppers Stop sends attendance data with an invalid date/time format.\n        *   Expected Result: Darwinbox rejects the data and logs an error.\n    *   **TC_2.3: Missing Required Fields:**\n        *   Scenario: Shoppers Stop sends attendance data with missing required fields.\n        *   Expected Result: Darwinbox rejects the data and logs an error.\n    *   **TC_2.4: Duplicate Punch Records:**\n        *   Scenario: Shoppers Stop sends duplicate attendance records.\n        *   Expected Result: Darwinbox handles the duplicate records appropriately (either rejects or updates based on configuration).\n    *   **TC_2.5: API Endpoint Unavailable:**\n        *   Scenario: Darwinbox API endpoint is temporarily unavailable.\n        *   Expected Result: Shoppers Stop implements retry mechanism and logs the error.\n\n*   **Test Case Group 3: Performance Testing**\n\n    *   **TC_3.1: Load Test (10,000 Employees):**\n        *   Scenario: Simulate 10,000 employees sending attendance data within a short period.\n        *   Expected Result: Darwinbox API response time remains within acceptable limits.\n    *   **TC_3.2: Stress Test (100,000 Punches):**\n        *   Scenario: Simulate 100,000 attendance punches being pushed in a day.\n        *   Expected Result: Darwinbox system performance remains stable.\n\n*   **Test Case Group 4: Data Mapping Validation**\n\n    *   **TC_4.1: Employee ID Mapping:**\n        *   Scenario: Verify the correct mapping of Employee IDs between Shoppers Stop and Darwinbox.\n        *   Expected Result: Employee IDs are accurately mapped.\n    *   **TC_4.2: Date/Time Field Mapping:**\n        *   Scenario: Verify the correct mapping of date/time fields.\n        *   Expected Result: Date/time fields are accurately mapped.\n\n*   **Test Case Group 5: Security**\n\n    *   **TC_5.1: Authentication:**\n        *   Scenario: Verify that Shoppers Stop authenticates correctly with the Darwinbox API.\n        *   Expected Result: Only authorized requests are processed.\n    *   **TC_5.2: Data Encryption:**\n        *   Scenario: Verify that data is encrypted during transmission.\n        *   Expected Result: Data is securely transmitted between systems."
+    },
+    "Data Flow Diagram": {
+      "type": "graphviz",
+      "code": "digraph inbound_api_integration {\n    rankdir=LR;\n    node [shape=box, style=rounded, fontname=\"Arial\", fontsize=10];\n\n    subgraph cluster_shoppersstop {\n        label = \"Shoppers Stop\";\n        style = filled;\n        color = \"#E6E6FA\";\n\n        shoppersstop_system [label=\"Shoppers Stop System\", shape=cylinder];\n        api_gateway [label=\"API Gateway\", shape=box];\n        data_validation [label=\"Data Validation\", shape=box];\n        data_transformation [label=\"Data Transformation\", shape=box];\n        custom_logic [label=\"Custom Logic\\n(Attendance Punch Processing)\", shape=box];\n    }\n\n    subgraph cluster_darwinbox {\n        label = \"Darwinbox\";\n        style = filled;\n        color = \"#F0FFF0\";\n\n        darwinbox_api [label=\"Darwinbox API\\n(Attendance Punches)\", shape=cylinder];\n    }\n\n    // Edges\n    darwinbox_api -> api_gateway [label=\"Push Attendance Punches\", style=bold];\n    api_gateway -> data_validation [label=\"Validate Data\", style=dashed];\n    data_validation -> data_transformation [label=\"Transform Data\", style=dashed];\n    data_transformation -> custom_logic [label=\"Apply Custom Logic\", style=dashed];\n    custom_logic -> shoppersstop_system [label=\"Store Attendance Data\", style=bold];\n\n    // Styling\n    edge [fontname=\"Arial\", fontsize=8];\n    node [fontname=\"Arial\", fontsize=10];\n\n    // Metadata\n    graph [\n        label = \"API-Based Inbound Integration\\nClient: Shoppers Stop, Vendor: Darwinbox\\nEmployee Strength: 10,000\\nMax Attendance Punches/Day: 100,000\",\n        labelloc = b,\n        fontsize = 12,\n        fontname = \"Arial\"\n    ];\n}\n",
+      "format": "dot"
+    }
+  },
+  "metadata": {
+    "generatedAt": "2025-05-25T17:20:42.944Z",
+    "totalSections": 9
+  }
+}

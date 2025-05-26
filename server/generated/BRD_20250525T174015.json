@@ -1,0 +1,283 @@
+{
+  "title": "TS-0525 Shoppers Stop :: Darwinbox - this is to update the biometric data for them for payroll and performance purpose Integration BRD",
+  "detailsTable": {
+    "Client": "Shoppers Stop",
+    "Vendor": "Darwinbox",
+    "Version": "2.0",
+    "Doc Owner": "@Integration Team",
+    "Functional Lead": "@Technical Lead",
+    "Status": "IN REVIEW [DRAFT / IN REVIEW / APPROVED / IN PRODUCTION]",
+    "Last updated by": "@Integration Team",
+    "Last date updated": "05-25-2025",
+    "Client Approved By [Name, Designation]": "",
+    "Client Approved Date": "",
+    "Mode of Integration": "API - BASED [API-BASED / STANDARD / CUSTOM DEV]",
+    "Modules": "Attendance",
+    "Direction": "INBOUND [INBOUND / OUTBOUND / BI-DIRECTION]",
+    "Frequency": "Monthly, Last Thursday, 6pm",
+    "Data Load": "Incremental",
+    "Client email for communication": "integration@client.com"
+  },
+  "sections": {
+    "Purpose/Justification": {
+      "type": "text",
+      "content": "\n• This integration addresses the business requirement for inbound data synchronization between Shoppers Stop and Darwinbox\n• The API - BASED approach ensures reliable and secure data exchange\n• Implementation supports business process automation and data consistency requirements",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    },
+    "Integration Description and Overview": {
+      "type": "text",
+      "content": "\n• API - BASED integration between Shoppers Stop and Darwinbox systems\n• INBOUND data flow ensures proper information exchange\n• Integration supports real-time data synchronization and processing\n• Implementation follows enterprise security and compliance standards\n• System architecture supports scalable and maintainable operations",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    },
+    "Technical Design Specifications": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Data Mapping Table": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Assumptions": {
+      "type": "text",
+      "content": "\n• Shoppers Stop system provides reliable data access and availability\n• Darwinbox system maintains consistent API functionality\n• Network infrastructure supports required data transfer volumes\n• Business processes accommodate integration timing requirements\n• Support teams are available for troubleshooting and maintenance",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    },
+    "Dependencies": {
+      "type": "text",
+      "content": "\n• Shoppers Stop system access and API credentials\n• Darwinbox system integration endpoints and documentation\n• Network connectivity and security configurations\n• Data mapping and transformation specifications\n• Testing and validation environment setup",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    },
+    "APIs Used": {
+      "type": "table",
+      "headers": [
+        "Field Name",
+        "Data Type",
+        "Required",
+        "Description"
+      ],
+      "data": [
+        [
+          "Employee ID",
+          "string",
+          "Yes",
+          "Unique employee identifier"
+        ],
+        [
+          "First Name",
+          "string",
+          "Yes",
+          "Employee first name"
+        ],
+        [
+          "Last Name",
+          "string",
+          "Yes",
+          "Employee last name"
+        ],
+        [
+          "Email",
+          "email",
+          "Yes",
+          "Work email address"
+        ],
+        [
+          "Department",
+          "string",
+          "No",
+          "Department name"
+        ],
+        [
+          "Position",
+          "string",
+          "No",
+          "Job title or position"
+        ],
+        [
+          "Start Date",
+          "date",
+          "Yes",
+          "Employment start date"
+        ],
+        [
+          "Manager ID",
+          "string",
+          "No",
+          "Reporting manager identifier"
+        ]
+      ],
+      "validationRules": [
+        "All required fields must have non-null values",
+        "Email fields must follow standard email format",
+        "Date fields must be in YYYY-MM-DD format",
+        "Numeric fields must contain valid numbers only",
+        "Data must comply with darwinbox system requirements"
+      ],
+      "transformationNotes": [
+        "Data transformation for API - BASED INBOUND integration",
+        "Source: Shoppers Stop System",
+        "Target: darwinbox System",
+        "Field mapping and validation applied",
+        "Error handling for invalid data implemented"
+      ]
+    },
+    "Test Cases": {
+      "type": "text",
+      "content": "\n• Integration requirement for Test Cases\n• API - BASED approach between Shoppers Stop and Darwinbox\n• INBOUND data flow implementation\n• Standard enterprise integration practices applied",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    },
+    "Data Flow Diagram": {
+      "type": "graphviz",
+      "code": "digraph apibased_integration {\n    rankdir=LR;\n    node [shape=box, style=\"rounded,filled\", fontname=\"Arial\", fontsize=10];\n    edge [fontname=\"Arial\", fontsize=9];\n    \n    // Define nodes with proper styling\n    shoppersstop [label=\"Shoppers Stop\\nSystem\", fillcolor=lightblue, width=1.5];\n    api [label=\"Integration\\nAPI Layer\", fillcolor=lightgreen, width=1.5];\n    auth [label=\"Authentication\\n& Security\", fillcolor=yellow, width=1.5];\n    transform [label=\"Data\\nTransformation\", fillcolor=orange, width=1.5];\n    darwinbox [label=\"Darwinbox\\nSystem\", fillcolor=lightcoral, width=1.5];\n    \n    // Define the flow based on direction\n    \n    // Outbound flow: Darwinbox -> Client\n    darwinbox -> api [label=\"Data Request\", color=red];\n    api -> auth [label=\"Authenticate\", color=green];\n    auth -> api [label=\"Validated\", color=green];\n    api -> shoppersstop [label=\"Fetch Data\", color=blue];\n    shoppersstop -> api [label=\"Data Response\", color=blue];\n    api -> transform [label=\"Transform\", color=purple];\n    transform -> darwinbox [label=\"Processed Data\", color=red];\n    \n    // Add labels for clarity\n    label=\"API - BASED INBOUND Integration Flow\";\n    labelloc=t;\n    fontsize=12;\n    fontname=\"Arial Bold\";\n}",
+      "format": "dot",
+      "error": "[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent: fetch failed",
+      "fallback": true
+    }
+  },
+  "metadata": {
+    "generatedAt": "2025-05-25T17:40:15.028Z",
+    "totalSections": 9
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "apis": [
+    {
+      "id": "detailed_1",
+      "name": "Fetch Employee Data (Full Load) V1",
+      "method": "POST",
+      "url": "https://{{subdomain}}.darwinbox.in/masterapi/employee",
+      "path": "/masterapi/employee",
+      "description": "Fetch employee data with full load",
+      "module": "Employee Management",
+      "parameters": [
+        {
+          "name": "Uid",
+          "type": "string",
+          "description": "Unique client specific key provided by Darwinbox",
+          "required": true
+        },
+        {
+          "name": "timestamp",
+          "type": "int64",
+          "description": "Current 10-digit epoch timestamp",
+          "required": true
+        },
+        {
+          "name": "datasetKey",
+          "type": "string",
+          "description": "Unique dataset key provided by Darwinbox",
+          "required": true
+        },
+        {
+          "name": "hash",
+          "type": "string",
+          "description": "Hash value generated",
+          "required": true
+        }
+      ],
+      "body": {
+        "mode": "json",
+        "example": {
+          "Uid": "TYru14S0MEKL",
+          "timestamp": "1520426507",
+          "datasetKey": "de3d5bSec33fe3f5c6d7cd739f35e19ef1e52310y2c8ee4d7d5bSef35134909e53146e59a",
+          "hash": "96ec1217c5ac6decc6c9d6c74935e5f2b1cc394e7ddce9a5df3d1ef0734b3589"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "auth": {
+        "type": "bearer",
+        "required": true
+      },
+      "tags": [
+        "employee",
+        "fetch",
+        "load"
+      ],
+      "source": "detailed_fallback"
+    },
+    {
+      "id": "detailed_2",
+      "name": "Add Employee",
+      "method": "POST",
+      "url": "https://{{subdomain}}.darwinbox.in/importapi/add",
+      "path": "/importapi/add",
+      "description": "Add a new employee to the system",
+      "module": "Employee Management",
+      "parameters": [
+        {
+          "name": "firstName",
+          "type": "string",
+          "description": "Employee first name",
+          "required": true
+        },
+        {
+          "name": "lastName",
+          "type": "string",
+          "description": "Employee last name",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "description": "Employee email address",
+          "required": true
+        },
+        {
+          "name": "employeeId",
+          "type": "string",
+          "description": "Unique employee identifier",
+          "required": true
+        }
+      ],
+      "body": {
+        "mode": "json",
+        "example": {
+          "firstName": "John",
+          "lastName": "Doe",
+          "email": "john.doe@company.com",
+          "employeeId": "EMP001"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "auth": {
+        "type": "bearer",
+        "required": true
+      },
+      "tags": [
+        "employee",
+        "add"
+      ],
+      "source": "detailed_fallback"
+    },
+    {
+      "id": "detailed_3",
+      "name": "Fetch Attendance Data",
+      "method": "POST",
+      "url": "https://{{subdomain}}.darwinbox.in/attendanceDataApi/timesheetdatewise",
+      "path": "/attendanceDataApi/timesheetdatewise",
+      "description": "Fetch employee attendance timesheet data",
+      "module": "Attendance",
+      "parameters": [
+        {
+          "name": "employeeId",
+          "type": "string",
+          "description": "Employee identifier",
+          "required": true
+        },
+        {
+          "name": "fromDate",
+          "type": "string",
+          "description": "Start date (YYYY-MM-DD)",
+          "required": true
+        },
+        {
+          "name": "toDate",
+          "type": "string",
+          "description": "End date (YYYY-MM-DD)",
+          "required": true
+        }
+      ],
+      "body": {
+        "mode": "json",
+        "example": {
+          "employeeId": "EMP001",
+          "fromDate": "2024-01-01",
+          "toDate": "2024-01-31"
+        }
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "auth": {
+        "type": "bearer",
+        "required": true
+      },
+      "tags": [
+        "attendance",
+        "timesheet",
+        "fetch"
+      ],
+      "source": "detailed_fallback"
+    }
+  ],
+  "scrapedAt": "2025-05-25T09:24:21.828Z",
+  "source": "detailed_fallback",
+  "url": "https://web.postman.co/workspace/darwinbox-integration-team-s-public-workspace~darwinbox-integration-team-s-public-workspace/documentation/ej5mbuh",
+  "totalCount": 3,
+  "modules": [
+    "Employee Management",
+    "Attendance"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "Purpose/Justification": [
+    "content"
+  ],
+  "Integration Description and Overview": [
+    "content"
+  ],
+  "Technical Design Specifications": [
+    "content"
+  ],
+  "Data Mapping Table": [
+    "table"
+  ],
+  "Assumptions": [
+    "content"
+  ],
+  "Dependencies": [
+    "content"
+  ],
+  "APIs Used": [
+    "table",
+    "content"
+  ],
+  "Test Cases": [
+    "content"
+  ],
+  "Data Flow Diagram": [
+    "image",
+    "content"
+  ]
+}
