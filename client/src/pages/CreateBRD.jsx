@@ -14,8 +14,19 @@ import {
   DocumentIcon,
   ArrowsPointingOutIcon,
   ExclamationTriangleIcon,
-  Bars3Icon
+  ChevronUpDownIcon,
+  LockClosedIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
+import axios from 'axios'; // Import axios
+
+// Define sections for the multi-step form
+const sections = [
+  { key: 'overview', label: 'Overview', step: 1 },
+  { key: 'technical', label: 'Technical', step: 2 },
+  { key: 'business', label: 'Business', step: 3 },
+  { key: 'outputs', label: 'Outputs', step: 4 },
+];
 
 function CreateBRD() {
   const navigate = useNavigate();
@@ -24,7 +35,10 @@ function CreateBRD() {
   const [formData, setFormData] = useState({});
   const [businessUseCase, setBusinessUseCase] = useState('');
   const [businessLogic, setBusinessLogic] = useState('');
-  const [activeSection, setActiveSection] = useState('overview');
+  
+  const [activeSectionKey, setActiveSectionKey] = useState(sections[0].key);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
   const [technicalFiles, setTechnicalFiles] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [showOutputDropdown, setShowOutputDropdown] = useState(false);
@@ -32,7 +46,6 @@ function CreateBRD() {
   const [selectedTechnicalType, setSelectedTechnicalType] = useState(null);
   const [newTechnicalLabel, setNewTechnicalLabel] = useState('');
   
-  // CSV preview state
   const [csvPreviewData, setCsvPreviewData] = useState(null);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState(null);
@@ -41,7 +54,12 @@ function CreateBRD() {
   const [selectedOutputs, setSelectedOutputs] = useState({});
   const [availableOutputs, setAvailableOutputs] = useState({});
 
-  // Card colors
+  const [movingOutput, setMovingOutput] = useState(null);
+
+  const [aiApiKeys, setAiApiKeys] = useState([]);
+  const [selectedApiKeyId, setSelectedApiKeyId] = useState('');
+  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
+
   const cardColors = [
     'bg-blue-50 border-blue-200 text-blue-800',
     'bg-purple-50 border-purple-200 text-purple-800',
@@ -49,31 +67,45 @@ function CreateBRD() {
     'bg-orange-50 border-orange-200 text-orange-800'
   ];
 
-  // Available technical field types
   const technicalFieldTypes = [
     { id: 'csv', label: 'CSV Table', icon: <TableCellsIcon className="h-4 w-4" /> },
     { id: 'image', label: 'Image Upload', icon: <PhotoIcon className="h-4 w-4" /> },
     { id: 'doc', label: 'Document Upload', icon: <DocumentIcon className="h-4 w-4" /> }
   ];
 
-  // Load templates and outputs from server API
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch templates
         const templatesResponse = await fetch('http://localhost:5000/api/config/templates');
         if (templatesResponse.ok) {
           const templatesData = await templatesResponse.json();
           setTemplates(templatesData);
         }
         
-        // Fetch available outputs
         const outputsResponse = await fetch('http://localhost:5000/api/config/outputs');
         if (outputsResponse.ok) {
           const outputsData = await outputsResponse.json();
           setAvailableOutputs(outputsData);
         }
+
+        setLoadingApiKeys(true);
+        try {
+          const apiKeysResponse = await axios.get('/api/config/apikeys');
+          const activeApiKeys = apiKeysResponse.data || [];
+          setAiApiKeys(activeApiKeys);
+          const defaultKey = activeApiKeys.find(key => key.isDefault);
+          if (defaultKey) {
+            setSelectedApiKeyId(defaultKey.id);
+          } else if (activeApiKeys.length > 0) {
+            setSelectedApiKeyId(activeApiKeys[0].id);
+          }
+        } catch (error) {
+          console.error('Error fetching AI API Keys:', error);
+        } finally {
+          setLoadingApiKeys(false);
+        }
+
       } catch (error) {
         console.error('Error loading data from server:', error);
       } finally {
@@ -87,14 +119,12 @@ function CreateBRD() {
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
     
-    // Initialize form data with default values
     const initialData = {};
     template.overview.forEach(input => {
       initialData[input.key] = input.default || '';
     });
     setFormData(initialData);
     
-    // Initialize outputs
     const outputList = Object.keys(template.outputs).map(key => ({
       id: key,
       name: key,
@@ -109,11 +139,10 @@ function CreateBRD() {
     });
     setSelectedOutputs(outputSelections);
     
-    // Reset technical files
     setTechnicalFiles({});
     
-    // Set active section to overview
-    setActiveSection('overview');
+    setActiveSectionKey(sections[0].key);
+    setCurrentStepIndex(0);
   };
 
   const handleInputChange = (key, value) => {
@@ -123,35 +152,13 @@ function CreateBRD() {
     }));
   };
 
-  const validateInputNames = () => {
-    if (!selectedTemplate) return true;
-    
-    // Check for duplicates in overview inputs
-    const inputKeys = selectedTemplate.overview.map(input => input.key);
-    const uniqueKeys = new Set(inputKeys);
-    
-    if (uniqueKeys.size !== inputKeys.length) {
-      alert("Error: Duplicate input names found in template. Each input must have a unique name.");
-      return false;
+  const handleBusinessInputChange = (fieldName, value) => {
+    if (fieldName === 'businessUseCase') {
+      setBusinessUseCase(value);
     }
-    
-    return true;
-  };
-
-  const validateOutputNames = () => {
-    // Check for duplicates in selected outputs
-    const outputNames = outputs
-      .filter(output => selectedOutputs[output.id])
-      .map(output => output.name);
-    
-    const uniqueNames = new Set(outputNames);
-    
-    if (uniqueNames.size !== outputNames.length) {
-      alert("Error: Duplicate output names found. Each output must have a unique name.");
-      return false;
+    if (fieldName === 'businessLogic') {
+      setBusinessLogic(value);
     }
-    
-    return true;
   };
 
   const convertCsvToTable = async (file) => {
@@ -192,7 +199,6 @@ function CreateBRD() {
       [type]: file
     }));
 
-    // If it's a CSV file, convert it to table data
     if (type === 'csv') {
       convertCsvToTable(file);
     }
@@ -208,6 +214,67 @@ function CreateBRD() {
     setOutputs(items);
   };
 
+  const handleNextClick = () => {
+    const currentSectionIndex = sections.findIndex(s => s.key === activeSectionKey);
+
+    if (currentSectionIndex < sections.length - 1) {
+      const nextSection = sections[currentSectionIndex + 1];
+      setActiveSectionKey(nextSection.key);
+      setCurrentStepIndex(Math.max(currentStepIndex, currentSectionIndex + 1));
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSectionClick = (targetSectionKey) => {
+    const targetSectionIndex = sections.findIndex(s => s.key === targetSectionKey);
+    setActiveSectionKey(targetSectionKey);
+    setCurrentStepIndex(Math.max(currentStepIndex, targetSectionIndex));
+  };
+
+  const handleOutputMoveKeyDown = (e, outputId) => {
+    if (movingOutput !== outputId) return;
+
+    e.preventDefault();
+    const currentIndex = outputs.findIndex(o => o.id === outputId);
+    let newIndex = currentIndex;
+
+    if (e.key === 'ArrowUp') {
+      newIndex = Math.max(0, currentIndex - 1);
+    } else if (e.key === 'ArrowDown') {
+      newIndex = Math.min(outputs.length - 1, currentIndex + 1);
+    } else if (e.key === 'Enter' || e.key === 'Escape') {
+      setMovingOutput(null);
+      return;
+    }
+
+    if (newIndex !== currentIndex) {
+      const newOutputs = Array.from(outputs);
+      const [movedItem] = newOutputs.splice(currentIndex, 1);
+      newOutputs.splice(newIndex, 0, movedItem);
+      setOutputs(newOutputs);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (movingOutput) {
+        const movingElement = document.querySelector(`[data-output-id="${movingOutput}"]`);
+        if (movingElement && !movingElement.contains(event.target)) {
+          setMovingOutput(null);
+        }
+      }
+    };
+
+    if (movingOutput) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [movingOutput]);
+
   const toggleOutput = (id) => {
     setSelectedOutputs(prev => ({
       ...prev,
@@ -216,12 +283,10 @@ function CreateBRD() {
   };
   
   const addOutput = (key) => {
-    // Check if output already exists
     if (outputs.find(output => output.id === key)) {
       return;
     }
     
-    // Add the output
     const newOutput = {
       id: key,
       name: key,
@@ -235,14 +300,12 @@ function CreateBRD() {
       [key]: true
     }));
     
-    // Hide dropdown after selection
     setShowOutputDropdown(false);
   };
   
   const removeOutput = (id) => {
     setOutputs(prev => prev.filter(output => output.id !== id));
     
-    // Also remove from selected outputs
     setSelectedOutputs(prev => {
       const updated = {...prev};
       delete updated[id];
@@ -266,7 +329,6 @@ function CreateBRD() {
       return;
     }
     
-    // Add custom technical field to template
     const updatedTemplate = { ...selectedTemplate };
     updatedTemplate.technical[`upload_${selectedTechnicalType.id}`] = true;
     updatedTemplate.technical.labels[selectedTechnicalType.id] = newTechnicalLabel;
@@ -277,12 +339,6 @@ function CreateBRD() {
   };
 
   const handleSubmit = async () => {
-    // Validate unique input and output names
-    if (!validateInputNames() || !validateOutputNames()) {
-      return;
-    }
-    
-    // Prepare data for BRD generation
     const selectedOutputsList = outputs
       .filter(output => selectedOutputs[output.id])
       .map(output => ({
@@ -290,10 +346,8 @@ function CreateBRD() {
         types: output.types
       }));
     
-    // Prepare technical data - use JSON data instead of file references
     const technicalData = {};
     
-    // Include CSV data as JSON if available
     if (csvPreviewData && technicalFiles.csv) {
       technicalData.csv = {
         fileName: technicalFiles.csv.name,
@@ -301,8 +355,6 @@ function CreateBRD() {
       };
     }
     
-    // For images and documents, we'll handle them differently
-    // Convert to base64 for temporary storage
     const prepareFileData = async (file, type) => {
       if (!file) return null;
       
@@ -320,139 +372,164 @@ function CreateBRD() {
       });
     };
 
-    // Prepare file data
     const imageFileData = technicalFiles.image ? await prepareFileData(technicalFiles.image) : null;
     const docFileData = technicalFiles.doc ? await prepareFileData(technicalFiles.doc) : null;
     
-    // Store data in localStorage for the next step
     localStorage.setItem('brd_generation_data', JSON.stringify({
       template: selectedTemplate,
       formData,
       businessUseCase,
       businessLogic,
       outputs: selectedOutputsList,
-      technicalData, // CSV data as JSON
-      imageFileData, // Base64 encoded image
-      docFileData // Base64 encoded document
+      technicalData,
+      imageFileData,
+      docFileData,
+      selectedApiKeyId
     }));
     
-    // Navigate to generation page
     navigate('/generate-brd');
   };
 
   const renderInputField = (input) => {
-    const { key, label, type } = input;
-    
-    if (typeof type === 'object' && type.type === 'dropdown_single' && type.options) {
-      return (
-        <select
-          value={formData[key] || ''}
-          onChange={(e) => handleInputChange(key, e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="">Select an option</option>
-          {type.options.map((option, idx) => (
-            <option key={idx} value={option}>{option}</option>
-          ))}
-        </select>
-      );
-    } else if (typeof type === 'object' && type.type === 'dropdown_multi' && type.options) {
-      const selectedValues = formData[key] || [];
-      
-      return (
-        <div className="w-full">
-          {/* Display selected options as tags */}
-          {selectedValues.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-1">
-              {selectedValues.map((value, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {value}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newValues = selectedValues.filter(v => v !== value);
-                      handleInputChange(key, newValues);
-                    }}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
-                  >
-                    <XMarkIcon className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          
-          {/* Dropdown to add more options */}
+    const { key, type } = input;
+
+    let fieldHtml;
+
+    // Handle object types first (dropdowns)
+    if (typeof type === 'object') {
+      if (type.type === 'dropdown_single' && type.options) {
+        fieldHtml = (
           <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value && !selectedValues.includes(e.target.value)) {
-                const newValues = [...selectedValues, e.target.value];
-                handleInputChange(key, newValues);
-              }
-            }}
+            value={formData[key] || ''}
+            onChange={(e) => handleInputChange(key, e.target.value)}
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">
-              {selectedValues.length === 0 ? 'Select options...' : 'Add more options...'}
-            </option>
-            {type.options
-              .filter(option => !selectedValues.includes(option))
-              .map((option, idx) => (
-                <option key={idx} value={option}>{option}</option>
-              ))}
+            <option value="">Select an option</option>
+            {type.options.map((option, idx) => (
+              <option key={idx} value={option}>{option}</option>
+            ))}
           </select>
-          
-          {selectedValues.length === 0 && (
-            <p className="text-xs text-gray-500 mt-1">Click the dropdown to select multiple options</p>
-          )}
-        </div>
+        );
+      } else if (type.type === 'dropdown_multi' && type.options) {
+        const selectedValues = formData[key] || [];
+        fieldHtml = (
+          <div className="w-full">
+            {selectedValues.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1">
+                {selectedValues.map((value, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {value}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newValues = selectedValues.filter(v => v !== value);
+                        handleInputChange(key, newValues);
+                      }}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      <XMarkIcon className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value && !selectedValues.includes(e.target.value)) {
+                  const newValues = [...selectedValues, e.target.value];
+                  handleInputChange(key, newValues);
+                }
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">
+                {selectedValues.length === 0 ? 'Select options...' : 'Add more options...'}
+              </option>
+              {type.options
+                .filter(option => !selectedValues.includes(option))
+                .map((option, idx) => (
+                  <option key={idx} value={option}>{option}</option>
+                ))}
+            </select>
+            {selectedValues.length === 0 && (
+              <p className="text-xs text-gray-500 mt-1">Click the dropdown to select multiple options</p>
+            )}
+          </div>
+        );
+      } else {
+        // Default for unknown object types (if any) - render as text input
+        fieldHtml = (
+          <input
+            type="text"
+            value={formData[key] || ''}
+            onChange={(e) => handleInputChange(key, e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder={`Input for ${key} (unknown object type)`}
+          />
+        );
+      }
+    } else if (typeof type === 'string') {
+      // Handle string types
+      switch (type) {
+        case 'input':
+          fieldHtml = (
+            <input
+              type="text"
+              value={formData[key] || ''}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          );
+          break;
+        case 'textarea':
+          fieldHtml = (
+            <textarea
+              value={formData[key] || ''}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[80px]"
+            />
+          );
+          break;
+        case 'date':
+          fieldHtml = (
+            <input
+              type="date"
+              value={formData[key] || ''}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          );
+          break;
+        default:
+          // Default for unknown string types - render as text input
+          fieldHtml = (
+            <input
+              type="text"
+              value={formData[key] || ''}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={`Input for ${key} (unknown type: ${type})`}
+            />
+          );
+      }
+    } else {
+      // Fallback for truly unknown types
+      fieldHtml = (
+        <p className="text-sm text-red-500">Unsupported input type for field: {key}</p>
       );
     }
-    
-    switch(type) {
-      case 'input':
-        return (
-          <input
-            type="text"
-            value={formData[key] || ''}
-            onChange={(e) => handleInputChange(key, e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        );
-      case 'textarea':
-        return (
-          <textarea
-            value={formData[key] || ''}
-            onChange={(e) => handleInputChange(key, e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[80px]"
-          />
-        );
-      case 'date':
-        return (
-          <input
-            type="date"
-            value={formData[key] || ''}
-            onChange={(e) => handleInputChange(key, e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        );
-      default:
-        return (
-          <input
-            type="text"
-            value={formData[key] || ''}
-            onChange={(e) => handleInputChange(key, e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        );
-    }
+
+    return (
+      <div className="w-full">
+        {fieldHtml}
+      </div>
+    );
   };
 
-  // Render template selection cards
   const renderTemplateCards = () => {
     if (isLoading) {
       return <div className="text-center py-4">Loading templates...</div>;
@@ -500,9 +577,11 @@ function CreateBRD() {
     );
   };
 
-  // Get available outputs that aren't already added
   const getAvailableOutputsToAdd = () => {
     const currentOutputIds = outputs.map(output => output.id);
+    if (typeof availableOutputs !== 'object' || availableOutputs === null) {
+      return [];
+    }
     return Object.keys(availableOutputs).filter(key => !currentOutputIds.includes(key));
   };
 
@@ -512,7 +591,6 @@ function CreateBRD() {
         <h1 className="text-xl font-bold text-gray-900">Create BRD</h1>
       </div>
       
-      {/* Template Selection */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h2 className="text-md font-semibold text-gray-800 mb-2">Select Template</h2>
         {renderTemplateCards()}
@@ -520,55 +598,91 @@ function CreateBRD() {
 
       {selectedTemplate && (
         <>
-          {/* Section Navigation */}
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <nav aria-label="Progress">
+              <ol role="list" className="flex items-center justify-between">
+                {sections.map((section, sectionIdx) => {
+                  const isActive = activeSectionKey === section.key;
+                  const isCompleted = sectionIdx < sections.findIndex(s => s.key === activeSectionKey);
+                  const isVisited = sectionIdx <= currentStepIndex;
+
+                  let circleClass = 'bg-gray-300 group-hover:bg-gray-400';
+                  let textClass = 'text-gray-500';
+                  let icon = <span className="h-5 w-5 text-white flex items-center justify-center font-semibold">{section.step}</span>;
+                  let outgoingLineClass = 'bg-gray-200';
+
+                  if (isActive) {
+                    circleClass = 'bg-blue-600';
+                    textClass = 'text-blue-600 font-semibold';
+                    icon = <CheckCircleIcon className="h-5 w-5 text-white" aria-hidden="true" />;
+                    outgoingLineClass = 'bg-blue-600';
+                  } else if (isCompleted) {
+                    circleClass = 'bg-blue-500 group-hover:bg-blue-600';
+                    textClass = 'text-gray-700';
+                    icon = <CheckCircleIcon className="h-5 w-5 text-white" aria-hidden="true" />;
+                    outgoingLineClass = 'bg-blue-600';
+                  } else if (isVisited) {
+                    circleClass = 'bg-gray-400 group-hover:bg-gray-500';
+                    textClass = 'text-gray-600';
+                  }
+
+                  return (
+                    <li key={section.key} className={`group relative flex-none`}>
+                      <div className="relative z-10 bg-white flex flex-col items-center px-1 py-1">
+                        <button
+                          onClick={() => handleSectionClick(section.key)}
+                          className={`relative flex h-8 w-8 items-center justify-center rounded-full ${circleClass} transition-colors duration-300 ease-in-out`}
+                          aria-current={isActive ? 'step' : undefined}
+                        >
+                          {icon}
+                        </button>
+                        <p className={`mt-1.5 text-xs text-center font-medium ${textClass} transition-colors duration-300 ease-in-out w-20 truncate`}>
+                          {section.step}. {section.label}
+                        </p>
+                      </div>
+
+                      {sectionIdx < sections.length - 1 && (
+                        <div 
+                          className={`absolute top-4 h-0.5 ${outgoingLineClass} transition-colors duration-300 ease-in-out`}
+                          style={{ left: '50%', right: '-50%', zIndex: 0 }}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
+          </div>
+
           <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex space-x-2 border-b pb-2 mb-3">
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm ${activeSection === 'overview' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setActiveSection('overview')}
-              >
-                Overview
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm ${activeSection === 'technical' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setActiveSection('technical')}
-              >
-                Technical
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm ${activeSection === 'business' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setActiveSection('business')}
-              >
-                Business
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md text-sm ${activeSection === 'outputs' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setActiveSection('outputs')}
-              >
-                Outputs
-              </button>
-            </div>
-            
-            {/* Overview Section */}
-            {activeSection === 'overview' && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-800">{selectedTemplate.templateName}</h3>
+            {activeSectionKey === 'overview' && (
+              <div className="space-y-3 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 className="text-base font-semibold text-gray-800 mb-3">{selectedTemplate.templateName} - Overview</h3>
                 
-                <div className="space-y-3">
+                <div 
+                  className="space-y-4"
+                >
                   {selectedTemplate.overview.map((input, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
-                      <label className="text-gray-700 text-sm">{input.label}</label>
+                    <div
+                      key={input.key || index}
+                      className={`grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-2 items-center py-2 ${index < selectedTemplate.overview.length -1 ? 'border-b border-gray-100' : ''}`}
+                    >
+                      <div className="flex items-center md:col-span-1">
+                        <label className="text-gray-700 text-sm font-medium">{input.label}</label>
+                      </div>
                       <div className="md:col-span-3">
                         {renderInputField(input)}
                       </div>
                     </div>
                   ))}
                 </div>
+                {selectedTemplate.overview.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No overview fields configured in this template.</p>
+                )}
               </div>
             )}
             
-            {/* Technical Section */}
-            {activeSection === 'technical' && (
+            {activeSectionKey === 'technical' && (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-semibold text-gray-800">Technical Documents</h3>
@@ -599,7 +713,6 @@ function CreateBRD() {
                   </div>
                 </div>
                 
-                {/* New technical field input */}
                 {selectedTechnicalType && (
                   <div className="p-4 border rounded-md bg-blue-50 mt-3">
                     <div className="flex items-center mb-3">
@@ -636,7 +749,6 @@ function CreateBRD() {
                 )}
                 
                 <div className="space-y-3 mt-4">
-                  {/* Show technical fields based on template configuration */}
                   {selectedTemplate.technical.upload_csv && (
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-start">
                       <label className="text-gray-700 text-sm md:col-span-1 mt-2">{selectedTemplate.technical.labels.csv}</label>
@@ -657,7 +769,6 @@ function CreateBRD() {
                                 Selected: {technicalFiles.csv.name}
                               </span>
                             </div>
-                            {/* File remove button */}
                             <button
                               onClick={() => {
                                 setTechnicalFiles(prev => {
@@ -676,7 +787,6 @@ function CreateBRD() {
                           </div>
                         )}
                         
-                        {/* CSV Loading State */}
                         {csvLoading && (
                           <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                             <div className="flex items-center">
@@ -686,7 +796,6 @@ function CreateBRD() {
                           </div>
                         )}
                         
-                        {/* CSV Error State */}
                         {csvError && (
                           <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
                             <div className="flex items-center">
@@ -696,7 +805,6 @@ function CreateBRD() {
                           </div>
                         )}
                         
-                        {/* CSV Preview Table */}
                         {csvPreviewData && !csvLoading && !csvError && (
                           <div className="mt-3">
                             <div className="flex items-center justify-between mb-2">
@@ -737,14 +845,12 @@ function CreateBRD() {
                           </div>
                         )}
                       </div>
-                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
                             const updatedTemplate = { ...selectedTemplate };
                             updatedTemplate.technical.upload_csv = false;
                             setSelectedTemplate(updatedTemplate);
-                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.csv;
@@ -781,7 +887,6 @@ function CreateBRD() {
                               <span className="text-xs text-green-600">
                                 Selected: {technicalFiles.image.name}
                               </span>
-                              {/* Preview thumbnail for images */}
                               <div className="ml-2 h-8 w-8 border rounded overflow-hidden">
                                 <img 
                                   src={URL.createObjectURL(technicalFiles.image)} 
@@ -790,7 +895,6 @@ function CreateBRD() {
                                 />
                               </div>
                             </div>
-                            {/* File remove button */}
                             <button
                               onClick={() => {
                                 setTechnicalFiles(prev => {
@@ -807,14 +911,12 @@ function CreateBRD() {
                           </div>
                         )}
                       </div>
-                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
                             const updatedTemplate = { ...selectedTemplate };
                             updatedTemplate.technical.upload_image = false;
                             setSelectedTemplate(updatedTemplate);
-                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.image;
@@ -850,7 +952,6 @@ function CreateBRD() {
                                 Selected: {technicalFiles.doc.name}
                               </span>
                             </div>
-                            {/* File remove button */}
                             <button
                               onClick={() => {
                                 setTechnicalFiles(prev => {
@@ -867,14 +968,12 @@ function CreateBRD() {
                           </div>
                         )}
                       </div>
-                      {/* Field remove button */}
                       <div className="flex justify-end md:col-span-1">
                         <button
                           onClick={() => {
                             const updatedTemplate = { ...selectedTemplate };
                             updatedTemplate.technical.upload_doc = false;
                             setSelectedTemplate(updatedTemplate);
-                            // Also clear any uploaded file
                             setTechnicalFiles(prev => {
                               const updated = {...prev};
                               delete updated.doc;
@@ -890,7 +989,6 @@ function CreateBRD() {
                     </div>
                   )}
                   
-                  {/* Show message if no technical fields are available */}
                   {!selectedTemplate.technical.upload_csv && 
                    !selectedTemplate.technical.upload_image && 
                    !selectedTemplate.technical.upload_doc && (
@@ -903,17 +1001,16 @@ function CreateBRD() {
               </div>
             )}
             
-            {/* Business Section */}
-            {activeSection === 'business' && (
+            {activeSectionKey === 'business' && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-800">Business Information</h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-1">
                     <label className="text-gray-700 text-sm">Business Use Case</label>
                     <textarea
                       value={businessUseCase}
-                      onChange={(e) => setBusinessUseCase(e.target.value)}
+                      onChange={(e) => handleBusinessInputChange('businessUseCase', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[80px]"
                       placeholder="Describe the business use case..."
                     />
@@ -923,7 +1020,7 @@ function CreateBRD() {
                     <label className="text-gray-700 text-sm">Business Logic</label>
                     <textarea
                       value={businessLogic}
-                      onChange={(e) => setBusinessLogic(e.target.value)}
+                      onChange={(e) => handleBusinessInputChange('businessLogic', e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[120px]"
                       placeholder="Describe the business logic in detail..."
                     />
@@ -932,118 +1029,109 @@ function CreateBRD() {
               </div>
             )}
             
-            {/* Outputs Section */}
-            {activeSection === 'outputs' && (
+            {activeSectionKey === 'outputs' && (
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-semibold text-gray-800">BRD Outputs</h3>
                   
-                  {getAvailableOutputsToAdd().length > 0 && (
-                    <div className="relative">
-                      <button 
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded flex items-center"
-                        onClick={() => setShowOutputDropdown(!showOutputDropdown)}
+                  <div className="relative">
+                    <button 
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded-md flex items-center hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors"
+                      onClick={() => setShowOutputDropdown(!showOutputDropdown)}
+                      disabled={getAvailableOutputsToAdd().length === 0}
+                      title={getAvailableOutputsToAdd().length === 0 ? "All outputs already added" : "Add Output Section"}
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1.5" />
+                      Add Output
+                    </button>
+                    
+                    {showOutputDropdown && getAvailableOutputsToAdd().length > 0 && (
+                      <div 
+                        className="absolute right-0 mt-2 w-56 bg-white shadow-xl rounded-md border border-gray-200 overflow-hidden z-20"
                       >
-                        <PlusIcon className="h-3 w-3 mr-1" />
-                        Add Output
-                      </button>
-                      
-                      {showOutputDropdown && (
-                        <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md border overflow-hidden z-10" style={{minWidth: '180px'}}>
-                          <div className="max-h-48 overflow-y-auto">
-                            {getAvailableOutputsToAdd().map(key => (
-                              <button 
-                                key={key}
-                                onClick={() => addOutput(key)}
-                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 border-b border-gray-100"
-                              >
-                                {key}
-                              </button>
-                            ))}
-                          </div>
+                        <div className="py-1">
+                          {getAvailableOutputsToAdd().map(key => (
+                            <button 
+                              key={key}
+                              onClick={() => addOutput(key)} 
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors focus:outline-none focus:bg-gray-100"
+                            >
+                              {(availableOutputs[key] && typeof availableOutputs[key] === 'object' && availableOutputs[key].name) 
+                                ? availableOutputs[key].name 
+                                : (typeof availableOutputs[key] === 'string' ? availableOutputs[key] : key)}
+                            </button>
+                          ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded-md mb-3 flex items-center">
-                  <ArrowsPointingOutIcon className="h-4 w-4 mr-2 text-blue-600" />
-                  <span>Drag and drop outputs to reorder them. Check/uncheck to include in the BRD.</span>
-                </div>
-                
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="outputs">
-                    {(provided) => (
-                      <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="space-y-2"
-                      >
-                        {outputs.map((output, index) => (
-                          <Draggable 
-                            key={output.id} 
-                            draggableId={output.id} 
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`border rounded-md p-3 transition-all ${snapshot.isDragging ? 'bg-yellow-50 shadow-lg border-yellow-300 transform rotate-1' : selectedOutputs[output.id] ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'} hover:shadow-md`}
-                                style={{
-                                  ...provided.draggableProps.style
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-3">
-                                    {/* Drag Handle */}
-                                    <div 
-                                      {...provided.dragHandleProps}
-                                      className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 p-2 -ml-1 touch-none select-none"
-                                      title="Drag to reorder"
-                                      style={{ touchAction: 'none' }}
-                                    >
-                                      <Bars3Icon className="h-4 w-4" />
-                                    </div>
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedOutputs[output.id] || false}
-                                      onChange={() => toggleOutput(output.id)}
-                                      className="h-4 w-4 text-blue-600 rounded"
-                                    />
-                                    <span className="text-sm font-medium select-none">{output.name}</span>
-                                  </div>
-                                  <div className="flex items-center space-x-3">
-                                    <div className="flex items-center space-x-1 text-gray-500">
-                                      {output.types.includes('content') && (
-                                        <DocumentTextIcon className="h-4 w-4" title="Content" />
-                                      )}
-                                      {output.types.includes('table') && (
-                                        <TableCellsIcon className="h-4 w-4" title="Table" />
-                                      )}
-                                      {output.types.includes('image') && (
-                                        <PhotoIcon className="h-4 w-4" title="Image" />
-                                      )}
-                                    </div>
-                                    <button 
-                                      onClick={() => removeOutput(output.id)}
-                                      className="text-gray-400 hover:text-red-500 p-1"
-                                      title="Remove output"
-                                    >
-                                      <XMarkIcon className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
                       </div>
                     )}
-                  </Droppable>
-                </DragDropContext>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  {outputs.map((output, index) => (
+                    <div
+                      key={output.id} 
+                      data-output-id={output.id}
+                      className={`border rounded-md p-3 transition-all ${ 
+                        movingOutput === output.id 
+                          ? 'bg-yellow-50 border-yellow-300 shadow-md'
+                          : selectedOutputs[output.id] ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
+                      } hover:shadow-md`}
+                      tabIndex={movingOutput === output.id ? 0 : -1}
+                      onKeyDown={(e) => handleOutputMoveKeyDown(e, output.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMovingOutput(movingOutput === output.id ? null : output.id);
+                            }}
+                            className={`p-1 rounded hover:bg-gray-200 ${
+                              movingOutput === output.id ? 'text-yellow-700 bg-yellow-200' : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                            title="Move Output"
+                          >
+                            <ChevronUpDownIcon className="h-5 w-5" /> 
+                          </button>
+                          <input
+                            type="checkbox"
+                            checked={selectedOutputs[output.id] || false}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleOutput(output.id);
+                            }}
+                            className="h-4 w-4 text-blue-600 rounded"
+                          />
+                          <span className="text-sm font-medium select-none">{output.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-1 text-gray-500">
+                            {output.types.includes('content') && (
+                              <DocumentTextIcon className="h-4 w-4" title="Content" />
+                            )}
+                            {output.types.includes('table') && (
+                              <TableCellsIcon className="h-4 w-4" title="Table" />
+                            )}
+                            {output.types.includes('image') && (
+                              <PhotoIcon className="h-4 w-4" title="Image" />
+                            )}
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeOutput(output.id);
+                            }}
+                            className="text-gray-400 hover:text-red-500 p-1"
+                            title="Remove output"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 
                 {outputs.length === 0 && (
                   <div className="bg-gray-50 p-3 rounded-md">
@@ -1054,15 +1142,51 @@ function CreateBRD() {
               </div>
             )}
             
-            {/* Submit Button */}
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={handleSubmit}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                disabled={!selectedTemplate}
-              >
-                Continue to Generate BRD
-              </button>
+            <div className="mt-6 flex flex-col items-center space-y-3 sm:flex-row sm:justify-end sm:items-center sm:space-x-3">
+              {activeSectionKey === 'outputs' && aiApiKeys.length > 0 && (
+                <div className="w-full sm:w-auto">
+                  <label htmlFor="aiApiKeySelect" className="sr-only">Select AI Configuration</label>
+                  <select 
+                    id="aiApiKeySelect"
+                    value={selectedApiKeyId}
+                    onChange={(e) => setSelectedApiKeyId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                    disabled={loadingApiKeys}
+                  >
+                    {loadingApiKeys ? (
+                      <option>Loading AI Configs...</option>
+                    ) : (
+                      aiApiKeys.map(apiKey => (
+                        <option key={apiKey.id} value={apiKey.id}>
+                          {apiKey.name}{apiKey.isDefault ? ' (Default)' : ''}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              )}
+
+              <div className="w-full sm:w-auto">
+                {activeSectionKey === 'outputs' ? (
+                  <button
+                    onClick={handleSubmit}
+                    className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium disabled:opacity-50 flex items-center justify-center"
+                    disabled={!selectedTemplate || (aiApiKeys.length > 0 && !selectedApiKeyId) || outputs.filter(o => selectedOutputs[o.id]).length === 0 }
+                  >
+                    <DocumentTextIcon className="h-5 w-5 mr-2" />
+                    Generate BRD
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleNextClick}
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center justify-center"
+                    disabled={!selectedTemplate}
+                  >
+                    Next
+                    <ArrowRightIcon className="h-5 w-5 ml-2" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </>

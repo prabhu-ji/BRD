@@ -42,17 +42,6 @@
   "Integration Approach": "textarea",
   "Employee Selection Criteria": "textarea",
   "Data Exclusion Logic": "textarea",
-  "Modules": {
-    "type": "dropdown_multi",
-    "options": [
-      "Core",
-      "Attendance",
-      "Reports",
-      "Payroll",
-      "PMS",
-      "Recruitment"
-    ]
-  },
   "Date Format": {
     "type": "dropdown_single",
     "options": [
@@ -62,6 +51,17 @@
       "YYYY/DD/MM",
       "DD/YYYY/MM",
       "MM/YYYY/DD"
+    ]
+  },
+  "Modules": {
+    "type": "dropdown_multi",
+    "options": [
+      "Core",
+      "Attendance",
+      "Reports",
+      "Payroll",
+      "PMS",
+      "Recruitment"
     ]
   }
 }

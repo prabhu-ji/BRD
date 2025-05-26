@@ -1,0 +1,130 @@
+{
+  "title": "TS-0526 nnkjn :: nnknk - To transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon. Integration BRD",
+  "detailsTable": {
+    "Client": "nnkjn",
+    "Vendor": "nnknk",
+    "Version": "kjnknkn",
+    "Doc Owner": "kjnkjnk",
+    "Functional Lead": "knknk",
+    "Status": "DRAFT",
+    "Last updated by": "knnk",
+    "Last date updated": "2025-05-25",
+    "Client Approved By [Name, Designation]": "nnk",
+    "Client Approved Date": "2025-05-25",
+    "Mode of Integration": "CUSTOM-DEV [API-BASED / STANDARD / CUSTOM DEV]",
+    "Modules": "Attendance",
+    "Direction": "INBOUND [INBOUND / OUTBOUND / BI-DIRECTION]",
+    "Frequency": "nnlklknlk",
+    "Data Load": "knnlknln",
+    "Client email for error/success response": "nlnlkn"
+  },
+  "sections": {
+    "Purpose/Justification": {
+      "type": "text",
+      "content": "*   This document outlines the business requirements and technical details associated with the CUSTOM-DEV INBOUND integration between nnkjn and nnknk, as defined by the Darwinbox Integrations team.\n*   The integration aims to transfer deactivated (date of exit ≥ 1 Jan 2020) and active employee master data from Darwinbox to HR Term Bot for Visteon, facilitating efficient HR processes.\n*   This CUSTOM-DEV approach is chosen to accommodate specific data transformation and security requirements for the INBOUND data flow from nnknk, ensuring seamless integration with Visteon's HR Term Bot."
+    },
+    "Integration Description and Overview": {
+      "type": "text",
+      "content": "Integration Description and Overview\n*   This is a CUSTOM-DEV INBOUND integration where nnkjn will push employee master data to nnknk.\n*   The integration facilitates the transfer of both active and deactivated employee records.\n*   **Data Flow:**\n    *   Data flows INBOUND to nnknk from nnkjn.\n    *   nnkjn acts as the source system, pushing data to nnknk.\n*   **Business Logic:**\n    *   Sync only inactive employee records (date of exit ≥ 1 Jan 2020).\n    *   Sync all active employees.\n*   **Implementation Methodology:**\n    *   Data will be transferred via outbound integration using SFTP with encryption."
+    },
+    "Technical Design Specifications": {
+      "type": "text",
+      "content": "**Technical Design Specifications**\n\n*   **Integration Overview:**\n\n    *   This document outlines the technical specifications for the CUSTOM-DEV INBOUND integration between nnkjn and nnknk.\n    *   The integration facilitates the transfer of employee master data from Darwinbox (nnkjn) to HR Term Bot for Visteon (nnknk).\n    *   This integration supports the Attendance module.\n\n*   **Purpose:**\n\n    *   To transfer deactivated and active employee master data from nnkjn to nnknk.\n    *   This data will be used by HR Term Bot for Visteon.\n\n*   **Business Requirements:**\n\n    *   Sync only inactive employee records (date of exit ≥ 1 Jan 2020).\n    *   Sync all active employee records.\n    *   Data transfer must be secure and reliable.\n\n*   **Technical Specifications:**\n\n    *   **Integration Pattern:** CUSTOM-DEV INBOUND\n    *   **Data Direction:** Data flows OUT OF nnknk (Darwinbox)\n    *   **Data Format:** Predefined file format (specific format to be defined in Appendix A).\n    *   **Transfer Protocol:** SFTP with encryption.\n    *   **File Naming Convention:** `Visteon_EmployeeData_<YYYYMMDD>.txt`\n    *   **Authentication:**\n        *   SFTP authentication will use a key-based authentication mechanism.\n        *   The public key will be provided by the nnknk team.\n    *   **Data Filtering:**\n        *   Inactive employees will be filtered based on the date of exit field.\n        *   Only records with a date of exit ≥ 1 Jan 2020 will be included.\n    *   **Error Handling:**\n        *   A notification will be sent to the nnkjn integration team upon failure.\n        *   Detailed error logs will be maintained.\n    *   **Scheduling:**\n        *   The integration will run on a daily schedule.\n        *   The specific time will be determined during the implementation phase.\n\n*   **APIs Used:**\n\n    *   Since this is a CUSTOM-DEV integration, there are no standard Darwinbox APIs used.\n    *   Data extraction from nnkjn will be performed via custom scripts/queries.\n    *   Data ingestion into nnknk will be handled by HR Term Bot's custom API/interface.\n\n*   **Data Mapping:**\n\n    *   A detailed data mapping document will be created to map fields from nnkjn to nnknk.\n    *   This document will be maintained separately.\n\n*   **Security Considerations:**\n\n    *   Data will be encrypted during transit using SFTP.\n    *   Access to the SFTP server will be restricted to authorized personnel only.\n    *   Data at rest on the SFTP server will also be encrypted.\n\n*   **Dependencies/Assumptions:**\n\n    *   The nnkjn system must have the required data available for extraction.\n    *   The nnknk system must be able to receive and process the data in the specified format.\n    *   The SFTP server must be accessible from both nnkjn and nnknk.\n    *   The predefined file format must be agreed upon by both teams.\n    *   HR Term Bot API/interface must be available and documented.\n\n*   **Deployment:**\n\n    *   The integration will be deployed in a staged environment before being deployed to production.\n    *   Thorough testing will be conducted in each environment.\n\n*   **Monitoring:**\n\n    *   The integration will be monitored for performance and errors.\n    *   Alerts will be configured to notify the integration team of any issues."
+    },
+    "Data Mapping Table": {
+      "type": "table",
+      "headers": [
+        "1",
+        "\"Eldon Base for stackable storage shelf",
+        "platinum\"",
+        "Muhammed MacIntyre",
+        "3",
+        "-213.25",
+        "38.94",
+        "35",
+        "Nunavut",
+        "Storage & Organization",
+        "0.8"
+      ],
+      "data": [
+        {
+          "1": "3",
+          "3": "293",
+          "35": "2.99",
+          "\"Eldon Base for stackable storage shelf": "\"Cardinal Slant-D� Ring Binder",
+          "platinum\"": "Heavy Gauge Vinyl\"",
+          "Muhammed MacIntyre": "Barry French",
+          "-213.25": "46.71",
+          "38.94": "8.69",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.39"
+        },
+        {
+          "1": "7",
+          "3": "613",
+          "35": "7.72",
+          "\"Eldon Base for stackable storage shelf": "\"Angle-D Binders with Locking Rings",
+          "platinum\"": "Label Holders\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "-54.04",
+          "38.94": "7.3",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.38"
+        },
+        {
+          "1": "8",
+          "3": "613",
+          "35": "6.22",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Mobile Desk Side File",
+          "platinum\"": "Wire Frame\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "127.70",
+          "38.94": "42.76",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        },
+        {
+          "1": "9",
+          "3": "643",
+          "35": "35",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Commercial Wire Shelving",
+          "platinum\"": "Black\"",
+          "Muhammed MacIntyre": "Monica Federle",
+          "-213.25": "-695.26",
+          "38.94": "138.14",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        }
+      ]
+    },
+    "Assumptions": {
+      "type": "text",
+      "content": "**Assumptions**\n*   nnkjn will provide accurate and complete employee master data, including all mandatory fields required by nnknk for both active and inactive employees.\n*   The data provided by nnkjn will adhere to the predefined file formats agreed upon for the integration.\n*   nnkjn will ensure that the date of exit is accurately populated for inactive employees, with a date of exit on or after January 1, 2020, to ensure correct filtering.\n*   nnkjn will provide the necessary SFTP credentials and ensure the SFTP server is accessible to Darwinbox for secure data transfer.\n*   The encryption method agreed upon for data transfer will be supported by both nnkjn and Darwinbox.\n*   nnkjn system uptime will be sufficient to ensure timely and consistent data transfer to nnknk.\n*   Any changes to the nnkjn data structure or API that impact the integration will be communicated to the Darwinbox integration team in advance.\n*   Employee IDs transmitted from nnkjn will be valid and unique within the nnknk system.\n*   For Attendance module-related data, nnkjn will provide accurate and timely information.\n*   nnkjn will handle any data cleansing or transformation required before sending data to nnknk."
+    },
+    "Dependencies": {
+      "type": "text",
+      "content": "**Dependencies**\n*   nnkjn must provide SFTP server details (host, port, username, password) for data transfer.\n*   nnkjn must provide the predefined file format specifications for employee data.\n*   nnkjn must ensure data encryption is implemented during SFTP transfer.\n*   nnkjn must provide a list of all data fields being sent to nnknk.\n*   nnkjn must ensure that the data includes the employee's date of exit.\n*   nnkjn must ensure that the data includes the employee's active status.\n*   nnkjn must confirm the data validation rules applied before sending data to nnknk."
+    },
+    "APIs Used": {
+      "type": "text",
+      "content": ""
+    },
+    "Test Cases": {
+      "type": "text",
+      "content": "**Test Cases**\n\n*   **Objective:** Validate the successful transfer of employee master data (active and inactive) from nnkjn to nnknk, adhering to specified business logic and data formats.\n\n*   **General Test Case Requirements:**\n\n    *   All test cases must verify data integrity and accuracy.\n    *   Test cases should cover both positive and negative scenarios.\n    *   Test cases must validate data transformation and mapping.\n    *   Test cases must verify adherence to security protocols (SFTP with encryption).\n    *   Test cases must be repeatable and well-documented.\n\n*   **Test Case 1: Active Employee Synchronization**\n\n    *   **Description:** Verify that active employee records are successfully transferred from nnkjn to nnknk.\n    *   **Steps:**\n        1.  Create a new active employee record in nnkjn.\n        2.  Initiate the data synchronization process.\n        3.  Verify that the new employee record exists in nnknk.\n        4.  Validate that all relevant employee attributes (e.g., name, employee ID, department, attendance data) are accurately transferred.\n    *   **Expected Result:** The active employee record is successfully created in nnknk with all attributes correctly populated.\n\n*   **Test Case 2: Inactive Employee Synchronization (Post 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee records (date of exit ≥ 1 Jan 2020) are successfully transferred from nnkjn to nnknk.\n    *   **Steps:**\n        1.  Deactivate an employee record in nnkjn with a date of exit on or after 01 Jan 2020.\n        2.  Initiate the data synchronization process.\n        3.  Verify that the inactive employee record exists in nnknk.\n        4.  Validate that all relevant employee attributes (e.g., name, employee ID, department, date of exit, attendance data) are accurately transferred.\n    *   **Expected Result:** The inactive employee record is successfully created in nnknk with all attributes correctly populated.\n\n*   **Test Case 3: Inactive Employee Synchronization (Pre 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee records (date of exit < 1 Jan 2020) are *not* transferred from nnkjn to nnknk.\n    *   **Steps:**\n        1.  Deactivate an employee record in nnkjn with a date of exit before 01 Jan 2020.\n        2.  Initiate the data synchronization process.\n        3.  Verify that the inactive employee record *does not* exist in nnknk.\n    *   **Expected Result:** The inactive employee record is *not* created in nnknk.\n\n*   **Test Case 4: Data Format Validation**\n\n    *   **Description:** Verify that the data transferred from nnkjn to nnknk adheres to the predefined file formats.\n    *   **Steps:**\n        1.  Initiate the data synchronization process.\n        2.  Inspect the data file generated for transfer.\n        3.  Validate that the data file conforms to the specified format (e.g., CSV, XML, JSON).\n        4.  Validate that data types are correctly mapped.\n    *   **Expected Result:** The data file adheres to the predefined format, and data types are correctly mapped.\n\n*   **Test Case 5: SFTP Encryption Validation**\n\n    *   **Description:** Verify that the data transfer between nnkjn and nnknk is encrypted using SFTP.\n    *   **Steps:**\n        1.  Initiate the data synchronization process.\n        2.  Monitor the network traffic during data transfer.\n        3.  Verify that the data is encrypted during transit.\n    *   **Expected Result:** The data is encrypted during transfer via SFTP.\n\n*   **Test Case 6: Error Handling - Invalid Data**\n\n    *   **Description:** Verify that the integration handles invalid data gracefully.\n    *   **Steps:**\n        1.  Create an employee record in nnkjn with invalid data (e.g., incorrect date format, missing required fields).\n        2.  Initiate the data synchronization process.\n        3.  Verify that the integration logs the error.\n        4.  Verify that the invalid record is not transferred to nnknk.\n    *   **Expected Result:** The integration logs the error, and the invalid record is not transferred to nnknk.\n\n*   **Test Case 7: Attendance Module Data Synchronization**\n\n    *   **Description:** Verify that attendance data for active and inactive employees is synchronized correctly.\n    *   **Steps:**\n        1.  Update attendance data for an active employee in nnkjn.\n        2.  Update attendance data for an inactive employee (post 01 Jan 2020) in nnkjn.\n        3.  Initiate the data synchronization process.\n        4.  Verify that the updated attendance data is reflected in nnknk for both employees.\n    *   **Expected Result:** Updated attendance data is accurately reflected in nnknk for both active and inactive employees."
+    },
+    "Data Flow Diagram": {
+      "type": "graphviz",
+      "code": "digraph data_flow_diagram {\n    rankdir=LR;\n    node [shape=box, style=rounded];\n\n    subgraph cluster_nnkjn {\n        label = \"nnkjn (Darwinbox)\";\n        style = filled;\n        color = lightblue;\n\n        darwinbox [label=\"Darwinbox\\n(Source System)\", shape=cylinder];\n        extract_data [label=\"Extract Employee Data\\n(Active & Inactive)\"];\n    }\n\n    subgraph cluster_nnknk {\n        label = \"nnknk (HR Term Bot for Visteon)\";\n        style = filled;\n        color = lightgreen;\n\n        hr_term_bot [label=\"HR Term Bot\\n(Target System)\", shape=cylinder];\n        load_data [label=\"Load Employee Data\\ninto HR Term Bot\"];\n    }\n\n    data_validation [label=\"Data Validation\\n(Date of Exit >= 1 Jan 2020)\"];\n    data_transformation [label=\"Data Transformation\\n(Predefined File Formats)\"];\n    sftp_transfer [label=\"SFTP Transfer\\n(Encryption)\"];\n    attendance_module [label=\"Attendance Module\\nProcessing\"];\n    business_purpose [label=\"To transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon.\\nProcessing\", shape=ellipse];\n    business_logic [label=\"Sync only inactive employee records (date of exit ≥ 1 Jan 2020) and all active employees via outbound integration using SFTP with encryption and predefined file formats.\", shape=rectangle];\n\n    darwinbox -> extract_data [label=\"Data Extraction\"];\n    extract_data -> data_validation [label=\"Employee Data\"];\n    data_validation -> business_logic [label=\"Validated Data\"];\n    business_logic -> data_transformation [label=\"Filtered Data\"];\n    data_transformation -> sftp_transfer [label=\"Transformed Data\"];\n    sftp_transfer -> attendance_module [label=\"SFTP Transfer\"];\n    attendance_module -> load_data [label=\"Attendance Data\"];\n    load_data -> hr_term_bot [label=\"Employee Data\"];\n    extract_data -> business_purpose [label=\"Data for Business Purpose\"];\n    business_purpose -> hr_term_bot [label=\"Data to HR Term Bot\"];\n}\n",
+      "format": "dot"
+    }
+  },
+  "metadata": {
+    "generatedAt": "2025-05-26T17:19:36.953Z",
+    "totalSections": 9
+  }
+}

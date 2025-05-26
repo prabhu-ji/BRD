@@ -1,0 +1,130 @@
+{
+  "title": "TS-0526 Raja Mouli Production :: me - To transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon. Integration BRD",
+  "detailsTable": {
+    "Client": "Raja Mouli Production",
+    "Vendor": "me",
+    "Version": "you",
+    "Doc Owner": "ewr",
+    "Functional Lead": "ere",
+    "Status": "DRAFT",
+    "Last updated by": "re",
+    "Last date updated": "2025-05-25",
+    "Client Approved By [Name, Designation]": "",
+    "Client Approved Date": "2025-05-25",
+    "Mode of Integration": "",
+    "Modules": "Core",
+    "Direction": "INBOUND [INBOUND / OUTBOUND / BI-DIRECTION]",
+    "Frequency": "erererer",
+    "Data Load": "rere",
+    "Client email for error/success response": "knnkn"
+  },
+  "sections": {
+    "Purpose/Justification": {
+      "type": "text",
+      "content": "*   This document outlines the business requirements and technical details for the INBOUND integration from Raja Mouli Production to me.\n\n*   The integration aims to transfer deactivated (date of exit ≥ 1 Jan 2020) and all active employee master data from Raja Mouli Production to me, specifically for HR Term Bot integration for Visteon."
+    },
+    "Integration Description and Overview": {
+      "type": "text",
+      "content": "*   This is an INBOUND integration where Raja Mouli Production will transfer employee data to me.\n*   The integration focuses on synchronizing employee master data, including both active and inactive employee records.\n*   **Data Flow:**\n    *   Data flows INBOUND from Raja Mouli Production to me.\n    *   The integration will transfer deactivated employee records (date of exit ≥ 1 Jan 2020) and all active employees.\n*   **Technical Approach:**\n    *   The integration will utilize SFTP with encryption for secure data transfer.\n    *   Data will be transferred in predefined file formats.\n*   **Implementation:**\n    *   The integration will leverage the Core module within me.\n    *   Standard authentication and authorization protocols will be implemented to ensure secure data exchange."
+    },
+    "Technical Design Specifications": {
+      "type": "text",
+      "content": "**Technical Design Specifications**\n\n*   **Integration Purpose:**\n\n    *   To facilitate the transfer of deactivated and active employee master data from Raja Mouli Production to me.\n    *   This integration supports HR Term Bot for Visteon.\n\n*   **Integration Overview:**\n\n    *   This is an INBOUND integration.\n    *   Data will flow from Raja Mouli Production to me.\n    *   The integration will synchronize inactive employee records (date of exit ≥ 1 Jan 2020) and all active employees.\n\n*   **Data Source:**\n\n    *   Raja Mouli Production (Core Module)\n\n*   **Data Destination:**\n\n    *   me\n\n*   **Data Synchronization Logic:**\n\n    *   Inactive Employees: Synchronize records where the date of exit is greater than or equal to January 1, 2020.\n    *   Active Employees: Synchronize all active employee records.\n\n*   **Technical Architecture:**\n\n    *   Data Extraction: Raja Mouli Production will extract employee data.\n    *   Data Transformation: Data will be transformed into the predefined file format.\n    *   Data Transfer: Data will be transferred to me.\n    *   Data Loading: Data will be loaded into me.\n\n*   **File Format Specifications:**\n\n    *   Predefined file format to be used for data transfer.\n    *   Specific field mappings and data types will be defined in a separate document.\n\n*   **Security:**\n\n    *   Data will be encrypted during transfer.\n    *   SFTP will be used for secure file transfer.\n\n*   **Error Handling:**\n\n    *   Error logging and reporting mechanisms will be implemented.\n    *   Notifications will be sent for failed data transfers.\n\n*   **Dependencies/Assumptions:**\n\n    *   Raja Mouli Production must provide data in the agreed-upon file format.\n    *   SFTP server access must be configured for me.\n    *   Network connectivity between Raja Mouli Production and me must be established.\n\n*   **Monitoring and Logging:**\n\n    *   Integration process will be monitored for performance and errors.\n    *   Logs will be maintained for auditing and troubleshooting purposes."
+    },
+    "Data Mapping Table": {
+      "type": "table",
+      "headers": [
+        "1",
+        "\"Eldon Base for stackable storage shelf",
+        "platinum\"",
+        "Muhammed MacIntyre",
+        "3",
+        "-213.25",
+        "38.94",
+        "35",
+        "Nunavut",
+        "Storage & Organization",
+        "0.8"
+      ],
+      "data": [
+        {
+          "1": "3",
+          "3": "293",
+          "35": "2.99",
+          "\"Eldon Base for stackable storage shelf": "\"Cardinal Slant-D� Ring Binder",
+          "platinum\"": "Heavy Gauge Vinyl\"",
+          "Muhammed MacIntyre": "Barry French",
+          "-213.25": "46.71",
+          "38.94": "8.69",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.39"
+        },
+        {
+          "1": "7",
+          "3": "613",
+          "35": "7.72",
+          "\"Eldon Base for stackable storage shelf": "\"Angle-D Binders with Locking Rings",
+          "platinum\"": "Label Holders\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "-54.04",
+          "38.94": "7.3",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.38"
+        },
+        {
+          "1": "8",
+          "3": "613",
+          "35": "6.22",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Mobile Desk Side File",
+          "platinum\"": "Wire Frame\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "127.70",
+          "38.94": "42.76",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        },
+        {
+          "1": "9",
+          "3": "643",
+          "35": "35",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Commercial Wire Shelving",
+          "platinum\"": "Black\"",
+          "Muhammed MacIntyre": "Monica Federle",
+          "-213.25": "-695.26",
+          "38.94": "138.14",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        }
+      ]
+    },
+    "Assumptions": {
+      "type": "text",
+      "content": "*   Raja Mouli Production will provide accurate and complete employee master data for both active and deactivated employees.\n*   The data provided by Raja Mouli Production will adhere to the agreed-upon data format and specifications.\n*   Raja Mouli Production's system will be available and responsive during scheduled integration windows.\n*   Raja Mouli Production will ensure that deactivated employee records include a valid date of exit.\n*   It is assumed that the HR Term Bot for Visteon is configured to receive and process employee data from me.\n*   Me's Core module is configured to receive employee master data.\n*   Raja Mouli Production will notify me of any changes to their data structure or API endpoints in a timely manner.\n*   Raja Mouli Production will provide necessary credentials and access for me to retrieve employee data.\n*   The SFTP server used for data transfer will be mutually accessible and configured for secure communication.\n*   Encryption keys and protocols will be agreed upon and properly implemented by both parties."
+    },
+    "Dependencies": {
+      "type": "text",
+      "content": "- Raja Mouli Production must provide the agreed-upon file format and encryption method for SFTP transfer.\n- Raja Mouli Production must ensure that only inactive employee records (date of exit ≥ 1 Jan 2020) and all active employees are included in the data feed.\n- Raja Mouli Production's SFTP server must be accessible and configured for secure data transfer.\n- Raja Mouli Production must provide the necessary credentials for SFTP access.\n- The Core module in me must be configured to receive and process employee data in the agreed-upon format.\n- Data validation rules must be defined and implemented in me to ensure data accuracy and integrity.\n- Raja Mouli Production must adhere to the agreed-upon data mapping between their system and me.\n- Raja Mouli Production must notify me of any changes to the data format or SFTP server configuration."
+    },
+    "APIs Used": {
+      "type": "text",
+      "content": ""
+    },
+    "Test Cases": {
+      "type": "text",
+      "content": "**Test Cases**\n\n*   **Objective:** Validate the successful transfer of employee master data from Raja Mouli Production to me, adhering to specified business rules.\n\n*   **Scope:** Test cases cover both active and inactive employee records, focusing on data accuracy and adherence to the integration's business logic.\n\n*   **Test Case 1: Active Employee Synchronization**\n\n    *   **Description:** Verify that active employee data is correctly transferred from Raja Mouli Production to me.\n    *   **Steps:**\n        1.  Create a new active employee record in Raja Mouli Production (Core module).\n        2.  Initiate the data synchronization process.\n        3.  Verify that the new employee record is created in me with accurate details.\n    *   **Expected Result:** The employee record should be successfully created in me, matching the data in Raja Mouli Production.\n\n*   **Test Case 2: Inactive Employee Synchronization (Post 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee data (date of exit ≥ 1 Jan 2020) is correctly transferred from Raja Mouli Production to me.\n    *   **Steps:**\n        1.  Ensure an employee record in Raja Mouli Production has a date of exit on or after January 1, 2020.\n        2.  Initiate the data synchronization process.\n        3.  Verify that the inactive employee record is created in me with accurate details.\n    *   **Expected Result:** The inactive employee record should be successfully created in me, matching the data in Raja Mouli Production.\n\n*   **Test Case 3: Inactive Employee Synchronization (Pre 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee data (date of exit < 1 Jan 2020) is *not* transferred from Raja Mouli Production to me.\n    *   **Steps:**\n        1.  Ensure an employee record in Raja Mouli Production has a date of exit before January 1, 2020.\n        2.  Initiate the data synchronization process.\n        3.  Verify that the inactive employee record is *not* created in me.\n    *   **Expected Result:** The inactive employee record should *not* be created in me.\n\n*   **Test Case 4: Data Integrity and Accuracy**\n\n    *   **Description:** Validate the accuracy of key employee data fields transferred from Raja Mouli Production to me.\n    *   **Steps:**\n        1.  Select an active employee record in Raja Mouli Production (Core module).\n        2.  Initiate the data synchronization process.\n        3.  Compare the following fields in Raja Mouli Production and me:\n            *   Employee ID\n            *   First Name\n            *   Last Name\n            *   Date of Joining\n            *   Date of Exit (if applicable)\n            *   Job Title\n            *   Department\n    *   **Expected Result:** All compared fields should match exactly between Raja Mouli Production and me.\n\n*   **Test Case 5: Error Handling - Invalid Data**\n\n    *   **Description:** Verify that the integration handles invalid data gracefully and logs appropriate errors.\n    *   **Steps:**\n        1.  Create an employee record in Raja Mouli Production with invalid data (e.g., incorrect date format, missing required fields).\n        2.  Initiate the data synchronization process.\n        3.  Verify that the integration logs an error message indicating the invalid data.\n        4.  Verify that the invalid employee record is *not* created in me.\n    *   **Expected Result:** An error message should be logged, and the invalid employee record should not be created in me.\n\n*   **Test Case 6: Data Volume Testing**\n\n    *   **Description:** Verify the integration's performance and stability when transferring a large volume of employee records.\n    *   **Steps:**\n        1.  Create a large number of employee records (e.g., 1000 active and 500 inactive) in Raja Mouli Production.\n        2.  Initiate the data synchronization process.\n        3.  Monitor the integration's performance (e.g., time taken to complete the synchronization).\n        4.  Verify that all employee records are successfully transferred to me without errors.\n    *   **Expected Result:** All employee records should be successfully transferred to me within an acceptable timeframe, without any errors.\n\n*   **Test Case 7: SFTP Encryption Verification**\n\n    *   **Description:** Validate that the data transfer via SFTP is properly encrypted.\n    *   **Steps:**\n        1.  Initiate the data synchronization process.\n        2.  Capture the data being transferred via SFTP.\n        3.  Verify that the captured data is encrypted and unreadable without the appropriate decryption key.\n    *   **Expected Result:** The captured data should be encrypted and unreadable without the correct decryption key."
+    },
+    "Data Flow Diagram": {
+      "type": "graphviz",
+      "code": "digraph inbound_data_flow {\n    rankdir=LR;\n    node [shape=box, style=rounded];\n\n    subgraph cluster_raja_mouli {\n        label = \"Raja Mouli Production (Darwinbox)\";\n        style = filled;\n        color = lightblue;\n\n        darwinbox [label=\"Darwinbox\\nEmployee Master Data\", shape=cylinder];\n    }\n\n    subgraph cluster_me {\n        label = \"Me (HR Term Bot for Visteon)\";\n        style = filled;\n        color = lightgreen;\n\n        hr_term_bot [label=\"HR Term Bot\\nEmployee Master Data\", shape=cylinder];\n        sftp_server [label=\"SFTP Server\", shape=box];\n        data_validation [label=\"Data Validation\\n(date of exit >= 1 Jan 2020)\", shape=box];\n        data_transformation [label=\"Data Transformation\\n(Predefined File Formats)\", shape=box];\n        core_module [label=\"Core Module\\nProcessing\", shape=box];\n        authentication [label=\"Authentication\", shape=diamond];\n    }\n\n    darwinbox -> sftp_server [label=\"SFTP Transfer\\n(Active & Inactive Employees)\", style=dashed];\n    sftp_server -> authentication [label=\"Authentication Request\"];\n    authentication -> data_validation [label=\"Authentication Success\"];\n    data_validation -> data_transformation [label=\"Valid Data\"];\n    data_transformation -> core_module [label=\"Transformed Data\"];\n    core_module -> hr_term_bot [label=\"To transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon.\\nCore Module\"];\n\n    // Business Logic Node\n    business_logic [label=\"Integration Overview:\\nSync only inactive employee records (date of exit >= 1 Jan 2020) and all active employees via outbound integration using SFTP with encryption and predefined file formats.\", shape=note, style=filled, fillcolor=yellow];\n    data_validation -> business_logic [label=\"Business Logic Check\", style=dotted];\n}\n",
+      "format": "dot"
+    }
+  },
+  "metadata": {
+    "generatedAt": "2025-05-26T17:05:55.703Z",
+    "totalSections": 9
+  }
+}

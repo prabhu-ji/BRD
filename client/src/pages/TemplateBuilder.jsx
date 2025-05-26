@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, ArrowDownIcon, DocumentIcon, PhotoIcon, TableCellsIcon, PencilIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { PlusIcon, TrashIcon, ArrowDownIcon, DocumentIcon, PhotoIcon, TableCellsIcon, PencilIcon, CheckCircleIcon, ArrowsPointingOutIcon, XMarkIcon, Bars3Icon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
 
 function TemplateBuilder() {
   const [templates, setTemplates] = useState([]);
@@ -30,6 +31,10 @@ function TemplateBuilder() {
   
   // Add state for success message
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Add states for enhanced functionality
+  const [showOutputDropdown, setShowOutputDropdown] = useState(false);
+  const [movingOverviewField, setMovingOverviewField] = useState(null); // New state for overview field move mode
   
   // Card colors for saved templates
   const cardColors = [
@@ -408,6 +413,113 @@ function TemplateBuilder() {
     return Object.keys(availableOutputs).length;
   };
 
+  // Add new functions for enhanced functionality
+  
+  // New function for overview field keyboard reordering
+  const handleOverviewFieldMoveKeyDown = (e, fieldKey) => {
+    if (movingOverviewField !== fieldKey) return;
+
+    e.preventDefault();
+    const currentIndex = currentTemplate.overview.findIndex(f => f.key === fieldKey);
+    let newIndex = currentIndex;
+
+    if (e.key === 'ArrowUp') {
+      newIndex = Math.max(0, currentIndex - 1);
+    } else if (e.key === 'ArrowDown') {
+      newIndex = Math.min(currentTemplate.overview.length - 1, currentIndex + 1);
+    } else if (e.key === 'Enter' || e.key === 'Escape') {
+      setMovingOverviewField(null);
+      return;
+    }
+
+    if (newIndex !== currentIndex) {
+      const newOverview = Array.from(currentTemplate.overview);
+      const [movedItem] = newOverview.splice(currentIndex, 1);
+      newOverview.splice(newIndex, 0, movedItem);
+      setCurrentTemplate(prev => ({ ...prev, overview: newOverview }));
+    }
+  };
+
+  // Effect for handling clicks outside to confirm move for Overview fields
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (movingOverviewField) {
+        // Check if the click is outside the currently moving field and its move button
+        // This is a simplified check; a more robust solution might use refs
+        const movingElement = document.querySelector(`[data-overview-key="${movingOverviewField}"]`);
+        if (movingElement && !movingElement.contains(event.target)) {
+          setMovingOverviewField(null);
+        }
+      }
+    };
+
+    if (movingOverviewField) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [movingOverviewField]);
+
+  // Reset form to blank state
+  const resetToBlankState = () => {
+    setCurrentTemplate({
+      templateName: '',
+      overview: [],
+      technical: {
+        upload_csv: false,
+        upload_image: false,
+        upload_doc: false,
+        labels: {
+          csv: 'Upload CSV',
+          image: 'Upload Image',
+          doc: 'Upload Document'
+        }
+      },
+      outputs: {}
+    });
+    setEditMode(false);
+    setSelectedInputs(new Set(Object.keys(availableInputs)));
+    setMovingOverviewField(null); // Reset this state too
+    setShowOutputDropdown(false);
+    setSuccessMessage('');
+  };
+
+  // Handle view change with reset
+  const handleViewChange = (view) => {
+    setCurrentView(view);
+    if (view === 'create') {
+      resetToBlankState();
+    }
+  };
+
+  // Get available outputs to add
+  const getAvailableOutputsToAdd = () => {
+    return Object.keys(availableOutputs).filter(key => !currentTemplate.outputs[key]);
+  };
+
+  // Add output from dropdown
+  const addOutputFromDropdown = (key) => {
+    setCurrentTemplate(prev => ({
+      ...prev,
+      outputs: {
+        ...prev.outputs,
+        [key]: availableOutputs[key]
+      }
+    }));
+    setShowOutputDropdown(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Loading...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
@@ -416,7 +528,7 @@ function TemplateBuilder() {
         {/* View Toggle Buttons */}
         <div className="flex space-x-2">
           <button
-            onClick={() => setCurrentView('create')}
+            onClick={() => handleViewChange('create')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               currentView === 'create'
                 ? 'bg-blue-600 text-white'
@@ -426,7 +538,7 @@ function TemplateBuilder() {
             Create New Template
           </button>
           <button
-            onClick={() => setCurrentView('saved')}
+            onClick={() => handleViewChange('saved')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               currentView === 'saved'
                 ? 'bg-blue-600 text-white'
@@ -462,29 +574,29 @@ function TemplateBuilder() {
             <div className="text-center py-8">
               <p className="text-gray-500 mb-3">No templates saved yet.</p>
               <button
-                onClick={() => setCurrentView('create')}
+                onClick={() => handleViewChange('create')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
               >
                 Create Your First Template
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {templates.map((template, index) => (
-                <div key={template.id} className={`border rounded-lg p-4 transition-colors hover:shadow-md ${cardColors[index % cardColors.length]}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-semibold text-gray-900 text-lg text-selectable">{template.templateName}</h3>
+                <div key={template.id} className={`border rounded-lg p-5 transition-all hover:shadow-lg ${cardColors[index % cardColors.length]}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="font-bold text-gray-900 text-lg leading-tight">{template.templateName}</h3>
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleLoadTemplate(template)}
-                        className="text-blue-600 hover:text-blue-800 p-1 bg-white rounded-md shadow-sm"
+                        className="text-blue-600 hover:text-blue-800 p-2 bg-white rounded-md shadow-sm hover:shadow-md transition-shadow"
                         title="Edit Template"
                       >
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteTemplate(template.id)}
-                        className="text-red-600 hover:text-red-800 p-1 bg-white rounded-md shadow-sm"
+                        className="text-red-600 hover:text-red-800 p-2 bg-white rounded-md shadow-sm hover:shadow-md transition-shadow"
                         title="Delete Template"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -492,18 +604,18 @@ function TemplateBuilder() {
                     </div>
                   </div>
                   
-                  <div className="space-y-2 text-sm text-gray-700">
+                  <div className="space-y-3 text-sm text-gray-700 mb-4">
                     <div className="flex items-center">
                       <DocumentIcon className="h-4 w-4 mr-2 text-current" />
-                      <span className="text-selectable">{template.overview.length} input fields</span>
+                      <span>{template.overview.length} input fields</span>
                     </div>
                     <div className="flex items-center">
                       <TableCellsIcon className="h-4 w-4 mr-2 text-current" />
-                      <span className="text-selectable">{Object.keys(template.outputs).length} output sections</span>
+                      <span>{Object.keys(template.outputs).length} output sections</span>
                     </div>
                     <div className="flex items-center">
                       <PhotoIcon className="h-4 w-4 mr-2 text-current" />
-                      <span className="text-selectable">
+                      <span>
                         {[
                           template.technical.upload_csv && 'CSV',
                           template.technical.upload_image && 'Image',
@@ -511,15 +623,6 @@ function TemplateBuilder() {
                         ].filter(Boolean).join(', ') || 'No technical fields'}
                       </span>
                     </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-3 border-t border-current border-opacity-20">
-                    <button
-                      onClick={() => handleLoadTemplate(template)}
-                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors"
-                    >
-                      Edit Template
-                    </button>
                   </div>
                 </div>
               ))}
@@ -565,43 +668,68 @@ function TemplateBuilder() {
             </div>
             
             {currentTemplate.overview.length > 0 && (
-              <div className="mb-3 space-y-2">
-                {currentTemplate.overview.map((input, index) => (
-                  <div key={index} className="flex items-end gap-2 p-2 bg-blue-50 rounded-md">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Label</label>
-                      <input
-                        type="text"
-                        value={input.label}
-                        onChange={(e) => handleInputChange(index, 'label', e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                      <div className="px-2 py-1.5 text-xs border border-gray-300 rounded-md bg-gray-100">
-                        {renderInputTypeLabel(input.type)}
+              <div className="mb-3">
+                
+                      <div
+                        className="space-y-2" // Keep space between items
+                      >
+                        {currentTemplate.overview.map((input, index) => (
+                              <div
+                                key={input.key} 
+                                data-overview-key={input.key} // Add a data attribute for click outside detection
+                                className={`flex items-end gap-2 p-3 rounded-md transition-all border ${ 
+                                  movingOverviewField === input.key 
+                                    ? 'bg-yellow-50 border-yellow-300 shadow-md' // Lighter yellow
+                                    : 'bg-white border-gray-200' // No card bg, just border
+                                } hover:border-gray-300`} // Subtle hover
+                                tabIndex={movingOverviewField === input.key ? 0 : -1}
+                                onKeyDown={(e) => handleOverviewFieldMoveKeyDown(e, input.key)}
+                              >
+                                {/* Move Handle Icon */}
+                                <button 
+                                  onClick={() => setMovingOverviewField(movingOverviewField === input.key ? null : input.key)}
+                                  className={`cursor-pointer text-gray-400 hover:text-gray-600 p-2 -ml-1`}
+                                  title="Move field"
+                                >
+                                  <ChevronUpDownIcon className="h-5 w-5" />
+                                </button>
+                                
+                                <div className="flex-1">
+                                  <label className="block text-xs font-bold text-gray-700 mb-1">Label Name</label>
+                                  <input
+                                    type="text"
+                                    value={input.label}
+                                    onChange={(e) => handleInputChange(index, 'label', e.target.value)}
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md font-medium"
+                                    placeholder="Enter label name"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs font-bold text-gray-700 mb-1">Field Type</label>
+                                  <div className="px-2 py-1.5 text-xs border border-gray-300 rounded-md bg-gray-100 text-gray-600">
+                                    {renderInputTypeLabel(input.type)}
+                                  </div>
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs font-bold text-gray-700 mb-1">Default Value</label>
+                                  <input
+                                    type="text"
+                                    value={input.default || ''}
+                                    onChange={(e) => handleInputChange(index, 'default', e.target.value)}
+                                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md" 
+                                    placeholder={getDefaultFieldForType(input.type)}
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveInput(index)}
+                                  className="text-red-500 hover:text-red-700 p-2"
+                                  title="Remove input"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Default Value</label>
-                      <input
-                        type="text"
-                        value={input.default || ''}
-                        onChange={(e) => handleInputChange(index, 'default', e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md"
-                        placeholder={getDefaultFieldForType(input.type)}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleRemoveInput(index)}
-                      className="text-red-500 hover:text-red-700 py-1"
-                      title="Remove input"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
               </div>
             )}
             
@@ -609,17 +737,22 @@ function TemplateBuilder() {
               <h4 className="text-sm font-medium text-gray-700 mb-2">Available Input Fields</h4>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(availableInputs).map(([key, type]) => {
-                  const isSelected = selectedInputs.has(key);
-                  const bgColor = isSelected ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
+                  // Corrected logic: Check if the key exists in the currentTemplate's overview section
+                  const isAdded = currentTemplate.overview.some(input => input.key === key);
+                  const isAvailable = !isAdded; 
+                  
+                  const bgColor = isAvailable ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-green-100 text-green-800';
                   
                   return (
                     <button
                       key={key}
                       onClick={() => handleAddInput(key, type)}
-                      className={`px-3 py-1 text-xs rounded-full hover:opacity-90 ${bgColor}`}
-                      disabled={!isSelected}
+                      className={`px-3 py-1 text-xs rounded-full transition-colors flex items-center ${bgColor}`}
+                      disabled={!isAvailable}
+                      title={isAvailable ? 'Click to add' : 'Already added'}
                     >
                       {key}
+                      {isAdded && <CheckCircleIcon className="h-3 w-3 ml-1.5 text-green-700" />}
                     </button>
                   );
                 })}
@@ -733,25 +866,27 @@ function TemplateBuilder() {
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-md font-medium text-gray-800">Outputs Section</h3>
-              {countSelectedOutputs() < countTotalOutputs() && (
-                <button
-                  onClick={handleSelectAllOutputs}
-                  className="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  Select All Outputs
-                </button>
-              )}
+              <div className="flex space-x-2">
+                {countSelectedOutputs() < countTotalOutputs() && (
+                  <button
+                    onClick={handleSelectAllOutputs}
+                    className="px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Select All Outputs
+                  </button>
+                )}
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-2">
               {Object.entries(availableOutputs).map(([key, values]) => {
                 const isSelected = !!currentTemplate.outputs[key];
-                const bgColor = isSelected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100';
+                const bgColor = isSelected ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200';
                 
                 return (
                   <div 
                     key={key} 
-                    className={`flex items-center p-2 rounded-md border ${bgColor} cursor-pointer`}
+                    className={`flex items-center p-2 rounded-md border ${bgColor} cursor-pointer transition-colors hover:shadow-sm`}
                     onClick={() => handleOutputToggle(key)}
                   >
                     <input
@@ -776,17 +911,6 @@ function TemplateBuilder() {
                 );
               })}
             </div>
-            
-            {Object.keys(availableOutputs).length === 0 && (
-              <p className="text-sm text-gray-500 italic">No outputs configured yet. Add outputs in the Config page.</p>
-            )}
-            
-            {/* Selected outputs count */}
-            {Object.keys(availableOutputs).length > 0 && (
-              <div className="text-xs text-gray-500 mt-2">
-                Selected {countSelectedOutputs()} of {countTotalOutputs()} outputs
-              </div>
-            )}
           </div>
           
           <div className="flex justify-end space-x-3">
