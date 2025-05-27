@@ -258,8 +258,17 @@ class BRDAIGenerator {
             client: brdData.formData?.Client || "N/A",
             outputsCount: brdData.outputs?.length || 0,
             hasBusinessLogic: !!brdData.businessLogic,
+            hasTechnicalData: !!brdData.technicalData,
+            technicalDataKeys: brdData.technicalData ? Object.keys(brdData.technicalData) : [],
             sessionId: brdData.metadata?.sessionId || "N/A",
         });
+
+        // Log technical data structure for debugging
+        if (brdData.technicalData && Object.keys(brdData.technicalData).length > 0) {
+            console.log("🔍 Technical data structure received:", JSON.stringify(brdData.technicalData, null, 2));
+        } else {
+            console.log("⚠️ No technical data received by AI generator");
+        }
 
         // Reset tracking
         this.generatedOutputs.clear();
@@ -1890,7 +1899,29 @@ API CONTEXT FOR DIAGRAM:
 
     // Generate Data Mapping content - Only if CSV data exists, else empty
     generateDataMappingContent(context, brdData) {
-        // Check if we have CSV data
+        // Check if we have CSV data in the new structure
+        if (brdData.technicalData && Object.keys(brdData.technicalData).length > 0) {
+            // Look for CSV files in any output section
+            for (const [outputSection, sectionData] of Object.entries(brdData.technicalData)) {
+                if (sectionData && sectionData.files && Array.isArray(sectionData.files)) {
+                    // Find the first CSV file with table data
+                    const csvFile = sectionData.files.find(file => 
+                        file.fileType === 'csv' && file.tableData && file.tableData.headers && file.tableData.rows
+                    );
+                    
+                    if (csvFile) {
+                        // Return the actual CSV data as table
+                        return {
+                            type: "table",
+                            headers: csvFile.tableData.headers || [],
+                            data: csvFile.tableData.rows || [],
+                        };
+                    }
+                }
+            }
+        }
+
+        // Check for legacy CSV data structure for backward compatibility
         if (
             brdData.technicalData &&
             brdData.technicalData.csv &&
@@ -1903,7 +1934,6 @@ API CONTEXT FOR DIAGRAM:
                 type: "table",
                 headers: csvData.headers || [],
                 data: csvData.rows || [],
-                // No validation rules or transformation notes - just the raw data
             };
         }
 

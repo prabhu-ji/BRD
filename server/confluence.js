@@ -105,27 +105,98 @@ class ConfluenceGenerator {
         return "unknown";
     }
 
-    // FIXED: Smart content routing by type
-    generateSmartContent(key, value, contentType = null) {
-        console.log(`🤖 Processing: ${key} (type: ${contentType || "auto"})`);
+    // FIXED: Smart content routing by type with technical data integration
+    generateSmartContent(key, value, contentType = null, technicalData = null) {
+        console.log(`🤖 Processing section: ${key} (type: ${contentType || "auto"})`);
 
         const detectedType = contentType || this.detectContentType(key, value);
 
+        let content = "";
         // FIXED: Proper routing based on AI content type
         switch (detectedType) {
             case "text":
-                return this.generateTextContent(key, value);
+                content = this.generateTextContent(key, value);
+                break;
             case "table":
-                return this.generateTableContent(key, value);
+                content = this.generateTableContent(key, value);
+                break;
             case "diagram":
-                return this.generateDiagramContent(key, value);
+                content = this.generateDiagramContent(key, value);
+                break;
             case "list":
-                return this.generateListContent(key, value);
+                content = this.generateListContent(key, value);
+                break;
             case "code":
-                return this.generateCodeContent(key, value);
+                content = this.generateCodeContent(key, value);
+                break;
             default:
-                return this.generateTextContent(key, value);
+                content = this.generateTextContent(key, value);
+                break;
         }
+
+        // Check if there are technical files for this section and append them
+        if (technicalData && Object.keys(technicalData).length > 0) {
+            console.log(`🔍 Processing technical data for section: "${key}"`);
+            console.log(`🔍 Available technical data sections:`, Object.keys(technicalData));
+            
+            // Try exact match first
+            let sectionTechnicalData = technicalData[key];
+            
+            // If no exact match, try to find a flexible match
+            if (!sectionTechnicalData) {
+                // Normalize the section name for comparison
+                const normalizedKey = this.normalizeKeyForMatching(key);
+                console.log(`🔍 Normalized AI section key for matching: "${normalizedKey}" (original: "${key}")`);
+                
+                for (const [techKey, techData] of Object.entries(technicalData)) {
+                    // Log original keys before normalization for comparison
+                    console.log(`🔍 Comparing AI key: "${key}" with Technical Data key: "${techKey}"`);
+                    const normalizedTechKey = this.normalizeKeyForMatching(techKey);
+                    console.log(`🔍     Normalized AI key: "${normalizedKey}" vs Normalized Tech key: "${normalizedTechKey}"`);
+                    
+                    if (normalizedKey === normalizedTechKey) {
+                        console.log(`✅ Found matching technical data: "${key}" matches "${techKey}"`);
+                        sectionTechnicalData = techData;
+                        break;
+                    }
+                }
+            } else {
+                console.log(`✅ Found exact technical data match for section: "${key}"`);
+            }
+            
+            if (sectionTechnicalData) {
+                console.log(`📎 Processing technical data for section: ${key}`, {
+                    hasFiles: !!(sectionTechnicalData.files),
+                    fileCount: sectionTechnicalData.files?.length || 0,
+                    sectionData: sectionTechnicalData
+                });
+                
+                if (sectionTechnicalData.files && Array.isArray(sectionTechnicalData.files) && sectionTechnicalData.files.length > 0) {
+                    console.log(`📄 Adding ${sectionTechnicalData.files.length} technical files to section: ${key}`);
+                    const technicalContent = this.generateTechnicalFilesForSection(key, sectionTechnicalData);
+                    content += technicalContent;
+                    console.log(`✅ Successfully added technical attachments to section: ${key}`);
+                } else {
+                    console.log(`⚠️ No files found in technical data for section: ${key} - files:`, sectionTechnicalData.files);
+                }
+            } else {
+                console.log(`❌ No matching technical data found for section: "${key}"`);
+                console.log(`❌ Available technical sections: [${Object.keys(technicalData).join(', ')}]`);
+            }
+        } else {
+            console.log(`ℹ️ No technical data available for processing (technicalData:`, !!technicalData, `keys:`, technicalData ? Object.keys(technicalData).length : 0, ')');
+        }
+
+        return content;
+    }
+
+    // NEW: Normalize keys for flexible matching
+    normalizeKeyForMatching(key) {
+        return key
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
     }
 
     // Helper: Check if array represents table data
@@ -281,11 +352,13 @@ class ConfluenceGenerator {
         return content;
     }
 
-    generateTableContent(key, value) {
+    generateTableContent(key, value, customHeaders = null) {
         let content = `<h3>${this.escapeHtml(key)}</h3>\n`;
 
         // Extract table data from AI objects
         let tableData = value;
+        let headers = customHeaders;
+        
         if (typeof value === "object" && value !== null) {
             if (value.headers && value.data) {
                 // AI-generated table structure
@@ -329,17 +402,12 @@ class ConfluenceGenerator {
             }
         }
 
-        // Handle array data
+        // Handle array data with custom headers
         if (Array.isArray(tableData) && tableData.length > 0) {
             content += '<table class="confluenceTable"><tbody>\n';
 
-            if (
-                typeof tableData[0] === "object" &&
-                !Array.isArray(tableData[0])
-            ) {
-                // Array of objects
-                const headers = Object.keys(tableData[0]);
-
+            if (headers && Array.isArray(headers)) {
+                // Use custom headers
                 content += "<tr>";
                 headers.forEach((header) => {
                     content += `<th class="confluenceTh">${this.escapeHtml(
@@ -350,7 +418,40 @@ class ConfluenceGenerator {
 
                 tableData.forEach((row) => {
                     content += "<tr>";
-                    headers.forEach((header) => {
+                    if (typeof row === "object" && !Array.isArray(row)) {
+                        headers.forEach((header) => {
+                            const cellValue = row[header] || "";
+                            content += `<td class="confluenceTd">${this.escapeHtml(
+                                String(cellValue)
+                            )}</td>`;
+                        });
+                    } else if (Array.isArray(row)) {
+                        row.forEach((cell) => {
+                            content += `<td class="confluenceTd">${this.escapeHtml(
+                                String(cell)
+                            )}</td>`;
+                        });
+                    }
+                    content += "</tr>\n";
+                });
+            } else if (
+                typeof tableData[0] === "object" &&
+                !Array.isArray(tableData[0])
+            ) {
+                // Array of objects - use object keys as headers
+                const objectHeaders = Object.keys(tableData[0]);
+
+                content += "<tr>";
+                objectHeaders.forEach((header) => {
+                    content += `<th class="confluenceTh">${this.escapeHtml(
+                        header
+                    )}</th>`;
+                });
+                content += "</tr>\n";
+
+                tableData.forEach((row) => {
+                    content += "<tr>";
+                    objectHeaders.forEach((header) => {
                         const cellValue = row[header] || "";
                         content += `<td class="confluenceTd">${this.escapeHtml(
                             String(cellValue)
@@ -451,6 +552,103 @@ class ConfluenceGenerator {
         return content;
     }
 
+    // NEW: Generate technical files for a specific section
+    generateTechnicalFilesForSection(sectionName, sectionTechnicalData) {
+        console.log(`📎 Generating technical files for section: ${sectionName}`);
+        console.log(`📎 Technical data received:`, JSON.stringify(sectionTechnicalData, null, 2));
+        
+        if (!sectionTechnicalData || !sectionTechnicalData.files || !Array.isArray(sectionTechnicalData.files)) {
+            console.log(`⚠️ No files found in technical data for section: ${sectionName}`);
+            return '';
+        }
+
+        let content = `\n<h4>Technical Attachments</h4>\n`;
+        
+        sectionTechnicalData.files.forEach((file, index) => {
+            console.log(`📄 Processing file ${index + 1}: ${file.name}, type: ${file.fileType}`);
+            
+            if (file.fileType === 'csv' && file.tableData) {
+                // Handle CSV files as tables
+                content += `\n<h5>${this.escapeHtml(file.name)}</h5>\n`;
+                
+                // Add description in italics and small text
+                if (file.description && file.description.trim()) {
+                    content += `<p style="font-style: italic; font-size: 0.9em; color: #666;">${this.escapeHtml(file.description)}</p>\n`;
+                }
+                
+                console.log("🔍 CSV tableData structure:", {
+                    hasHeaders: !!file.tableData.headers,
+                    headersLength: file.tableData.headers?.length || 0,
+                    hasRows: !!file.tableData.rows,
+                    rowsLength: file.tableData.rows?.length || 0,
+                    headers: file.tableData.headers,
+                    firstRow: file.tableData.rows?.[0]
+                });
+                
+                // Generate table manually
+                if (file.tableData.headers && Array.isArray(file.tableData.headers) && 
+                    file.tableData.rows && Array.isArray(file.tableData.rows)) {
+                    
+                    content += '<table class="confluenceTable" style="width: 100%; border-collapse: collapse; margin: 10px 0;"><tbody>\n';
+                    
+                    // Add headers
+                    content += "<tr>";
+                    file.tableData.headers.forEach((header) => {
+                        content += `<th class="confluenceTh" style="border: 1px solid #ccc; padding: 8px; background-color: #f5f5f5; font-weight: bold;">${this.escapeHtml(String(header))}</th>`;
+                    });
+                    content += "</tr>\n";
+                    
+                    // Add data rows
+                    file.tableData.rows.forEach((row, rowIndex) => {
+                        content += "<tr>";
+                        file.tableData.headers.forEach((header) => {
+                            let cellValue = '';
+                            
+                            // Handle different row formats
+                            if (typeof row === 'object' && row !== null) {
+                                cellValue = row[header] || '';
+                            } else if (Array.isArray(row)) {
+                                const headerIndex = file.tableData.headers.indexOf(header);
+                                cellValue = row[headerIndex] || '';
+                            } else {
+                                cellValue = '';
+                            }
+                            
+                            content += `<td class="confluenceTd" style="border: 1px solid #ccc; padding: 8px;">${this.escapeHtml(String(cellValue))}</td>`;
+                        });
+                        content += "</tr>\n";
+                    });
+                    
+                    content += "</tbody></table>\n";
+                    console.log(`✅ Successfully generated table for ${file.name}`);
+                } else {
+                    console.log(`❌ Invalid table data structure for ${file.name}`);
+                    content += `<p style="color: #999;"><em>Table data format is invalid for ${this.escapeHtml(file.name)}</em></p>\n`;
+                }
+                
+            } else if (file.fileType === 'image') {
+                // Handle image files
+                content += `\n<h5>${this.escapeHtml(file.name)}</h5>\n`;
+                
+                // Add description in italics and small text
+                if (file.description && file.description.trim()) {
+                    content += `<p style="font-style: italic; font-size: 0.9em; color: #666;">${this.escapeHtml(file.description)}</p>\n`;
+                }
+                
+                // Use Confluence <ac:image> macro to reference an attachment
+                content += `<p><ac:image ac:height="250"><ri:attachment ri:filename="${this.escapeHtml(file.name)}" /></ac:image></p>\n`;
+                content += `<p style="font-size: 0.8em; color: #999;"><em>To display the image above, ensure a file named "${this.escapeHtml(file.name)}" is attached to this Confluence page.</em></p>\n`;
+                
+                console.log(`✅ Successfully generated Confluence image macro for ${file.name}`);
+            } else {
+                console.log(`⚠️ Unknown file type: ${file.fileType} for file: ${file.name}`);
+            }
+        });
+
+        console.log(`✅ Generated technical attachments content (${content.length} chars)`);
+        return content;
+    }
+
     // Main content generation
     async generateConfluenceContent(brdData) {
         let content = "";
@@ -460,20 +658,21 @@ class ConfluenceGenerator {
 
         // Process generated sections
         const sections = brdData.sections || brdData.generatedContent || {};
+        const technicalData = brdData.technicalData || {};
         console.log("🔍 Available sections:", Object.keys(sections));
+        console.log("🔍 Available technical data:", Object.keys(technicalData));
+        console.log("🔍 Full technical data structure:", JSON.stringify(technicalData, null, 2));
 
         for (const [sectionName, sectionContent] of Object.entries(sections)) {
-            console.log(`📝 Processing section: ${sectionName}`);
+            console.log(`📝 Processing section: "${sectionName}"`);
+            console.log(`📝 Section content type:`, typeof sectionContent);
             const sectionHtml = this.generateSmartContent(
                 sectionName,
-                sectionContent
+                sectionContent,
+                null,
+                technicalData
             );
             content += sectionHtml + "\n";
-        }
-
-        // Add technical data if present
-        if (brdData.technicalData) {
-            content += this.generateTechnicalDataSection(brdData);
         }
 
         console.log(`✅ Generated ${content.length} characters of content`);
@@ -496,22 +695,6 @@ class ConfluenceGenerator {
         });
 
         content += "</tbody></table>\n";
-        return content;
-    }
-
-    generateTechnicalDataSection(brdData) {
-        const technicalData = brdData.technicalData;
-        if (!technicalData) return "";
-
-        let content = "<h2>Technical Data</h2>\n";
-
-        if (technicalData.csv && technicalData.csv.data) {
-            content += this.generateTableContent(
-                "Data Mapping",
-                technicalData.csv.data.rows
-            );
-        }
-
         return content;
     }
 

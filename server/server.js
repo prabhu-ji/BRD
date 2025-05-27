@@ -532,10 +532,14 @@ app.post(
             let parsedTechnicalData = {};
             if (technicalData) {
                 try {
+                    console.log("🔍 Raw technical data received:", technicalData);
                     parsedTechnicalData = JSON.parse(technicalData);
+                    console.log("✅ Parsed technical data:", JSON.stringify(parsedTechnicalData, null, 2));
                 } catch (error) {
                     console.error("Error parsing technical data:", error);
                 }
+            } else {
+                console.log("⚠️ No technical data received in request");
             }
 
             // Transform outputs from object format to array format expected by AI generator
@@ -653,12 +657,35 @@ app.post(
             }
 
             // Return the result with optional Confluence data
-            res.json({
+            const finalResult = {
                 ...brdResult,
                 confluence: confluenceResult,
-            });
+            };
+
+            // Clean up uploaded files after successful generation
+            await cleanupFiles(fileMap, brdData.metadata?.sessionId);
+
+            res.json(finalResult);
         } catch (error) {
             console.error("Error in generate-brd endpoint:", error);
+            
+            // Clean up files even on error
+            try {
+                const files = req.files || {};
+                const fileMap = {};
+                Object.entries(files).forEach(([type, fileArr]) => {
+                    if (fileArr && fileArr.length > 0) {
+                        fileMap[type] = {
+                            path: fileArr[0].path,
+                            originalName: fileArr[0].originalname,
+                        };
+                    }
+                });
+                await cleanupFiles(fileMap, req.body.sessionId || 'error-cleanup');
+            } catch (cleanupError) {
+                console.error("Error during error cleanup:", cleanupError);
+            }
+
             res.status(500).json({
                 success: false,
                 message: `Server error: ${error.message}`,
@@ -736,10 +763,14 @@ app.post(
             let parsedTechnicalData = {};
             if (technicalData) {
                 try {
+                    console.log("🔍 Raw technical data received:", technicalData);
                     parsedTechnicalData = JSON.parse(technicalData);
+                    console.log("✅ Parsed technical data:", JSON.stringify(parsedTechnicalData, null, 2));
                 } catch (error) {
                     console.error("Error parsing technical data:", error);
                 }
+            } else {
+                console.log("⚠️ No technical data received in request");
             }
 
             // Transform outputs from object format to array format expected by AI generator
@@ -815,15 +846,38 @@ app.post(
             }
 
             // Return combined result
-            res.json({
+            const finalResult = {
                 ...brdResult,
                 confluence: confluenceResult,
-            });
+            };
+
+            // Clean up uploaded files after successful generation
+            await cleanupFiles(fileMap, brdData.metadata?.sessionId);
+
+            res.json(finalResult);
         } catch (error) {
             console.error(
                 "Error in generate-brd-with-confluence endpoint:",
                 error
             );
+            
+            // Clean up files even on error
+            try {
+                const files = req.files || {};
+                const fileMap = {};
+                Object.entries(files).forEach(([type, fileArr]) => {
+                    if (fileArr && fileArr.length > 0) {
+                        fileMap[type] = {
+                            path: fileArr[0].path,
+                            originalName: fileArr[0].originalname,
+                        };
+                    }
+                });
+                await cleanupFiles(fileMap, req.body.sessionId || 'error-cleanup');
+            } catch (cleanupError) {
+                console.error("Error during error cleanup:", cleanupError);
+            }
+
             res.status(500).json({
                 success: false,
                 message: `Server error: ${error.message}`,
@@ -831,6 +885,61 @@ app.post(
         }
     }
 );
+
+// File cleanup utility
+const cleanupFiles = async (files, sessionId) => {
+    try {
+        if (!files || Object.keys(files).length === 0) return;
+        
+        console.log(`🧹 Cleaning up uploaded files for session: ${sessionId}`);
+        
+        // Delete individual files
+        for (const [type, fileInfo] of Object.entries(files)) {
+            if (fileInfo && fileInfo.path && fs.existsSync(fileInfo.path)) {
+                await fs.unlink(fileInfo.path);
+                console.log(`✅ Deleted file: ${fileInfo.originalName}`);
+            }
+        }
+        
+        // Clean up session directory if empty
+        const sessionDir = path.join(UPLOADS_DIR, sessionId);
+        if (fs.existsSync(sessionDir)) {
+            const remainingFiles = await fs.readdir(sessionDir);
+            if (remainingFiles.length === 0) {
+                await fs.rmdir(sessionDir);
+                console.log(`✅ Deleted empty session directory: ${sessionId}`);
+            }
+        }
+    } catch (error) {
+        console.error("Error during file cleanup:", error);
+        // Don't throw error - cleanup failure shouldn't break the response
+    }
+};
+
+// Cleanup old session directories (older than 1 hour)
+const cleanupOldSessions = async () => {
+    try {
+        if (!fs.existsSync(UPLOADS_DIR)) return;
+        
+        const sessions = await fs.readdir(UPLOADS_DIR);
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        
+        for (const session of sessions) {
+            const sessionPath = path.join(UPLOADS_DIR, session);
+            const stats = await fs.stat(sessionPath);
+            
+            if (stats.isDirectory() && stats.mtime.getTime() < oneHourAgo) {
+                await fs.remove(sessionPath);
+                console.log(`🧹 Cleaned up old session: ${session}`);
+            }
+        }
+    } catch (error) {
+        console.error("Error cleaning up old sessions:", error);
+    }
+};
+
+// Run cleanup every 30 minutes
+setInterval(cleanupOldSessions, 30 * 60 * 1000);
 
 // Start server
 app.listen(PORT, () => {

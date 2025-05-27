@@ -29,11 +29,9 @@ function TemplateBuilder() {
     technical: {
       upload_csv: false,
       upload_image: false,
-      upload_doc: false,
       labels: {
         csv: 'Upload CSV',
         image: 'Upload Image',
-        doc: 'Upload Document'
       }
     },
     outputs: {}
@@ -308,11 +306,9 @@ function TemplateBuilder() {
       technical: {
         upload_csv: false,
         upload_image: false,
-        upload_doc: false,
         labels: {
           csv: 'Upload CSV',
           image: 'Upload Image',
-          doc: 'Upload Document'
         }
       },
       outputs: {}
@@ -353,11 +349,9 @@ function TemplateBuilder() {
       technical: {
         upload_csv: false,
         upload_image: false,
-        upload_doc: false,
         labels: {
           csv: 'Upload CSV',
           image: 'Upload Image',
-          doc: 'Upload Document'
         }
       },
       outputs: {}
@@ -475,11 +469,9 @@ function TemplateBuilder() {
       technical: {
         upload_csv: false,
         upload_image: false,
-        upload_doc: false,
         labels: {
           csv: 'Upload CSV',
           image: 'Upload Image',
-          doc: 'Upload Document'
         }
       },
       outputs: {}
@@ -624,7 +616,6 @@ function TemplateBuilder() {
                         {[
                           template.technical.upload_csv && 'CSV',
                           template.technical.upload_image && 'Image',
-                          template.technical.upload_doc && 'Document'
                         ].filter(Boolean).join(', ') || 'No technical fields'}
                       </span>
                     </div>
@@ -774,8 +765,7 @@ function TemplateBuilder() {
             
             {/* List of configured technical fields */}
             {(currentTemplate.technical.upload_csv || 
-              currentTemplate.technical.upload_image || 
-              currentTemplate.technical.upload_doc) && (
+              currentTemplate.technical.upload_image) && (
               <div className="mb-3 space-y-2">
                 {currentTemplate.technical.upload_csv && (
                   <div className="flex items-center justify-between p-2 bg-blue-50 rounded-md">
@@ -801,22 +791,6 @@ function TemplateBuilder() {
                     </div>
                     <button
                       onClick={() => handleRemoveTechnicalField('upload_image')}
-                      className="text-red-500 hover:text-red-700"
-                      title="Remove field"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-                
-                {currentTemplate.technical.upload_doc && (
-                  <div className="flex items-center justify-between p-2 bg-blue-50 rounded-md">
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium">{currentTemplate.technical.labels.doc}</span>
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Document Upload</span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveTechnicalField('upload_doc')}
                       className="text-red-500 hover:text-red-700"
                       title="Remove field"
                     >
@@ -853,7 +827,6 @@ function TemplateBuilder() {
                 >
                   <option value="upload_csv">CSV Upload</option>
                   <option value="upload_image">Image Upload</option>
-                  <option value="upload_doc">Document Upload</option>
                 </select>
               </div>
               
