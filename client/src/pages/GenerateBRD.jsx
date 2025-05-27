@@ -17,26 +17,42 @@ function GenerateBRD() {
     const [errorMessage, setErrorMessage] = useState("");
 
     useEffect(() => {
-        // Get the BRD data from localStorage
         try {
-            const savedData = localStorage.getItem("brd_generation_data");
-            if (savedData) {
-                setBrdData(JSON.parse(savedData));
-                // Start the generation process
+            const savedBrdInputData = localStorage.getItem("brd_generation_data");
+            const lastGeneratedResult = localStorage.getItem("brd_last_generated_result");
+
+            if (lastGeneratedResult) {
+                // If there's a previously generated result, display it immediately
+                const parsedResult = JSON.parse(lastGeneratedResult);
+                // We need to ensure this result corresponds to the current input data if possible,
+                // or decide if just showing the last result is okay.
+                // For simplicity now, if lastGeneratedResult exists, we assume it's the one to show.
+                // A more robust solution might involve matching IDs if inputData also had an ID.
+                setGeneratedDoc(parsedResult);
+                setStatus("success");
+                setBrdData(savedBrdInputData ? JSON.parse(savedBrdInputData) : null); // Still set brdData for context if needed by UI
+                // Potentially clear brd_generation_data if we don't want it to be used again automatically
+                // localStorage.removeItem("brd_generation_data"); 
+            } else if (savedBrdInputData) {
+                // No last result, but we have input data, so generate.
+                const parsedInputData = JSON.parse(savedBrdInputData);
+                setBrdData(parsedInputData);
                 setStatus("generating");
-                startGenerationProcess(JSON.parse(savedData));
+                startGenerationProcess(parsedInputData);
+                // Important: Clear brd_generation_data after starting generation to prevent re-trigger on simple refresh during generation
+                // or if generation fails and user refreshes before success.
+                // However, if it fails, user might want to retry with same data. So, maybe clear only on success OR when navigating away.
+                // For now, let's clear it after successful storage of generatedDoc.
             } else {
                 setStatus("error");
-                setErrorMessage(
-                    "No BRD data found. Please create a BRD first."
-                );
+                setErrorMessage("No BRD data found. Please create a BRD first.");
             }
         } catch (error) {
-            console.error("Error loading BRD data:", error);
+            console.error("Error initializing GenerateBRD page:", error);
             setStatus("error");
-            setErrorMessage("Failed to load BRD data.");
+            setErrorMessage("Failed to initialize BRD generation process.");
         }
-    }, []);
+    }, [navigate]); // Added navigate to dependency array as it's used in createNewBRD which could be part of effect cleanup in future
 
     const startGenerationProcess = async (data) => {
         // Simulate initial progress while preparing data
@@ -136,12 +152,19 @@ function GenerateBRD() {
                     clearInterval(generationTimer);
                     setProgress(100);
                     setStatus("success");
-                    setGeneratedDoc({
-                        fileName: response.data.fileName,
-                        url: `http://localhost:5000${response.data.downloadUrl}`,
-                        timestamp: response.data.timestamp,
-                        confluence: response.data.confluence,
-                    });
+                    const resultToSave = {
+                        fileName: response.data.fileName, // May not be needed if not displayed
+                        url: `http://localhost:5000${response.data.downloadUrl}`, // May not be needed if not displayed
+                        timestamp: response.data.timestamp, // May not be needed if not displayed
+                        confluence: response.data.confluence, // This is important
+                        // Add an identifier if dataToProcess had one, to match input with result
+                        // inputDataId: dataToProcess.id (if you add an ID to brd_generation_data)
+                    };
+                    setGeneratedDoc(resultToSave);
+                    localStorage.setItem('brd_last_generated_result', JSON.stringify(resultToSave));
+                    // Now that we have a result, we can consider brd_generation_data processed for this session.
+                    // Clearing it prevents re-generation on refresh if user somehow lands here before result is shown.
+                    localStorage.removeItem("brd_generation_data"); 
                 }, 3000);
             } else {
                 throw new Error(
@@ -335,59 +358,6 @@ function GenerateBRD() {
                                     </a>
                                 </div>
                             )}
-
-                        <div className="border border-gray-200 rounded-lg p-6 mb-6 bg-gray-50">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center">
-                                    <DocumentTextIcon className="h-8 w-8 text-blue-600 mr-3" />
-                                    <div>
-                                        <h3 className="font-medium text-gray-900">
-                                            {generatedDoc.fileName}
-                                        </h3>
-                                        <p className="text-sm text-gray-500">
-                                            Generated on{" "}
-                                            {new Date(
-                                                generatedDoc.timestamp
-                                            ).toLocaleString()}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={downloadDocument}
-                                    className="btn btn-primary flex items-center"
-                                >
-                                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                                    Download
-                                </button>
-                            </div>
-
-                            {brdData && (
-                                <div className="mt-4 border-t border-gray-200 pt-4">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                        Document Information
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                        <div>
-                                            <span className="text-gray-500">
-                                                Template:
-                                            </span>{" "}
-                                            <span className="text-gray-900">
-                                                {brdData.template.templateName}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-500">
-                                                Outputs:
-                                            </span>{" "}
-                                            <span className="text-gray-900">
-                                                {brdData.outputs.length}{" "}
-                                                sections
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
 
                         <div className="flex justify-center">
                             <button

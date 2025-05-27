@@ -21,32 +21,4 @@
   .card {
     @apply bg-white rounded-lg shadow-md p-6;
   }
-}
-
-/* Prevent contentEditable and cursor issues */
-* {
-  -webkit-user-modify: read-only;
-}
-
-input, textarea, [contenteditable="true"] {
-  -webkit-user-modify: read-write-plaintext-only;
-}
-
-/* Ensure no text cursors where they shouldn't be */
-div:not([contenteditable="true"]),
-span:not([contenteditable="true"]),
-p:not([contenteditable="true"]),
-h1:not([contenteditable="true"]),
-h2:not([contenteditable="true"]),
-h3:not([contenteditable="true"]),
-h4:not([contenteditable="true"]),
-h5:not([contenteditable="true"]),
-h6:not([contenteditable="true"]) {
-  cursor: default;
-  user-select: none;
-}
-
-/* Allow text selection for specific elements */
-.text-selectable {
-  user-select: text;
 } 

@@ -1,0 +1,130 @@
+{
+  "title": "TS-0526 Visteon :: HR Term Bot / Darwinbox Digital Solutions - to transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon. Integration BRD",
+  "detailsTable": {
+    "Client": "Visteon",
+    "Vendor": "HR Term Bot / Darwinbox Digital Solutions",
+    "Version": "Bahubali",
+    "Doc Owner": "Kattappa",
+    "Functional Lead": "Rajamata",
+    "Status": "IN REVIEW",
+    "Last updated by": "Bhallal Dev",
+    "Last date updated": "2025-05-25",
+    "Client Approved By [Name, Designation]": "Kalkeya",
+    "Client Approved Date": "2025-05-25",
+    "Mode of Integration": "API-Based [API-BASED / STANDARD / CUSTOM DEV]",
+    "Modules": "Attendance",
+    "Direction": "OUTBOUND [INBOUND / OUTBOUND / BI-DIRECTION]",
+    "Frequency": "Scheduled – Weekly, every Monday at 1:00 PM EST + On Demand",
+    "Data Load": "\tFull Dump (Only Inactive employees)",
+    "Client email for error/success response": "hcmhelp@visteon.com, ithcm@visteon.com"
+  },
+  "sections": {
+    "Purpose/Justification": {
+      "type": "text",
+      "content": "*   This document outlines the business requirements and technical details for an API-based outbound integration from Darwinbox to HR Term Bot for Visteon, designed to transfer deactivated (date of exit ≥ 1 Jan 2020) and all active employee master data.\n*   The API-based approach facilitates real-time, secure, and automated data synchronization, ensuring HR Term Bot has the most current employee information for Visteon's workforce management and attendance tracking needs."
+    },
+    "Technical Design Specifications": {
+      "type": "text",
+      "content": "**Technical Design Specifications**\n\n**1. Purpose/Overview**\n\n*   This document outlines the technical specifications for an API-based outbound integration from Darwinbox to HR Term Bot for Visteon.\n*   The integration facilitates the transfer of active and inactive employee master data.\n*   This data will be used by Visteon for HR Term Bot functionalities.\n\n**2. APIs Used**\n\n*   Darwinbox Employee Data API (Specific endpoint details to be defined based on Darwinbox API documentation).\n    *   Method: `GET` (for retrieving employee data).\n    *   Authentication: API Key / OAuth 2.0 (Specific method to be determined).\n*   SFTP API (for secure data transfer).\n    *   Method: `PUT` (for transferring the data file).\n    *   Authentication: SSH Key-based authentication.\n\n**3. Data Mapping**\n\n*   Employee ID (Darwinbox) -> Employee ID (HR Term Bot)\n*   First Name (Darwinbox) -> First Name (HR Term Bot)\n*   Last Name (Darwinbox) -> Last Name (HR Term Bot)\n*   Date of Joining (Darwinbox) -> Date of Joining (HR Term Bot)\n*   Date of Exit (Darwinbox) -> Date of Exit (HR Term Bot)\n*   Employee Status (Darwinbox) -> Employee Status (HR Term Bot)\n*   Attendance Data (Darwinbox) -> Attendance Data (HR Term Bot)\n\n**4. Technical Specifications**\n\n*   Integration Mode: API-Based Outbound.\n*   Data Format: CSV/JSON (Predefined format agreed upon by Darwinbox and Visteon).\n*   Transfer Protocol: SFTP with encryption.\n*   Data Filtering:\n    *   Active Employees: All active employee records will be included.\n    *   Inactive Employees: Only inactive employee records with a date of exit on or after January 1, 2020, will be included.\n*   Scheduling: Scheduled data transfer (Frequency to be determined based on Visteon's requirements).\n*   Error Handling:\n    *   Logging: Detailed logging of all integration activities, including errors.\n    *   Retry Mechanism: Automatic retry mechanism for failed API calls and SFTP transfers.\n    *   Alerting: Notifications to the Darwinbox integration team for critical errors.\n\n**5. Security Considerations**\n\n*   Data Encryption: Data will be encrypted during transit using SFTP.\n*   Access Control: Access to the SFTP server will be restricted to authorized personnel only.\n*   API Key Management: Secure storage and management of API keys.\n\n**6. Dependencies/Assumptions**\n\n*   Darwinbox Employee Data API is available and accessible.\n*   Visteon's SFTP server is configured and accessible.\n*   Predefined data format is agreed upon and implemented by both Darwinbox and Visteon.\n*   Employee data in Darwinbox is accurate and up-to-date.\n*   Successful authentication and authorization for API access.\n*   Network connectivity between Darwinbox and Visteon SFTP server.\n\n**7. Integration Flow**\n\n1.  Darwinbox scheduler triggers the data extraction process.\n2.  Darwinbox retrieves employee data from the Darwinbox Employee Data API, filtering based on the defined criteria (active employees and inactive employees with date of exit ≥ 1 Jan 2020).\n3.  Data is transformed into the predefined CSV/JSON format.\n4.  The data file is encrypted.\n5.  The encrypted file is transferred to Visteon's SFTP server using the SFTP API.\n6.  Logging and error handling are performed throughout the process."
+    },
+    "Data Mapping Table": {
+      "type": "table",
+      "headers": [
+        "1",
+        "\"Eldon Base for stackable storage shelf",
+        "platinum\"",
+        "Muhammed MacIntyre",
+        "3",
+        "-213.25",
+        "38.94",
+        "35",
+        "Nunavut",
+        "Storage & Organization",
+        "0.8"
+      ],
+      "data": [
+        {
+          "1": "3",
+          "3": "293",
+          "35": "2.99",
+          "\"Eldon Base for stackable storage shelf": "\"Cardinal Slant-D� Ring Binder",
+          "platinum\"": "Heavy Gauge Vinyl\"",
+          "Muhammed MacIntyre": "Barry French",
+          "-213.25": "46.71",
+          "38.94": "8.69",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.39"
+        },
+        {
+          "1": "7",
+          "3": "613",
+          "35": "7.72",
+          "\"Eldon Base for stackable storage shelf": "\"Angle-D Binders with Locking Rings",
+          "platinum\"": "Label Holders\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "-54.04",
+          "38.94": "7.3",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Binders and Binder Accessories",
+          "0.8": "0.38"
+        },
+        {
+          "1": "8",
+          "3": "613",
+          "35": "6.22",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Mobile Desk Side File",
+          "platinum\"": "Wire Frame\"",
+          "Muhammed MacIntyre": "Carl Jackson",
+          "-213.25": "127.70",
+          "38.94": "42.76",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        },
+        {
+          "1": "9",
+          "3": "643",
+          "35": "35",
+          "\"Eldon Base for stackable storage shelf": "\"SAFCO Commercial Wire Shelving",
+          "platinum\"": "Black\"",
+          "Muhammed MacIntyre": "Monica Federle",
+          "-213.25": "-695.26",
+          "38.94": "138.14",
+          "Nunavut": "Nunavut",
+          "Storage & Organization": "Storage & Organization",
+          "0.8": ""
+        }
+      ]
+    },
+    "Integration Description and Overview": {
+      "type": "text",
+      "content": "*   This is an API-Based OUTBOUND integration from Darwinbox to HR Term Bot for Visteon.\n*   The integration facilitates the transfer of employee master data.\n*   **Data Flow:**\n    *   Data flows OUTBOUND from Darwinbox.\n    *   Data is sent to HR Term Bot for Visteon.\n*   **Business Logic:**\n    *   Sync all active employees.\n    *   Sync inactive employee records with date of exit ≥ 1 Jan 2020.\n*   **Technical Implementation:**\n    *   Data is transferred via SFTP with encryption.\n    *   Predefined file formats are used for data transfer."
+    },
+    "Assumptions": {
+      "type": "text",
+      "content": "*   Darwinbox system will be the system of record for employee master data.\n*   Visteon's HR Term Bot system is capable of receiving and processing employee data in the agreed-upon file format.\n*   All active employees exist within the Darwinbox system.\n*   All deactivated employees with a date of exit on or after January 1, 2020, are accurately recorded in Darwinbox.\n*   The Darwinbox API will be available and functioning as expected during scheduled data transfer times.\n*   The Darwinbox API will provide accurate and complete employee data, including all required fields.\n*   SFTP server provided by Visteon is accessible and configured correctly for Darwinbox to push the data.\n*   Visteon's SFTP server has sufficient storage capacity to accommodate the transferred employee data files.\n*   The agreed-upon file format for employee data is compatible with both Darwinbox and Visteon's HR Term Bot.\n*   Encryption methods used for data transfer are supported by both Darwinbox and Visteon.\n*   Employee IDs are unique and consistent across Darwinbox and Visteon systems."
+    },
+    "Dependencies": {
+      "type": "text",
+      "content": "- Visteon's SFTP server must be configured and accessible for Darwinbox.\n- Darwinbox requires SFTP server details from Visteon, including:\n    - Hostname\n    - Port\n    - Username\n    - Password\n    - Directory path\n- Darwinbox API access must be enabled and configured for outbound data transfer."
+    },
+    "APIs Used": {
+      "type": "text",
+      "content": ""
+    },
+    "Test Cases": {
+      "type": "text",
+      "content": "**Test Cases**\n\n*   **Objective:** Validate the successful transfer of employee master data from Darwinbox to HR Term Bot for Visteon, adhering to defined business logic and technical specifications.\n\n*   **Test Case 1: Active Employee Data Synchronization**\n\n    *   **Description:** Verify that active employee records are successfully extracted from Darwinbox and transferred to HR Term Bot.\n    *   **Steps:**\n        1.  Create a new active employee record in Darwinbox, including relevant Attendance module data.\n        2.  Trigger the outbound integration process.\n        3.  Verify that the employee record is present in HR Term Bot with accurate data.\n        4.  Validate data integrity and format compliance.\n    *   **Expected Result:** The active employee record should be successfully created in HR Term Bot with all relevant details matching the Darwinbox record.\n\n*   **Test Case 2: Inactive Employee Data Synchronization (Post 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee records with a date of exit on or after January 1, 2020, are successfully extracted from Darwinbox and transferred to HR Term Bot.\n    *   **Steps:**\n        1.  Create an inactive employee record in Darwinbox with a date of exit set to January 15, 2020.\n        2.  Trigger the outbound integration process.\n        3.  Verify that the employee record is present in HR Term Bot with accurate data.\n        4.  Validate data integrity and format compliance.\n    *   **Expected Result:** The inactive employee record should be successfully created in HR Term Bot with all relevant details matching the Darwinbox record.\n\n*   **Test Case 3: Inactive Employee Data Synchronization (Pre 01 Jan 2020)**\n\n    *   **Description:** Verify that inactive employee records with a date of exit before January 1, 2020, are *not* extracted from Darwinbox and transferred to HR Term Bot.\n    *   **Steps:**\n        1.  Create an inactive employee record in Darwinbox with a date of exit set to December 20, 2019.\n        2.  Trigger the outbound integration process.\n        3.  Verify that the employee record is *not* present in HR Term Bot.\n    *   **Expected Result:** The inactive employee record should *not* be created in HR Term Bot.\n\n*   **Test Case 4: Data Format Validation**\n\n    *   **Description:** Verify that the data transferred to HR Term Bot adheres to the predefined file format specifications.\n    *   **Steps:**\n        1.  Trigger the outbound integration process.\n        2.  Inspect the data file generated for HR Term Bot.\n        3.  Validate that the data elements are in the correct format (e.g., date format, numerical precision, character encoding).\n    *   **Expected Result:** The data file should conform to the predefined file format specifications.\n\n*   **Test Case 5: SFTP Transfer and Encryption**\n\n    *   **Description:** Verify that the data is securely transferred to HR Term Bot via SFTP with encryption.\n    *   **Steps:**\n        1.  Trigger the outbound integration process.\n        2.  Monitor the SFTP transfer process.\n        3.  Verify that the data is encrypted during transit.\n        4.  Confirm successful file delivery to the HR Term Bot SFTP server.\n    *   **Expected Result:** The data should be securely transferred to HR Term Bot via SFTP with encryption enabled.\n\n*   **Test Case 6: Attendance Module Data Accuracy**\n\n    *   **Description:** Verify that Attendance module data is accurately transferred for both active and inactive employees.\n    *   **Steps:**\n        1.  Update Attendance data for an active employee in Darwinbox.\n        2.  Update Attendance data for an inactive employee (date of exit >= Jan 1 2020) in Darwinbox.\n        3.  Trigger the outbound integration process.\n        4.  Verify that the Attendance data in HR Term Bot matches the Darwinbox data for both employees.\n    *   **Expected Result:** Attendance data in HR Term Bot should accurately reflect the corresponding data in Darwinbox for both active and eligible inactive employees.\n\n*   **Test Case 7: Error Handling and Logging**\n\n    *   **Description:** Verify that the integration handles errors gracefully and logs relevant information for troubleshooting.\n    *   **Steps:**\n        1.  Simulate an error condition (e.g., invalid data, network connectivity issue).\n        2.  Trigger the outbound integration process.\n        3.  Verify that the integration logs the error details.\n        4.  Confirm that the integration does not halt or corrupt data.\n    *   **Expected Result:** The integration should log the error details and continue processing other data without interruption.\n\n*   **Test Case 8: Large Data Volume Test**\n\n    *   **Description:** Verify that the integration can handle a large volume of employee data without performance degradation.\n    *   **Steps:**\n        1.  Create a large number of active and inactive employee records in Darwinbox.\n        2.  Trigger the outbound integration process.\n        3.  Monitor the integration performance (e.g., transfer time, resource utilization).\n    *   **Expected Result:** The integration should process the large data volume within acceptable performance parameters."
+    },
+    "Data Flow Diagram": {
+      "type": "graphviz",
+      "code": "digraph data_flow_diagram {\n    rankdir=LR;\n    node [shape=box, style=rounded];\n\n    subgraph cluster_visteon {\n        label = \"Visteon\";\n        style = filled;\n        color = lightblue;\n\n        hr_term_bot [label=\"HR Term Bot\", shape=cylinder];\n    }\n\n    subgraph cluster_darwinbox {\n        label = \"Darwinbox Digital Solutions\";\n        style = filled;\n        color = lightgreen;\n\n        darwinbox [label=\"Darwinbox\", shape=cylinder];\n        api_gateway [label=\"API Gateway\", shape=box];\n        authentication [label=\"Authentication\", shape=diamond];\n        data_extraction [label=\"Data Extraction\\n(Attendance Module)\", shape=box];\n        data_transformation [label=\"Data Transformation\\n(Predefined File Formats)\", shape=box];\n        sftp_encryption [label=\"SFTP Encryption\", shape=box];\n    }\n\n    darwinbox -> api_gateway [label=\"API Request\"];\n    api_gateway -> authentication [label=\"Authenticate\"];\n    authentication -> data_extraction [label=\"Authorization Granted\"];\n    data_extraction -> data_transformation [label=\"Attendance Data\"];\n    data_transformation -> sftp_encryption [label=\"Transformed Data\"];\n    sftp_encryption -> hr_term_bot [label=\"SFTP Transfer\\n(Encrypted)\"];\n\n    data_extraction [label=\"Data Extraction\\n(Attendance Module)\\nSync only inactive employee records (date of exit ≥ 1 Jan 2020) and all active employees\", shape=box];\n    hr_term_bot [label=\"HR Term Bot\\nto transfer deactivated and active employee master data from Darwinbox to HR Term Bot for Visteon.\", shape=cylinder];\n}\n",
+      "format": "dot"
+    }
+  },
+  "metadata": {
+    "generatedAt": "2025-05-26T16:59:04.861Z",
+    "totalSections": 9
+  }
+}
