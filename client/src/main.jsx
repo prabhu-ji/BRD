@@ -46,17 +46,13 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Use StrictMode only in development
-const StrictModeWrapper = process.env.NODE_ENV === 'development' 
-  ? ({ children }) => <React.StrictMode>{children}</React.StrictMode>
-  : ({ children }) => children;
-
+// FIXED: Disable StrictMode to prevent double useEffect execution in development
+// React StrictMode intentionally double-executes useEffect in development mode
+// This was causing our BRD generation to run twice, creating duplicate requests
 root.render(
-  <StrictModeWrapper>
-    <ErrorBoundary>
+  <ErrorBoundary>
     <BrowserRouter>
       <App />
     </BrowserRouter>
-    </ErrorBoundary>
-  </StrictModeWrapper>
+  </ErrorBoundary>
 ); 

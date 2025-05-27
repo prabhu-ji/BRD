@@ -251,7 +251,16 @@ class BRDAIGenerator {
     // Main BRD generation orchestrator - RESTRUCTURED FOR CLEAN FORMAT
     async generateBRD(brdData) {
         console.log("🚀 Starting AI BRD Generation...");
-        console.log(brdData);
+
+        // Log concise summary instead of entire object
+        console.log("📊 Input Summary:", {
+            template: brdData.template?.templateName || "Unknown",
+            client: brdData.formData?.Client || "N/A",
+            outputsCount: brdData.outputs?.length || 0,
+            hasBusinessLogic: !!brdData.businessLogic,
+            sessionId: brdData.metadata?.sessionId || "N/A",
+        });
+
         // Reset tracking
         this.generatedOutputs.clear();
 
@@ -789,6 +798,10 @@ class BRDAIGenerator {
                     console.log(
                         `🤖 Generating text content for: ${outputName}`
                     );
+                    if (outputName == "Technical Design Specifications") {
+                        console.log("Prompt:", prompt);
+                        console.log("System Prompt:", this.getSystemPrompt());
+                    }
                     return await model.generateContent({
                         contents: [
                             { role: "user", parts: [{ text: fullPrompt }] },
@@ -904,11 +917,20 @@ class BRDAIGenerator {
         return `You are a Business Requirements Document (BRD) specialist with expertise in enterprise integrations, specifically working for Darwinbox's Integration team. 
 
 CRITICAL FORMATTING REQUIREMENTS:
-1. USE BULLET POINTS AND LISTS extensively - this is essential for readability
-2. Structure content with clear bullet points for key information
-3. Use numbered lists for sequential processes or steps
-4. Use bullet points for requirements, features, or specifications
-5. Keep paragraphs short and use lists to break down complex information
+1. DO NOT include section headers, titles, or headings - content will be placed under pre-existing section titles
+2. START DIRECTLY with bullet points or content - no introductory headers
+3. USE BULLET POINTS AND LISTS extensively - this is essential for readability
+4. Structure content with clear bullet points for key information
+5. Use numbered lists for sequential processes or steps
+6. Use bullet points for requirements, features, or specifications
+7. Keep paragraphs short and use lists to break down complex information
+
+FORBIDDEN ELEMENTS:
+- Section headers (e.g., "Purpose:", "Overview:", "Technical Specifications:")
+- Document titles or section titles
+- Introductory phrases like "This section covers..." or "The following describes..."
+- Numbered section headings (e.g., "1. Purpose", "2. APIs Used")
+- Markdown headers (# ## ###)
 
 CONTENT SYNTHESIS REQUIREMENTS:
 1. PRIORITIZE CONTEXT INTEGRATION: Synthesize ALL available context sources in this order:
@@ -944,7 +966,8 @@ STYLE GUIDELINES:
 - Reference actual systems, APIs, and processes from provided context
 - Maintain professional tone throughout
 - ALWAYS prefer lists over long paragraphs
-- Ensure every bullet point adds specific, actionable value`;
+- Ensure every bullet point adds specific, actionable value
+- START IMMEDIATELY with content - no headers or introductions`;
     }
 
     // Enhanced text prompt building - EMPHASIZING LISTS
@@ -969,12 +992,22 @@ SPECIFIC REQUIREMENTS FOR ${outputName}:
 ${this.getEnhancedRequirements(outputName, context)}
 
 CRITICAL FORMATTING INSTRUCTIONS:
-1. USE BULLET POINTS AND LISTS extensively - this is mandatory
-2. Break down information into clear, scannable bullet points
-3. Use numbered lists for processes or sequential steps
-4. Use bullet points for requirements, specifications, or features
-5. Keep paragraphs very short (1-2 sentences max)
-6. Structure content with headers and sub-bullet points when needed
+1. DO NOT include any headers, titles, or section names - start directly with content
+2. NO introductory text like "This section covers..." or "The following describes..."
+3. NO section headers like "Purpose:", "Overview:", "APIs Used:", etc.
+4. START IMMEDIATELY with bullet points or numbered lists
+5. USE BULLET POINTS AND LISTS extensively - this is mandatory
+6. Break down information into clear, scannable bullet points
+7. Use numbered lists for processes or sequential steps
+8. Use bullet points for requirements, specifications, or features
+9. Keep paragraphs very short (1-2 sentences max)
+
+FORBIDDEN CONTENT:
+- Section headers or titles (we already provide the section title)
+- Introductory paragraphs or explanatory text
+- Document structure elements
+- Markdown headers (# ## ###)
+- Numbered section headings (1. Purpose, 2. APIs Used, etc.)
 
 BUSINESS CONTEXT:
 - Integration Type: ${context.mode} ${context.direction}
@@ -982,7 +1015,7 @@ BUSINESS CONTEXT:
 - Target System: ${context.vendor}
 - Modules: ${context.modules.join(", ") || "Core modules"}
 
-Generate ONLY the content with proper list formatting - no explanations.`.trim();
+Generate ONLY the content starting directly with bullet points or lists - no headers, no explanations, no introductions.`.trim();
     }
 
     // Format examples for better prompting
@@ -1154,13 +1187,16 @@ ${contextGuidance.apiGuidance}`,
 ${contextGuidance.apiGuidance}`,
 
             technical_content_or_specification: `
-- Provide detailed technical specifications in bullet point format based on available context
-- List specific technical approaches for ${context.mode} ${context.direction} integration
-- Detail authentication, data formats, and security measures from available API information
-- Specify error handling requirements and monitoring approaches
-- Include data transformation logic and validation rules
-- Reference actual technical implementations and architectural decisions
-- Address scalability, performance, and reliability requirements
+- Generate EXACTLY 3-4 bullet points ONLY - no more, no less
+- Each bullet point must be ONE sentence describing data flow
+- NO technical details, NO API documentation, NO multiple sections
+- ONLY describe: how data moves from ${context.client} to ${context.vendor}
+- Focus on simple data flow overview for ${context.mode} ${context.direction} integration
+- NO detailed breakdowns, specifications, or technical architecture
+- Keep each point under 15 words maximum
+- Use simple language: "Data flows from X to Y via Z"
+- NO section headers, NO numbering, NO sub-points
+- FORBIDDEN: API endpoints, data volumes, error handling, monitoring
 ${contextGuidance.apiGuidance}`,
 
             dependencies: `
@@ -1266,11 +1302,54 @@ ${contextGuidance.general}
         return { apiGuidance, general };
     }
 
-    // Post-process content to use lists and match style
+    // Post-process content to use lists and match style - ENHANCED TO REMOVE HEADERS
     postProcessTextContent(content, outputName, examples) {
-        // Remove any unwanted formatting
+        // Remove any unwanted formatting and headers
         content = content.replace(/```[\s\S]*?```/g, ""); // Remove code blocks
-        content = content.replace(/#{1,6}\s+/g, ""); // Remove markdown headers
+        content = content.replace(/#{1,6}\s+.*$/gm, ""); // Remove markdown headers
+        content = content.replace(/^\d+\.\s+.*$/gm, ""); // Remove numbered section headers
+
+        // Remove common section headers and introductory phrases
+        content = content.replace(
+            /^(Purpose|Overview|Technical Specifications?|APIs? Used|Data Mapping|Dependencies|Assumptions|Error Handling):\s*/gim,
+            ""
+        );
+        content = content.replace(
+            /^(This section|The following|This document|This integration).*$/gim,
+            ""
+        );
+        content = content.replace(
+            /^(Introduction|Summary|Conclusion):\s*/gim,
+            ""
+        );
+
+        // Remove lines that are just section titles or headers
+        const lines = content.split("\n");
+        const filteredLines = lines.filter((line) => {
+            const trimmed = line.trim();
+            // Skip empty lines
+            if (!trimmed) return false;
+            // Skip lines that look like headers (short lines without bullet points)
+            if (
+                trimmed.length < 20 &&
+                !trimmed.includes("•") &&
+                !trimmed.includes("-") &&
+                !trimmed.includes("*")
+            ) {
+                return false;
+            }
+            // Skip lines that are just section names
+            if (
+                /^(Purpose|Overview|Technical Specifications?|APIs? Used|Data Mapping|Dependencies|Assumptions|Error Handling)$/i.test(
+                    trimmed
+                )
+            ) {
+                return false;
+            }
+            return true;
+        });
+
+        content = filteredLines.join("\n");
 
         // Clean up multiple newlines
         content = content.replace(/\n{3,}/g, "\n\n");
@@ -1749,7 +1828,7 @@ API CONTEXT FOR DIAGRAM:
     // Generate APIs Used content - Simple description + API details
     async generateAPIsUsedContent(context, examples, brdData) {
         const outputKey = "apis_used";
-        const sectionExamples = this.examples[outputKey] || [];
+        const sectionExamples = examples || [];
 
         if (sectionExamples.length === 0) {
             return {
@@ -1837,13 +1916,52 @@ API CONTEXT FOR DIAGRAM:
 
     // Generate Technical Design Specifications content
     async generateTechnicalSpecificationContent(context, examples, brdData) {
-        const outputKey = "technical_content_or_specification";
-        const sectionExamples = this.examples[outputKey] || [];
+        // Use the passed examples parameter instead of hardcoded lookup
+        const sectionExamples = examples || [];
 
-        if (sectionExamples.length === 0) {
+        // Always provide fallback content if no model available
+        if (!model) {
+            console.log(
+                "⚠️ No AI model available, using fallback technical specifications"
+            );
+            const fallbackContent = `• ${
+                context.client
+            } sends ${context.direction.toLowerCase()} data to ${
+                context.vendor
+            } via ${context.mode} integration
+• Data is authenticated and validated using standard security protocols
+• ${context.vendor} processes and stores the data in the ${
+                context.modules.join(", ") || "core"
+            } module
+• Confirmation response is sent back to ${context.client} system`;
+
             return {
                 type: "text",
-                content: "", // Empty if no examples
+                content: fallbackContent,
+                fallback: true,
+            };
+        }
+
+        // If no examples available, use fallback
+        if (sectionExamples.length === 0) {
+            console.log(
+                "⚠️ No examples available, using fallback technical specifications"
+            );
+            const fallbackContent = `• ${
+                context.client
+            } sends ${context.direction.toLowerCase()} data to ${
+                context.vendor
+            } via ${context.mode} integration
+• Data is authenticated and validated using standard security protocols
+• ${context.vendor} processes and stores the data in the ${
+                context.modules.join(", ") || "core"
+            } module
+• Confirmation response is sent back to ${context.client} system`;
+
+            return {
+                type: "text",
+                content: fallbackContent,
+                fallback: true,
             };
         }
 
@@ -1854,13 +1972,6 @@ API CONTEXT FOR DIAGRAM:
                 brdData
             );
 
-            if (!model) {
-                return {
-                    type: "text",
-                    content: "", // No fallback
-                };
-            }
-
             const result = await this.makeRateLimitedAPICall(
                 async () => {
                     console.log(
@@ -1869,9 +1980,9 @@ API CONTEXT FOR DIAGRAM:
                     return await model.generateContent({
                         contents: [{ role: "user", parts: [{ text: prompt }] }],
                         generationConfig: {
-                            temperature: 0.2,
-                            maxOutputTokens: 1500,
-                            topP: 0.9,
+                            temperature: 0.1, // Very low temperature for consistency
+                            maxOutputTokens: 300, // Severely limit output tokens
+                            topP: 0.8,
                         },
                     });
                 },
@@ -1882,11 +1993,9 @@ API CONTEXT FOR DIAGRAM:
             );
 
             let content = result.response.text() || "";
-            content = this.postProcessTextContent(
-                content,
-                "Technical Design Specifications",
-                sectionExamples
-            );
+
+            // AGGRESSIVE post-processing for technical specifications
+            content = this.postProcessTechnicalSpecifications(content, context);
 
             return {
                 type: "text",
@@ -1897,12 +2006,85 @@ API CONTEXT FOR DIAGRAM:
                 `❌ Error generating Technical Design Specifications:`,
                 error
             );
+
+            // Provide fallback on error
+            const fallbackContent = `• ${
+                context.client
+            } sends ${context.direction.toLowerCase()} data to ${
+                context.vendor
+            } via ${context.mode} integration
+• Data is authenticated and validated using standard security protocols
+• ${context.vendor} processes and stores the data in the ${
+                context.modules.join(", ") || "core"
+            } module
+• Confirmation response is sent back to ${context.client} system`;
+
             return {
                 type: "text",
-                content: "", // Empty on error
+                content: fallbackContent,
                 error: error.message,
+                fallback: true,
             };
         }
+    }
+
+    // NEW: Aggressive post-processing specifically for technical specifications
+    postProcessTechnicalSpecifications(content, context) {
+        // Remove any document structure
+        content = content.replace(/#{1,6}\s+.*$/gm, ""); // Remove headers
+        content = content.replace(/^\d+\.\s+.*$/gm, ""); // Remove numbered sections
+        content = content.replace(/```[\s\S]*?```/g, ""); // Remove code blocks
+
+        // Split into lines and filter
+        let lines = content
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .filter(
+                (line) =>
+                    !line.match(
+                        /^(Purpose|Overview|APIs Used|Data Mapping|Technical|Architecture|Dependencies|Assumptions|Error|Rate|Monitoring)/i
+                    )
+            )
+            .filter(
+                (line) =>
+                    line.includes("•") ||
+                    line.includes("-") ||
+                    line.includes("*") ||
+                    line.startsWith("•") ||
+                    line.startsWith("-") ||
+                    line.startsWith("*")
+            );
+
+        // Take only first 4 bullet points
+        lines = lines.slice(0, 4);
+
+        // Ensure proper bullet formatting
+        lines = lines.map((line) => {
+            line = line.replace(/^[•\-\*]\s*/, ""); // Remove existing bullets
+            line = line.replace(/^\d+\.\s*/, ""); // Remove numbers
+
+            // Truncate if too long (over 100 characters)
+            if (line.length > 100) {
+                line = line.substring(0, 97) + "...";
+            }
+
+            return `• ${line}`;
+        });
+
+        // If we don't have enough content, create simple fallback
+        if (lines.length === 0) {
+            return `• ${context.client} sends data to ${context.vendor} via ${
+                context.mode
+            } integration
+• Data is authenticated and validated before processing
+• ${
+                context.vendor
+            } processes and stores the ${context.direction.toLowerCase()} data
+• Confirmation response is sent back to ${context.client}`;
+        }
+
+        return lines.join("\n");
     }
 
     // Generate generic table content for other sections
@@ -2030,78 +2212,51 @@ CRITICAL REQUIREMENTS:
 Generate ONLY the APIs Used content - no explanations.`.trim();
     }
 
-    // Build Technical Specification specific prompt - SIMPLIFIED FOR CONCISE OUTPUT
+    // Build Technical Specification specific prompt - ULTRA SIMPLIFIED FOR MINIMAL OUTPUT
     buildTechnicalSpecificationPrompt(context, examples, brdData) {
         const exampleText = this.formatExamplesForPrompt(examples);
 
-        // Get simplified API context for technical specifications
-        const detailedApiContext = this.getDetailedApiContext(
-            context,
-            "technical_specification"
-        );
+        // Ultra-simplified prompt to force concise output
+        let prompt = `
+You are generating ONLY a simple data flow overview for Technical Design Specifications.
 
-        let technicalGuidance = "";
-        if (detailedApiContext && detailedApiContext.endpoints.length > 0) {
-            const primaryEndpoints = detailedApiContext.endpoints.slice(0, 2);
-            technicalGuidance = `
-AVAILABLE API CONTEXT:
-- Key APIs: ${primaryEndpoints
-                .map((ep) => `${ep.method} ${ep.path}`)
-                .join(", ")}
-- Authentication: ${
-                detailedApiContext.authentication?.type ||
-                "Standard API authentication"
-            }
-- Total endpoints available: ${detailedApiContext.totalAvailable}
+INTEGRATION: ${context.mode} ${context.direction} between ${context.client} and ${context.vendor}
 
-TECHNICAL GUIDANCE:
-- Focus on high-level architecture and data flow
-- Reference the ${context.mode} integration approach
-- Include authentication method: ${
-                detailedApiContext.authentication?.type || "standard"
-            }
-- Keep content concise - 3-5 bullet points maximum`;
-        } else {
-            technicalGuidance = `
-TECHNICAL GUIDANCE:
-- Focus on high-level ${context.mode} ${context.direction} architecture
-- Describe overall data flow and integration approach
-- Include standard authentication and security considerations
-- Keep content concise - 3-5 bullet points maximum`;
-        }
+CRITICAL CONSTRAINTS:
+- Generate EXACTLY 3-4 bullet points ONLY
+- NO document structure, NO headers, NO sections
+- NO detailed API documentation or technical breakdowns
+- ONLY high-level data flow description
+- Each bullet point must be ONE sentence maximum
+- Focus ONLY on: how data flows from source to destination
 
-        return `
-You are generating ONLY the "Technical Design Specifications" section content for a ${
-            context.mode
-        } ${context.direction} integration between ${context.client} and ${
-            context.vendor
-        }.
+REQUIRED FORMAT:
+• [Simple description of data flow step 1]
+• [Simple description of data flow step 2] 
+• [Simple description of data flow step 3]
+• [Simple description of authentication/security if needed]
 
-DO NOT generate a full document, headers, or multiple sections. Generate ONLY the content for this specific section.
-
-INTEGRATION CONTEXT:
-- Type: ${context.mode} ${context.direction}
-- Client: ${context.client}
-- Vendor: ${context.vendor}
-- Business Logic: ${context.businessLogic || ""}
-- Modules: ${context.modules.join(", ") || "Core modules"}
-
-${technicalGuidance}
-
-EXAMPLES TO FOLLOW (Match this exact style and length):
+EXAMPLES TO MATCH (Keep this exact length and style):
 ${exampleText}
 
-CRITICAL REQUIREMENTS:
-- Generate ONLY bullet points for the Technical Design Specifications section
-- NO document headers, section numbers, or multiple sections
-- Keep content CONCISE - exactly like examples (3-5 bullet points maximum)
-- Focus on HIGH-LEVEL architecture and data flow overview
-- NO detailed technical breakdowns, API documentation, or data mapping
-- Include integration approach, authentication method, and basic architecture only
-- Use bullet points format exactly matching the examples
-- Be specific to the integration type but keep descriptions brief
+FORBIDDEN CONTENT:
+- Multiple sections (APIs Used, Data Mapping, etc.)
+- Detailed technical specifications
+- API endpoint documentation
+- Data volume estimates
+- Rate limiting details
+- Monitoring requirements
+- Architecture diagrams descriptions
+- Request/response examples
 
-Generate ONLY the Technical Design Specifications section content as bullet points - nothing else.`.trim();
+REQUIRED CONTENT FOCUS:
+- Simple data flow: ${context.client} → ${context.vendor} (${context.direction})
+- Basic integration approach: ${context.mode}
+- Simple authentication mention
+- Basic data processing overview
+
+Generate ONLY 3-4 simple bullet points describing the data flow - nothing else.`.trim();
+        return prompt;
     }
 
     // Get output key for examples mapping

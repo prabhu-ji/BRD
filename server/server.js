@@ -476,6 +476,9 @@ app.post(
         { name: "doc", maxCount: 1 },
     ]),
     async (req, res) => {
+        const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        console.log(`🔍 [${requestId}] Starting /api/generate-brd request`);
+        
         try {
             // Extract form data
             const {
@@ -588,9 +591,16 @@ app.post(
             };
 
             console.log("=== Structured BRD Data ===");
-            console.log(JSON.stringify(brdData, null, 2));
+            console.log("📊 Request Summary:", {
+                template: parsedTemplate?.templateName || "Unknown",
+                client: parsedFormData?.Client || "N/A",
+                outputsCount: transformedOutputs?.length || 0,
+                hasBusinessLogic: !!businessLogic,
+                sessionId: brdData.metadata?.sessionId
+            });
 
             // Call the generateBRD function
+            console.log(`🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`);
             const brdResult = await generateBRD(brdData);
 
             if (!brdResult.success) {
@@ -665,6 +675,9 @@ app.post(
         { name: "doc", maxCount: 1 },
     ]),
     async (req, res) => {
+        const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        console.log(`🔍 [${requestId}] Starting /api/generate-brd-with-confluence request`);
+        
         try {
             // Extract form data (same as existing endpoint)
             const {
@@ -784,6 +797,7 @@ app.post(
             console.log("=== Generating BRD with Confluence Integration ===");
 
             // Call the generateBRD function
+            console.log(`🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`);
             const brdResult = await generateBRD(brdData);
 
             if (!brdResult.success) {
