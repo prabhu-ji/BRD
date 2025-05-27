@@ -37,12 +37,12 @@ function HomePage() {
   const [testingConnection, setTestingConnection] = useState(false);
 
   // AI API Keys Configuration State
-  const [apiKeys, setApiKeys] = useState([]);
-  const [newApiKey, setNewApiKey] = useState({ name: '', type: 'OpenAI', keyValue: '', isDefault: false });
-  const [apiKeySaving, setApiKeySaving] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState('');
-  const [apiKeyLoading, setApiKeyLoading] = useState(false);
-  const [showNewApiKeyForm, setShowNewApiKeyForm] = useState(false);
+  // const [apiKeys, setApiKeys] = useState([]);
+  // const [newApiKey, setNewApiKey] = useState({ name: '', type: 'OpenAI', keyValue: '', isDefault: false });
+  // const [apiKeySaving, setApiKeySaving] = useState(false);
+  // const [apiKeyError, setApiKeyError] = useState('');
+  // const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  // const [showNewApiKeyForm, setShowNewApiKeyForm] = useState(false);
 
   // Load saved configurations on component mount
   useEffect(() => {
@@ -68,27 +68,27 @@ function HomePage() {
         }
 
         // Fetch AI API Keys
-        setApiKeyLoading(true);
-        try {
-          const apiKeysResponse = await axios.get('/api/config/apikeys');
-          if (apiKeysResponse.data) {
-            setApiKeys(apiKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
-            setApiKeyError('');
-          } else {
-            setApiKeys([]);
-            setApiKeyError('');
-          }
-        } catch (error) {
-          console.error('Error loading AI Configurations:', error);
-          if (error.response && error.response.status === 404) {
-             setApiKeyError('AI Configuration endpoint not found. Please set up the backend.');
-          } else {
-             setApiKeyError('Failed to load AI Configurations. Please check server connection.');
-          }
-          setApiKeys([]);
-        } finally {
-          setApiKeyLoading(false);
-        }
+        // setApiKeyLoading(true);
+        // try {
+        //   const apiKeysResponse = await axios.get('/api/config/apikeys');
+        //   if (apiKeysResponse.data) {
+        //     setApiKeys(apiKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
+        //     setApiKeyError('');
+        //   } else {
+        //     setApiKeys([]);
+        //     setApiKeyError('');
+        //   }
+        // } catch (error) {
+        //   console.error('Error loading AI Configurations:', error);
+        //   if (error.response && error.response.status === 404) {
+        //      setApiKeyError('AI Configuration endpoint not found. Please set up the backend.');
+        //   } else {
+        //      setApiKeyError('Failed to load AI Configurations. Please check server connection.');
+        //   }
+        //   setApiKeys([]);
+        // } finally {
+        //   setApiKeyLoading(false);
+        // }
 
       } catch (error) {
         console.error('Error loading configurations:', error);
@@ -363,90 +363,90 @@ function HomePage() {
   };
 
   // --- AI API Key Management Functions ---
-  const handleToggleNewApiKeyForm = () => {
-    setShowNewApiKeyForm(prev => !prev);
-    setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: apiKeys.length === 0 && !showNewApiKeyForm });
-    setApiKeyError('');
-  };
+  // const handleToggleNewApiKeyForm = () => {
+  //   setShowNewApiKeyForm(prev => !prev);
+  //   setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: apiKeys.length === 0 && !showNewApiKeyForm });
+  //   setApiKeyError('');
+  // };
 
-  const handleApiKeyInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewApiKey(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
+  // const handleApiKeyInputChange = (e) => {
+  //   const { name, value, type, checked } = e.target;
+  //   setNewApiKey(prev => ({
+  //     ...prev,
+  //     [name]: type === 'checkbox' ? checked : value
+  //   }));
+  // };
 
-  const handleSaveApiKey = async () => {
-    if (!newApiKey.name.trim()) { 
-      setApiKeyError('API Key Name is required.');
-      return;
-    }
-    if (!newApiKey.keyValue.trim()) {
-        setApiKeyError('API Key Value is required for new keys.');
-        return;
-    }
+  // const handleSaveApiKey = async () => {
+  //   if (!newApiKey.name.trim()) { 
+  //     setApiKeyError('API Key Name is required.');
+  //     return;
+  //   }
+  //   if (!newApiKey.keyValue.trim()) {
+  //       setApiKeyError('API Key Value is required for new keys.');
+  //       return;
+  //   }
 
-    setApiKeySaving(true);
-    setApiKeyError('');
+  //   setApiKeySaving(true);
+  //   setApiKeyError('');
 
-    try {
-      // Create new API Key - no editing of existing key values here
-      const response = await axios.post('/api/config/apikeys', newApiKey); 
-      const savedKey = response.data; // Assuming server returns {id, name, isDefault}
+  //   try {
+  //     // Create new API Key - no editing of existing key values here
+  //     const response = await axios.post('/api/config/apikeys', newApiKey); 
+  //     const savedKey = response.data; // Assuming server returns {id, name, isDefault}
       
-      let updatedApiKeys = [...apiKeys];
-      if (savedKey.isDefault) { // if the new key was set as default
-        updatedApiKeys = updatedApiKeys.map(k => ({ ...k, isDefault: false }));
-      }
-      updatedApiKeys.push(savedKey); 
+  //     let updatedApiKeys = [...apiKeys];
+  //     if (savedKey.isDefault) { // if the new key was set as default
+  //       updatedApiKeys = updatedApiKeys.map(k => ({ ...k, isDefault: false }));
+  //     }
+  //     updatedApiKeys.push(savedKey); 
       
-      setApiKeys(updatedApiKeys.sort((a,b) => a.name.localeCompare(b.name)));
-      setShowNewApiKeyForm(false); // Close inline form
-      setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: false }); // Reset form with type
-    } catch (error) {
-      console.error('Error saving API Key:', error);
-      setApiKeyError(error.response?.data?.message || 'Failed to save API Key.');
-    } finally {
-      setApiKeySaving(false);
-    }
-  };
+  //     setApiKeys(updatedApiKeys.sort((a,b) => a.name.localeCompare(b.name)));
+  //     setShowNewApiKeyForm(false); // Close inline form
+  //     setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: false }); // Reset form with type
+  //   } catch (error) {
+  //     console.error('Error saving API Key:', error);
+  //     setApiKeyError(error.response?.data?.message || 'Failed to save API Key.');
+  //   } finally {
+  //     setApiKeySaving(false);
+  //   }
+  // };
 
-  const handleDeleteApiKey = async (keyId) => {
-    const keyToDelete = apiKeys.find(k => k.id === keyId);
-    if (keyToDelete && keyToDelete.isDefault) {
-      alert("Cannot delete the default API key. Please set another key as default first.");
-      return;
-    }
-    if (!window.confirm(`Are you sure you want to delete the AI Configuration "${keyToDelete?.name}"?`)) return;
+  // const handleDeleteApiKey = async (keyId) => {
+  //   const keyToDelete = apiKeys.find(k => k.id === keyId);
+  //   if (keyToDelete && keyToDelete.isDefault) {
+  //     alert("Cannot delete the default API key. Please set another key as default first.");
+  //     return;
+  //   }
+  //   if (!window.confirm(`Are you sure you want to delete the AI Configuration \\"${keyToDelete?.name}\\"?`)) return;
 
-    setApiKeySaving(true);
-    setApiKeyError('');
-    try {
-      await axios.delete(`/api/config/apikeys/${keyId}`);
-      setApiKeys(prevKeys => prevKeys.filter(key => key.id !== keyId));
-    } catch (error) {
-      console.error('Error deleting AI Configuration:', error);
-      setApiKeyError(error.response?.data?.message || 'Failed to delete AI Configuration.');
-    } finally {
-      setApiKeySaving(false);
-    }
-  };
+  //   setApiKeySaving(true);
+  //   setApiKeyError('');
+  //   try {
+  //     await axios.delete(`/api/config/apikeys/${keyId}`);
+  //     setApiKeys(prevKeys => prevKeys.filter(key => key.id !== keyId));
+  //   } catch (error) {
+  //     console.error('Error deleting AI Configuration:', error);
+  //     setApiKeyError(error.response?.data?.message || 'Failed to delete AI Configuration.');
+  //   } finally {
+  //     setApiKeySaving(false);
+  //   }
+  // };
 
-  const handleSetDefaultApiKey = async (keyId) => {
-    setApiKeySaving(true);
-    setApiKeyError('');
-    try {
-      await axios.put(`/api/config/apikeys/${keyId}/default`);
-      const updatedKeysResponse = await axios.get('/api/config/apikeys');
-      setApiKeys(updatedKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
-    } catch (error) {
-      console.error('Error setting default AI Configuration:', error);
-      setApiKeyError(error.response?.data?.message || 'Failed to set default AI Configuration.');
-    } finally {
-      setApiKeySaving(false);
-    }
-  };
+  // const handleSetDefaultApiKey = async (keyId) => {
+  //   setApiKeySaving(true);
+  //   setApiKeyError('');
+  //   try {
+  //     await axios.put(`/api/config/apikeys/${keyId}/default`);
+  //     const updatedKeysResponse = await axios.get('/api/config/apikeys');
+  //     setApiKeys(updatedKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
+  //   } catch (error) {
+  //     console.error('Error setting default AI Configuration:', error);
+  //     setApiKeyError(error.response?.data?.message || 'Failed to set default AI Configuration.');
+  //   } finally {
+  //     setApiKeySaving(false);
+  //   }
+  // };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -857,7 +857,7 @@ function HomePage() {
       </div>
 
       {/* AI API Keys Configuration Section */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
+      {/* <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
             <KeyIcon className="h-6 w-6 text-blue-600 mr-2" />
@@ -928,100 +928,7 @@ function HomePage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* MODAL REMOVED - Inline form will be here */}
-      {showNewApiKeyForm && (
-        <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h3 className="text-md font-semibold text-gray-800 mb-3">Add New AI Configuration</h3>
-          {apiKeyError && (
-              <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm mb-3">
-                {apiKeyError}
-              </div>
-          )}
-          <div className="space-y-3">
-            <div>
-              <label htmlFor="newApiKeyName" className="block text-sm font-medium text-gray-700 mb-1">
-                AI Configuration Name *
-              </label>
-              <input
-                type="text"
-                name="name"
-                id="newApiKeyName"
-                value={newApiKey.name}
-                onChange={handleApiKeyInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="e.g., My OpenAI Key"
-              />
-            </div>
-            <div>
-              <label htmlFor="newApiKeyType" className="block text-sm font-medium text-gray-700 mb-1">
-                API Type *
-              </label>
-              <select
-                name="type"
-                id="newApiKeyType"
-                value={newApiKey.type}
-                onChange={handleApiKeyInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
-              >
-                <option value="OpenAI">OpenAI</option>
-                <option value="Gemini">Gemini</option>
-                <option value="Anthropic">Anthropic (Claude)</option>
-                <option value="Custom">Custom</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="newApiKeyValue" className="block text-sm font-medium text-gray-700 mb-1">
-                API Key Value *
-              </label>
-              <input
-                type="password" 
-                name="keyValue"
-                id="newApiKeyValue"
-                value={newApiKey.keyValue}
-                onChange={handleApiKeyInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="Enter your secret API key"
-              />
-              <div className="mt-1 flex items-center text-xs text-gray-500">
-                <InformationCircleIcon className="h-4 w-4 mr-1 text-gray-400" />
-                <span>Key will be hidden after saving and stored securely.</span>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="isDefault"
-                id="newApiKeyDefault"
-                checked={newApiKey.isDefault}
-                onChange={handleApiKeyInputChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="newApiKeyDefault" className="ml-2 block text-sm text-gray-900">
-                Set as default AI Configuration
-              </label>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end space-x-2">
-            <button 
-              type="button" 
-              onClick={handleToggleNewApiKeyForm} 
-              className="px-3 py-1.5 text-sm text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md border border-gray-300"
-            >
-                Cancel
-            </button>
-            <button 
-              type="button" 
-              onClick={handleSaveApiKey} 
-              className="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
-              disabled={apiKeySaving || !newApiKey.name.trim() || !newApiKey.keyValue.trim()}
-            >
-              {apiKeySaving ? 'Saving...' : 'Save AI Configuration'}
-            </button>
-          </div>
-        </div>
-      )}
+      </div> */}
     </div>
   );
 }

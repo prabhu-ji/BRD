@@ -56,9 +56,8 @@ function CreateBRD() {
 
   const [movingOutput, setMovingOutput] = useState(null);
 
-  const [aiApiKeys, setAiApiKeys] = useState([]);
-  const [selectedApiKeyId, setSelectedApiKeyId] = useState('');
   const [loadingApiKeys, setLoadingApiKeys] = useState(false);
+  const [businessFormErrors, setBusinessFormErrors] = useState({ useCase: '', logic: '' });
 
   const cardColors = [
     'bg-blue-50 border-blue-200 text-blue-800',
@@ -87,22 +86,6 @@ function CreateBRD() {
         if (outputsResponse.ok) {
           const outputsData = await outputsResponse.json();
           setAvailableOutputs(outputsData);
-        }
-
-        setLoadingApiKeys(true);
-        try {
-          const apiKeysResponse = await axios.get('/api/config/apikeys');
-          const activeApiKeys = apiKeysResponse.data || [];
-          setAiApiKeys(activeApiKeys);
-          const defaultKey = activeApiKeys.find(key => key.isDefault);
-          if (defaultKey) {
-            setSelectedApiKeyId(defaultKey.id);
-          } else if (activeApiKeys.length > 0) {
-            setSelectedApiKeyId(activeApiKeys[0].id);
-          }
-        } catch (error) {
-          console.error('Error fetching AI API Keys:', error);
-        } finally {
           setLoadingApiKeys(false);
         }
 
@@ -155,9 +138,15 @@ function CreateBRD() {
   const handleBusinessInputChange = (fieldName, value) => {
     if (fieldName === 'businessUseCase') {
       setBusinessUseCase(value);
+      if (value.trim()) {
+        setBusinessFormErrors(prev => ({ ...prev, useCase: '' }));
+      }
     }
     if (fieldName === 'businessLogic') {
       setBusinessLogic(value);
+      if (value.trim()) {
+        setBusinessFormErrors(prev => ({ ...prev, logic: '' }));
+      }
     }
   };
 
@@ -214,22 +203,63 @@ function CreateBRD() {
     setOutputs(items);
   };
 
+  const validateBusinessFields = () => {
+    let isValid = true;
+    const errors = { useCase: '', logic: '' };
+    if (!businessUseCase.trim()) {
+      errors.useCase = 'Business Use Case is required.';
+      isValid = false;
+    }
+    if (!businessLogic.trim()) {
+      errors.logic = 'Business Logic is required.';
+      isValid = false;
+    }
+    setBusinessFormErrors(errors);
+    return isValid;
+  };
+
   const handleNextClick = () => {
     const currentSectionIndex = sections.findIndex(s => s.key === activeSectionKey);
+
+    if (activeSectionKey === 'business') {
+      if (!validateBusinessFields()) {
+        return; // Stop navigation if business fields are not valid
+      }
+    }
 
     if (currentSectionIndex < sections.length - 1) {
       const nextSection = sections[currentSectionIndex + 1];
       setActiveSectionKey(nextSection.key);
       setCurrentStepIndex(Math.max(currentStepIndex, currentSectionIndex + 1));
+      setBusinessFormErrors({ useCase: '', logic: '' }); // Clear errors when successfully navigating
     } else {
-      handleSubmit();
+      // This means it's the last step (Outputs), so call handleSubmit
+      if (activeSectionKey === 'outputs') { // Or just directly call handleSubmit if it's the final action
+         handleSubmit();
+      }
     }
   };
 
   const handleSectionClick = (targetSectionKey) => {
     const targetSectionIndex = sections.findIndex(s => s.key === targetSectionKey);
+    const currentSectionIndex = sections.findIndex(s => s.key === activeSectionKey);
+
+    // If trying to navigate away from the business section, validate first
+    if (activeSectionKey === 'business' && targetSectionIndex > currentSectionIndex) {
+      if (!validateBusinessFields()) {
+        // Prevent navigation if validation fails
+        // Ensure the current section remains active visually by not changing currentStepIndex prematurely
+        // or by reverting activeSectionKey if needed, though returning here should suffice.
+        return; 
+      }
+    }
+
     setActiveSectionKey(targetSectionKey);
     setCurrentStepIndex(Math.max(currentStepIndex, targetSectionIndex));
+    // Clear business errors if navigating away from business section successfully or to other sections
+    if (activeSectionKey !== 'business' || (activeSectionKey === 'business' && businessUseCase.trim() && businessLogic.trim())) {
+        setBusinessFormErrors({ useCase: '', logic: '' });
+    }
   };
 
   const handleOutputMoveKeyDown = (e, outputId) => {
@@ -384,7 +414,6 @@ function CreateBRD() {
       technicalData,
       imageFileData,
       docFileData,
-      selectedApiKeyId
     }));
     
     navigate('/generate-brd');
@@ -411,7 +440,7 @@ function CreateBRD() {
           </select>
         );
       } else if (type.type === 'dropdown_multi' && type.options) {
-        const selectedValues = formData[key] || [];
+        const selectedValues = Array.isArray(formData[key]) ? formData[key] : [];
         fieldHtml = (
           <div className="w-full">
             {selectedValues.length > 0 && (
@@ -455,7 +484,7 @@ function CreateBRD() {
                   <option key={idx} value={option}>{option}</option>
                 ))}
             </select>
-            {selectedValues.length === 0 && (
+            {selectedValues.length === 0 && type.type === 'dropdown_multi' && (
               <p className="text-xs text-gray-500 mt-1">Click the dropdown to select multiple options</p>
             )}
           </div>
@@ -1007,23 +1036,29 @@ function CreateBRD() {
                 
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-1">
-                    <label className="text-gray-700 text-sm">Business Use Case</label>
+                    <label className="text-gray-700 text-sm">Business Use Case <span className="text-red-500">*</span></label>
                     <textarea
                       value={businessUseCase}
                       onChange={(e) => handleBusinessInputChange('businessUseCase', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[80px]"
+                      className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 min-h-[80px] ${businessFormErrors.useCase ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                       placeholder="Describe the business use case..."
                     />
+                    {businessFormErrors.useCase && (
+                      <p className="text-xs text-red-500">{businessFormErrors.useCase}</p>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-1 gap-1">
-                    <label className="text-gray-700 text-sm">Business Logic</label>
+                    <label className="text-gray-700 text-sm">Business Logic <span className="text-red-500">*</span></label>
                     <textarea
                       value={businessLogic}
                       onChange={(e) => handleBusinessInputChange('businessLogic', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[120px]"
+                      className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 min-h-[120px] ${businessFormErrors.logic ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}`}
                       placeholder="Describe the business logic in detail..."
                     />
+                    {businessFormErrors.logic && (
+                      <p className="text-xs text-red-500">{businessFormErrors.logic}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1143,35 +1178,12 @@ function CreateBRD() {
             )}
             
             <div className="mt-6 flex flex-col items-center space-y-3 sm:flex-row sm:justify-end sm:items-center sm:space-x-3">
-              {activeSectionKey === 'outputs' && aiApiKeys.length > 0 && (
-                <div className="w-full sm:w-auto">
-                  <label htmlFor="aiApiKeySelect" className="sr-only">Select AI Configuration</label>
-                  <select 
-                    id="aiApiKeySelect"
-                    value={selectedApiKeyId}
-                    onChange={(e) => setSelectedApiKeyId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                    disabled={loadingApiKeys}
-                  >
-                    {loadingApiKeys ? (
-                      <option>Loading AI Configs...</option>
-                    ) : (
-                      aiApiKeys.map(apiKey => (
-                        <option key={apiKey.id} value={apiKey.id}>
-                          {apiKey.name}{apiKey.isDefault ? ' (Default)' : ''}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              )}
-
               <div className="w-full sm:w-auto">
                 {activeSectionKey === 'outputs' ? (
                   <button
                     onClick={handleSubmit}
                     className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium disabled:opacity-50 flex items-center justify-center"
-                    disabled={!selectedTemplate || (aiApiKeys.length > 0 && !selectedApiKeyId) || outputs.filter(o => selectedOutputs[o.id]).length === 0 }
+                    disabled={!selectedTemplate || outputs.filter(o => selectedOutputs[o.id]).length === 0 }
                   >
                     <DocumentTextIcon className="h-5 w-5 mr-2" />
                     Generate BRD
@@ -1180,7 +1192,7 @@ function CreateBRD() {
                   <button
                     onClick={handleNextClick}
                     className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center justify-center"
-                    disabled={!selectedTemplate}
+                    disabled={!selectedTemplate || (activeSectionKey === 'business' && (!businessUseCase.trim() || !businessLogic.trim()))}
                   >
                     Next
                     <ArrowRightIcon className="h-5 w-5 ml-2" />

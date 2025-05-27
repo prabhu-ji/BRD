@@ -418,5 +418,232 @@
       ]
     },
     "id": 1748243542042
+  },
+  {
+    "templateName": "Test Template",
+    "overview": [
+      {
+        "label": "Client",
+        "key": "Client",
+        "type": "input",
+        "default": "Visteon"
+      },
+      {
+        "label": "Vendor",
+        "key": "Vendor",
+        "type": "input",
+        "default": "HR Term Bot"
+      },
+      {
+        "label": "Version",
+        "key": "Version",
+        "type": "input",
+        "default": "2.0"
+      },
+      {
+        "label": "Doc Owner",
+        "key": "Doc Owner",
+        "type": "input",
+        "default": "Ashwani Rai"
+      },
+      {
+        "label": "Functional Lead",
+        "key": "Functional Lead",
+        "type": "input",
+        "default": "Dinesh Reddy Bhimavarapu"
+      },
+      {
+        "label": "Status",
+        "key": "Status",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DRAFT",
+            "IN REVIEW",
+            "APPROVED",
+            "IN PRODUCTION"
+          ]
+        },
+        "default": "DRAFT"
+      },
+      {
+        "label": "Last updated by",
+        "key": "Last updated by",
+        "type": "input",
+        "default": "IN REVIEW"
+      },
+      {
+        "label": "Last date updated",
+        "key": "Last date updated",
+        "type": "date",
+        "default": "2025-05-27"
+      },
+      {
+        "label": "Client Approved By [Name, Designation]",
+        "key": "Client Approved By [Name, Designation]",
+        "type": "input",
+        "default": "Dinesh Reddy Bhimavarapu, PM"
+      },
+      {
+        "label": "Client Approved Date",
+        "key": "Client Approved Date",
+        "type": "date",
+        "default": "2025-05-27"
+      },
+      {
+        "label": "Modules",
+        "key": "Modules",
+        "type": {
+          "type": "dropdown_multi",
+          "options": [
+            "Core",
+            "Attendance",
+            "Reports",
+            "Payroll",
+            "PMS",
+            "Recruitment"
+          ]
+        },
+        "default": []
+      },
+      {
+        "label": "Mode of Integration",
+        "key": "Mode of Integration",
+        "type": {
+          "type": "dropdown_multi",
+          "options": [
+            "API - BASED",
+            "STANDARD",
+            "CUSTOM DEV"
+          ]
+        },
+        "default": "CUSTOM DEV"
+      },
+      {
+        "label": "Direction",
+        "key": "Direction",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "INBOUND",
+            "OUTBOUND",
+            "BI-DIRECTION"
+          ]
+        },
+        "default": "INBOUND"
+      },
+      {
+        "label": "Frequency",
+        "key": "Frequency",
+        "type": "textarea",
+        "default": "Scheduled - Weekly, every Monday at 1:00 PM EST; On Demand"
+      },
+      {
+        "label": "Data Load",
+        "key": "Data Load",
+        "type": "input",
+        "default": "Full Dump (Only Inactive employees)"
+      },
+      {
+        "label": "Client email for error/success response",
+        "key": "Client email for error/success response",
+        "type": "input",
+        "default": "hcmhelp@visteon.com, ithcm@visteon.com"
+      },
+      {
+        "label": "File Format",
+        "key": "File Format",
+        "type": "input",
+        "default": ".xlsx format"
+      },
+      {
+        "label": "File naming convention",
+        "key": "File naming convention",
+        "type": "input",
+        "default": "Master_Data_Report.xlsx.pgp"
+      },
+      {
+        "label": "Encryption",
+        "key": "Encryption",
+        "type": "input",
+        "default": "PGP (PGP public key is required to be shared by Visteon team)"
+      },
+      {
+        "label": "Integration Approach",
+        "key": "Integration Approach",
+        "type": "textarea",
+        "default": "\tSFTP — Boomi Server: connect.visteon.com /dropzone/ultipro/IN/INF0045"
+      },
+      {
+        "label": "Employee Selection Criteria",
+        "key": "Employee Selection Criteria",
+        "type": "textarea",
+        "default": "\tOnly Terminated employees with Date of exit ≥ Jan 1, 2020, and all Active employees"
+      },
+      {
+        "label": "Data Exclusion Logic",
+        "key": "Data Exclusion Logic",
+        "type": "textarea",
+        "default": "No exclusion logic provided"
+      },
+      {
+        "label": "Date Format",
+        "key": "Date Format",
+        "type": {
+          "type": "dropdown_single",
+          "options": [
+            "DD/MM/YYYY",
+            "MM/DD/YYYY",
+            "YYYY/MM/DD",
+            "YYYY/DD/MM",
+            "DD/YYYY/MM",
+            "MM/YYYY/DD"
+          ]
+        },
+        "default": "DD/MM/YYYY"
+      }
+    ],
+    "technical": {
+      "upload_csv": true,
+      "upload_image": true,
+      "upload_doc": false,
+      "labels": {
+        "csv": "Table",
+        "image": "Image",
+        "doc": "Upload Document"
+      }
+    },
+    "outputs": {
+      "Purpose/Justification": [
+        "content"
+      ],
+      "Integration Description and Overview": [
+        "content"
+      ],
+      "Technical Design Specifications": [
+        "content"
+      ],
+      "Data Mapping Table": [
+        "table"
+      ],
+      "Assumptions": [
+        "content"
+      ],
+      "Dependencies": [
+        "content"
+      ],
+      "APIs Used": [
+        "table",
+        "content"
+      ],
+      "Test Cases": [
+        "content"
+      ],
+      "Data Flow Diagram": [
+        "image",
+        "content"
+      ]
+    },
+    "id": 1748327347330
   }
 ]
