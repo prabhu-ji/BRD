@@ -1,21 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { 
   DocumentTextIcon, 
   CheckCircleIcon, 
-  ChevronDownIcon, 
-  ChevronUpIcon, 
   PlusIcon, 
   XMarkIcon, 
   TableCellsIcon, 
   PhotoIcon, 
-  PencilIcon,
   DocumentIcon,
-  ArrowsPointingOutIcon,
   ExclamationTriangleIcon,
   ChevronUpDownIcon,
-  LockClosedIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import axios from 'axios'; // Import axios
@@ -26,6 +21,20 @@ const sections = [
   { key: 'technical', label: 'Technical', step: 2 },
   { key: 'business', label: 'Business', step: 3 },
   { key: 'outputs', label: 'Outputs', step: 4 },
+];
+
+// Define static arrays outside the component
+const CARD_COLORS = [
+  'bg-blue-50 border-blue-200 text-blue-800',
+  'bg-purple-50 border-purple-200 text-purple-800',
+  'bg-pink-50 border-pink-200 text-pink-800',
+  'bg-orange-50 border-orange-200 text-orange-800'
+];
+
+const TECHNICAL_FIELD_TYPES = [
+  { id: 'csv', label: 'CSV Table', icon: <TableCellsIcon className="h-4 w-4" /> },
+  { id: 'image', label: 'Image Upload', icon: <PhotoIcon className="h-4 w-4" /> },
+  { id: 'doc', label: 'Document Upload', icon: <DocumentIcon className="h-4 w-4" /> }
 ];
 
 function CreateBRD() {
@@ -56,41 +65,30 @@ function CreateBRD() {
 
   const [movingOutput, setMovingOutput] = useState(null);
 
-  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
   const [businessFormErrors, setBusinessFormErrors] = useState({ useCase: '', logic: '' });
 
-  const cardColors = [
-    'bg-blue-50 border-blue-200 text-blue-800',
-    'bg-purple-50 border-purple-200 text-purple-800',
-    'bg-pink-50 border-pink-200 text-pink-800',
-    'bg-orange-50 border-orange-200 text-orange-800'
-  ];
-
-  const technicalFieldTypes = [
-    { id: 'csv', label: 'CSV Table', icon: <TableCellsIcon className="h-4 w-4" /> },
-    { id: 'image', label: 'Image Upload', icon: <PhotoIcon className="h-4 w-4" /> },
-    { id: 'doc', label: 'Document Upload', icon: <DocumentIcon className="h-4 w-4" /> }
-  ];
+  const cardColors = CARD_COLORS;
+  const technicalFieldTypes = TECHNICAL_FIELD_TYPES;
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const templatesResponse = await fetch('http://localhost:5000/api/config/templates');
-        if (templatesResponse.ok) {
-          const templatesData = await templatesResponse.json();
-          setTemplates(templatesData);
+        const [templatesResponse, outputsResponse] = await Promise.all([
+          axios.get('http://localhost:5000/api/config/templates'),
+          axios.get('http://localhost:5000/api/config/outputs')
+        ]);
+
+        if (templatesResponse.data) {
+          setTemplates(templatesResponse.data);
         }
         
-        const outputsResponse = await fetch('http://localhost:5000/api/config/outputs');
-        if (outputsResponse.ok) {
-          const outputsData = await outputsResponse.json();
-          setAvailableOutputs(outputsData);
-          setLoadingApiKeys(false);
+        if (outputsResponse.data) {
+          setAvailableOutputs(outputsResponse.data);
         }
-
       } catch (error) {
         console.error('Error loading data from server:', error);
+        // Optionally, set an error state here to inform the user
       } finally {
         setIsLoading(false);
       }
@@ -102,28 +100,30 @@ function CreateBRD() {
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
     
-    const initialData = {};
+    const initialFormData = {};
     template.overview.forEach(input => {
-      initialData[input.key] = input.default || '';
+      initialFormData[input.key] = input.default || '';
     });
-    setFormData(initialData);
+    setFormData(initialFormData);
     
-    const outputList = Object.keys(template.outputs).map(key => ({
+    const initialOutputs = Object.keys(template.outputs).map(key => ({
       id: key,
       name: key,
       types: template.outputs[key],
       selected: true
     }));
-    setOutputs(outputList);
+    setOutputs(initialOutputs);
     
-    const outputSelections = {};
-    outputList.forEach(output => {
-      outputSelections[output.id] = true;
+    const initialSelectedOutputs = {};
+    initialOutputs.forEach(output => {
+      initialSelectedOutputs[output.id] = true;
     });
-    setSelectedOutputs(outputSelections);
+    setSelectedOutputs(initialSelectedOutputs);
     
     setTechnicalFiles({});
-    
+    setBusinessUseCase(''); // Reset business fields when template changes
+    setBusinessLogic('');
+    setBusinessFormErrors({ useCase: '', logic: '' });
     setActiveSectionKey(sections[0].key);
     setCurrentStepIndex(0);
   };
@@ -159,14 +159,15 @@ function CreateBRD() {
     formData.append('csv', file);
 
     try {
-      const response = await fetch('http://localhost:5000/api/convert-csv', {
-        method: 'POST',
-        body: formData,
+      const response = await axios.post('http://localhost:5000/api/convert-csv', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      const result = await response.json();
+      const result = response.data;
 
-      if (response.ok && result.success) {
+      if (result.success) {
         setCsvPreviewData(result.tableData);
       } else {
         setCsvError(result.error || 'Failed to process CSV file');
@@ -405,11 +406,23 @@ function CreateBRD() {
     const imageFileData = technicalFiles.image ? await prepareFileData(technicalFiles.image) : null;
     const docFileData = technicalFiles.doc ? await prepareFileData(technicalFiles.doc) : null;
     
+    // Trim formData string values and business input fields
+    const trimmedFormData = {};
+    for (const key in formData) {
+      if (typeof formData[key] === 'string') {
+        trimmedFormData[key] = formData[key].trim();
+      } else {
+        trimmedFormData[key] = formData[key];
+      }
+    }
+    const trimmedBusinessUseCase = businessUseCase.trim();
+    const trimmedBusinessLogic = businessLogic.trim();
+
     localStorage.setItem('brd_generation_data', JSON.stringify({
       template: selectedTemplate,
-      formData,
-      businessUseCase,
-      businessLogic,
+      formData: trimmedFormData,
+      businessUseCase: trimmedBusinessUseCase,
+      businessLogic: trimmedBusinessLogic,
       outputs: selectedOutputsList,
       technicalData,
       imageFileData,

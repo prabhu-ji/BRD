@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, CheckIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon, KeyIcon, InformationCircleIcon, CogIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 
 function HomePage() {
@@ -7,8 +7,6 @@ function HomePage() {
   const [outputs, setOutputs] = useState({});
   const [inputsSaving, setInputsSaving] = useState(false);
   const [outputsSaving, setOutputsSaving] = useState(false);
-  const [inputsChanged, setInputsChanged] = useState(false);
-  const [outputsChanged, setOutputsChanged] = useState(false);
   const [savingStatus, setSavingStatus] = useState({ type: '', message: '' });
   
   const [newInputKey, setNewInputKey] = useState('');
@@ -36,71 +34,50 @@ function HomePage() {
   const [confluenceTestResult, setConfluenceTestResult] = useState(null);
   const [testingConnection, setTestingConnection] = useState(false);
 
-  // AI API Keys Configuration State
-  // const [apiKeys, setApiKeys] = useState([]);
-  // const [newApiKey, setNewApiKey] = useState({ name: '', type: 'OpenAI', keyValue: '', isDefault: false });
-  // const [apiKeySaving, setApiKeySaving] = useState(false);
-  // const [apiKeyError, setApiKeyError] = useState('');
-  // const [apiKeyLoading, setApiKeyLoading] = useState(false);
-  // const [showNewApiKeyForm, setShowNewApiKeyForm] = useState(false);
+  // Unified state for data-changed flags
+  const [dataChanged, setDataChanged] = useState({
+    inputs: false,
+    outputs: false,
+    confluence: false
+  });
 
   // Load saved configurations on component mount
   useEffect(() => {
     const fetchConfigurations = async () => {
       try {
-        // Fetch inputs configuration
-        const inputsResponse = await axios.get('/api/config/inputs');
-        setInputs(inputsResponse.data || {});
-        
-        // Fetch outputs configuration
-        const outputsResponse = await axios.get('/api/config/outputs');
-        setOutputs(outputsResponse.data || {});
+        const [inputsRes, outputsRes, confluenceRes] = await Promise.all([
+          axios.get('/api/config/inputs').catch(e => ({data: null, error: e})), // Add catch to prevent Promise.all from failing early
+          axios.get('/api/config/outputs').catch(e => ({data: null, error: e})),
+          axios.get('/api/config/confluence').catch(e => ({data: null, error: e}))
+        ]);
 
-        // Fetch Confluence configuration
-        try {
-          const confluenceResponse = await axios.get('/api/config/confluence');
-          if (confluenceResponse.data) {
-            setConfluenceConfig(confluenceResponse.data);
-          }
-        } catch (confError) {
-          // Confluence config might not exist yet, that's OK
-          console.log('Confluence config not found, using defaults');
+        setInputs(inputsRes.data || {});
+        setOutputs(outputsRes.data || {});
+        
+        if (confluenceRes.data) {
+          setConfluenceConfig(confluenceRes.data);
+        } else {
+          console.log('Confluence config not found or error fetching, using defaults/localStorage if available');
         }
 
-        // Fetch AI API Keys
-        // setApiKeyLoading(true);
-        // try {
-        //   const apiKeysResponse = await axios.get('/api/config/apikeys');
-        //   if (apiKeysResponse.data) {
-        //     setApiKeys(apiKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
-        //     setApiKeyError('');
-        //   } else {
-        //     setApiKeys([]);
-        //     setApiKeyError('');
-        //   }
-        // } catch (error) {
-        //   console.error('Error loading AI Configurations:', error);
-        //   if (error.response && error.response.status === 404) {
-        //      setApiKeyError('AI Configuration endpoint not found. Please set up the backend.');
-        //   } else {
-        //      setApiKeyError('Failed to load AI Configurations. Please check server connection.');
-        //   }
-        //   setApiKeys([]);
-        // } finally {
-        //   setApiKeyLoading(false);
-        // }
-
-      } catch (error) {
-        console.error('Error loading configurations:', error);
-        // Fallback to localStorage if API fails
+      } catch (error) { // This catch is for errors not caught by individual .catch() or if Promise.all itself has an issue
+        console.error('Error loading configurations via Promise.all:', error);
+      } finally {
+        // Fallback to localStorage if API fails or data is null
         try {
-          const savedInputs = localStorage.getItem('brd_inputs');
-          const savedOutputs = localStorage.getItem('brd_outputs');
+          if (Object.keys(inputs).length === 0) {
+            const savedInputs = localStorage.getItem('brd_inputs');
+            if (savedInputs) setInputs(JSON.parse(savedInputs));
+          }
+          if (Object.keys(outputs).length === 0) {
+            const savedOutputs = localStorage.getItem('brd_outputs');
+            if (savedOutputs) setOutputs(JSON.parse(savedOutputs));
+          }
           const savedConfluence = localStorage.getItem('brd_confluence_config');
-          
-          if (savedInputs) setInputs(JSON.parse(savedInputs));
-          if (savedOutputs) setOutputs(JSON.parse(savedOutputs));
-          if (savedConfluence) setConfluenceConfig(JSON.parse(savedConfluence));
+          // Only set from localStorage if not already set from API or if API errored for confluence
+          if (!confluenceConfig.baseUrl && savedConfluence) { 
+            setConfluenceConfig(JSON.parse(savedConfluence));
+          }
         } catch (storageError) {
           console.error('Error loading from localStorage:', storageError);
         }
@@ -108,18 +85,18 @@ function HomePage() {
     };
 
     fetchConfigurations();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   // Mark as changed when inputs/outputs/confluence are modified
   useEffect(() => {
     if (Object.keys(inputs).length > 0) {
-      setInputsChanged(true);
+      setConfluenceChanged(true);
     }
   }, [inputs]);
 
   useEffect(() => {
     if (Object.keys(outputs).length > 0) {
-      setOutputsChanged(true);
+      setConfluenceChanged(true);
     }
   }, [outputs]);
 
@@ -137,68 +114,64 @@ function HomePage() {
     }
   }, [savingStatus]);
 
-  const handleSaveInputs = async () => {
-    if (!inputsChanged || Object.keys(inputs).length === 0) return;
-    
-    setInputsSaving(true);
-    try {
-      // Save to server
-      await axios.post('/api/config/inputs', inputs);
-      
-      // Backup to localStorage
-      localStorage.setItem('brd_inputs', JSON.stringify(inputs));
-      
-      setInputsChanged(false);
-      setSavingStatus({ type: 'success', message: 'Inputs configuration saved successfully!' });
-    } catch (error) {
-      console.error('Error saving inputs configuration:', error);
-      setSavingStatus({ type: 'error', message: 'Failed to save inputs configuration' });
-    } finally {
-      setInputsSaving(false);
+  // Update useEffects for changed state to use the new unified state
+  useEffect(() => {
+    // Check !inputsSaving to prevent marking as changed during save
+    // Also ensure that inputs is not empty before marking as changed, to avoid premature save button enable on initial empty load
+    if (Object.keys(inputs).length > 0 && !inputsSaving) { 
+      setDataChanged(prev => ({ ...prev, inputs: true }));
     }
+  }, [inputs, inputsSaving]);
+
+  useEffect(() => {
+    if (Object.keys(outputs).length > 0 && !outputsSaving) {
+      setDataChanged(prev => ({ ...prev, outputs: true }));
+    }
+  }, [outputs, outputsSaving]);
+
+  useEffect(() => {
+    if (!confluenceSaving) { 
+        setDataChanged(prev => ({ ...prev, confluence: true }));
+    }
+    // Add confluenceConfig to dependency array if we want to track its changes for the 'dataChanged.confluence' flag.
+    // Be cautious: if confluenceConfig is an object, this effect will run if its reference changes.
+    // The current implementation marks it as true almost immediately after mount due to initial setConfluenceConfig calls.
+    // A better approach might be to compare with a deep copy of initial state or have a specific user interaction trigger this.
+    // For simplicity, keeping it as is, which means Confluence save will be available sooner.
+  }, [confluenceConfig, confluenceSaving]);
+
+  const createSaveHandler = (configName, data, setSavingInProgress, apiPath, localStorageKey) => {
+    return async () => {
+      // Use dataChanged[configName] from the unified state
+      if (!dataChanged[configName] || (typeof data === 'object' && Object.keys(data).length === 0 && configName !== 'confluence') ) {
+        // For confluence, allow saving even if data is empty initially (e.g., to enable it for the first time)
+        if(configName === 'confluence' && !data.enabled && Object.values(data).every(v => v === '' || v === false || v === 'BRD')){
+            // If confluence is not enabled and all fields are default/empty, don't save.
+        } else if (configName === 'confluence') {
+            // Allow save for confluence if it has been changed or is enabled.
+        } else {
+            return;
+        }
+      }
+
+      setSavingInProgress(true);
+      try {
+        await axios.post(apiPath, data);
+        localStorage.setItem(localStorageKey, JSON.stringify(data));
+        setDataChanged(prev => ({ ...prev, [configName]: false })); // Reset specific changed flag
+        setSavingStatus({ type: 'success', message: `${configName.charAt(0).toUpperCase() + configName.slice(1)} configuration saved successfully!` });
+      } catch (error) {
+        console.error(`Error saving ${configName} configuration:`, error);
+        setSavingStatus({ type: 'error', message: `Failed to save ${configName} configuration` });
+      } finally {
+        setSavingInProgress(false);
+      }
+    };
   };
 
-  const handleSaveOutputs = async () => {
-    if (!outputsChanged || Object.keys(outputs).length === 0) return;
-    
-    setOutputsSaving(true);
-    try {
-      // Save to server
-      await axios.post('/api/config/outputs', outputs);
-      
-      // Backup to localStorage
-      localStorage.setItem('brd_outputs', JSON.stringify(outputs));
-      
-      setOutputsChanged(false);
-      setSavingStatus({ type: 'success', message: 'Outputs configuration saved successfully!' });
-    } catch (error) {
-      console.error('Error saving outputs configuration:', error);
-      setSavingStatus({ type: 'error', message: 'Failed to save outputs configuration' });
-    } finally {
-      setOutputsSaving(false);
-    }
-  };
-
-  const handleSaveConfluence = async () => {
-    if (!confluenceChanged) return;
-    
-    setConfluenceSaving(true);
-    try {
-      // Save to server
-      await axios.post('/api/config/confluence', confluenceConfig);
-      
-      // Backup to localStorage
-      localStorage.setItem('brd_confluence_config', JSON.stringify(confluenceConfig));
-      
-      setConfluenceChanged(false);
-      setSavingStatus({ type: 'success', message: 'Confluence configuration saved successfully!' });
-    } catch (error) {
-      console.error('Error saving Confluence configuration:', error);
-      setSavingStatus({ type: 'error', message: 'Failed to save Confluence configuration' });
-    } finally {
-      setConfluenceSaving(false);
-    }
-  };
+  const handleSaveInputs = createSaveHandler('inputs', inputs, setInputsSaving, '/api/config/inputs', 'brd_inputs');
+  const handleSaveOutputs = createSaveHandler('outputs', outputs, setOutputsSaving, '/api/config/outputs', 'brd_outputs');
+  const handleSaveConfluence = createSaveHandler('confluence', confluenceConfig, setConfluenceSaving, '/api/config/confluence', 'brd_confluence_config');
 
   const handleTestConfluenceConnection = async () => {
     setTestingConnection(true);
@@ -362,92 +335,6 @@ function HomePage() {
     return typeMap[type] || type;
   };
 
-  // --- AI API Key Management Functions ---
-  // const handleToggleNewApiKeyForm = () => {
-  //   setShowNewApiKeyForm(prev => !prev);
-  //   setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: apiKeys.length === 0 && !showNewApiKeyForm });
-  //   setApiKeyError('');
-  // };
-
-  // const handleApiKeyInputChange = (e) => {
-  //   const { name, value, type, checked } = e.target;
-  //   setNewApiKey(prev => ({
-  //     ...prev,
-  //     [name]: type === 'checkbox' ? checked : value
-  //   }));
-  // };
-
-  // const handleSaveApiKey = async () => {
-  //   if (!newApiKey.name.trim()) { 
-  //     setApiKeyError('API Key Name is required.');
-  //     return;
-  //   }
-  //   if (!newApiKey.keyValue.trim()) {
-  //       setApiKeyError('API Key Value is required for new keys.');
-  //       return;
-  //   }
-
-  //   setApiKeySaving(true);
-  //   setApiKeyError('');
-
-  //   try {
-  //     // Create new API Key - no editing of existing key values here
-  //     const response = await axios.post('/api/config/apikeys', newApiKey); 
-  //     const savedKey = response.data; // Assuming server returns {id, name, isDefault}
-      
-  //     let updatedApiKeys = [...apiKeys];
-  //     if (savedKey.isDefault) { // if the new key was set as default
-  //       updatedApiKeys = updatedApiKeys.map(k => ({ ...k, isDefault: false }));
-  //     }
-  //     updatedApiKeys.push(savedKey); 
-      
-  //     setApiKeys(updatedApiKeys.sort((a,b) => a.name.localeCompare(b.name)));
-  //     setShowNewApiKeyForm(false); // Close inline form
-  //     setNewApiKey({ name: '', type: 'OpenAI', keyValue: '', isDefault: false }); // Reset form with type
-  //   } catch (error) {
-  //     console.error('Error saving API Key:', error);
-  //     setApiKeyError(error.response?.data?.message || 'Failed to save API Key.');
-  //   } finally {
-  //     setApiKeySaving(false);
-  //   }
-  // };
-
-  // const handleDeleteApiKey = async (keyId) => {
-  //   const keyToDelete = apiKeys.find(k => k.id === keyId);
-  //   if (keyToDelete && keyToDelete.isDefault) {
-  //     alert("Cannot delete the default API key. Please set another key as default first.");
-  //     return;
-  //   }
-  //   if (!window.confirm(`Are you sure you want to delete the AI Configuration \\"${keyToDelete?.name}\\"?`)) return;
-
-  //   setApiKeySaving(true);
-  //   setApiKeyError('');
-  //   try {
-  //     await axios.delete(`/api/config/apikeys/${keyId}`);
-  //     setApiKeys(prevKeys => prevKeys.filter(key => key.id !== keyId));
-  //   } catch (error) {
-  //     console.error('Error deleting AI Configuration:', error);
-  //     setApiKeyError(error.response?.data?.message || 'Failed to delete AI Configuration.');
-  //   } finally {
-  //     setApiKeySaving(false);
-  //   }
-  // };
-
-  // const handleSetDefaultApiKey = async (keyId) => {
-  //   setApiKeySaving(true);
-  //   setApiKeyError('');
-  //   try {
-  //     await axios.put(`/api/config/apikeys/${keyId}/default`);
-  //     const updatedKeysResponse = await axios.get('/api/config/apikeys');
-  //     setApiKeys(updatedKeysResponse.data.sort((a,b) => a.name.localeCompare(b.name)) || []);
-  //   } catch (error) {
-  //     console.error('Error setting default AI Configuration:', error);
-  //     setApiKeyError(error.response?.data?.message || 'Failed to set default AI Configuration.');
-  //   } finally {
-  //     setApiKeySaving(false);
-  //   }
-  // };
-
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center">
@@ -470,9 +357,9 @@ function HomePage() {
           <h2 className="text-lg font-semibold text-gray-800">Inputs Configuration</h2>
           <button
             onClick={handleSaveInputs}
-            disabled={!inputsChanged || Object.keys(inputs).length === 0 || inputsSaving}
+            disabled={!dataChanged.inputs || Object.keys(inputs).length === 0 || inputsSaving}
             className={`p-2 rounded-full ${
-              !inputsChanged || Object.keys(inputs).length === 0
+              !dataChanged.inputs || Object.keys(inputs).length === 0
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                 : inputsSaving
                   ? 'bg-blue-100 text-blue-400 cursor-wait'
@@ -578,9 +465,9 @@ function HomePage() {
           <h2 className="text-lg font-semibold text-gray-800">Outputs Configuration</h2>
           <button
             onClick={handleSaveOutputs}
-            disabled={!outputsChanged || Object.keys(outputs).length === 0 || outputsSaving}
+            disabled={!dataChanged.outputs || Object.keys(outputs).length === 0 || outputsSaving}
             className={`p-2 rounded-full ${
-              !outputsChanged || Object.keys(outputs).length === 0
+              !dataChanged.outputs || Object.keys(outputs).length === 0
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                 : outputsSaving
                   ? 'bg-blue-100 text-blue-400 cursor-wait'
@@ -687,9 +574,9 @@ function HomePage() {
           <h2 className="text-lg font-semibold text-gray-800">Confluence Configuration</h2>
           <button
             onClick={handleSaveConfluence}
-            disabled={!confluenceChanged || confluenceSaving}
+            disabled={!dataChanged.confluence || confluenceSaving}
             className={`p-2 rounded-full ${
-              !confluenceChanged
+              !dataChanged.confluence
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                 : confluenceSaving
                   ? 'bg-blue-100 text-blue-400 cursor-wait'
@@ -855,80 +742,6 @@ function HomePage() {
           )}
         </div>
       </div>
-
-      {/* AI API Keys Configuration Section */}
-      {/* <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <KeyIcon className="h-6 w-6 text-blue-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-800">AI Configuration</h2>
-          </div>
-          <button
-            onClick={handleToggleNewApiKeyForm}
-            className="p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-colors"
-            title="Add New AI Configuration"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        {apiKeyLoading && (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-500">Loading AI Configurations...</p>
-          </div>
-        )}
-
-        {!apiKeyLoading && apiKeyError && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm mb-4">
-            {apiKeyError}
-          </div>
-        )}
-
-        {!apiKeyLoading && apiKeys.length > 0 && (
-          <div className="space-y-3">
-            {apiKeys.map(apiKey => (
-              <div 
-                key={apiKey.id} 
-                className={`p-3 border rounded-lg flex items-center justify-between transition-all ${
-                  apiKey.isDefault ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex items-center">
-                  <span className={`font-medium text-sm ${apiKey.isDefault ? 'text-green-800' : 'text-gray-700'}`}>
-                    {apiKey.name}
-                  </span>
-                  {apiKey.isDefault && (
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-green-200 text-green-800 rounded-full font-semibold">
-                      Default
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  {!apiKey.isDefault && (
-                    <button
-                      onClick={() => handleSetDefaultApiKey(apiKey.id)}
-                      className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-100 rounded-md transition-colors"
-                      title="Set as Default"
-                      disabled={apiKeySaving}
-                    >
-                      <CheckCircleIcon className="h-5 w-5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteApiKey(apiKey.id)}
-                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-md transition-colors"
-                    title="Delete AI Configuration"
-                    disabled={apiKeySaving || (apiKey.isDefault && apiKeys.length === 1) || apiKey.isDefault}
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div> */}
     </div>
   );
 }

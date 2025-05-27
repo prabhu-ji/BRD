@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { PlusIcon, TrashIcon, ArrowDownIcon, DocumentIcon, PhotoIcon, TableCellsIcon, PencilIcon, CheckCircleIcon, ArrowsPointingOutIcon, XMarkIcon, Bars3Icon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
+import { 
+  PlusIcon, 
+  TrashIcon, 
+  DocumentIcon, 
+  PhotoIcon, 
+  TableCellsIcon, 
+  PencilIcon, 
+  CheckCircleIcon, 
+  ChevronUpDownIcon 
+} from '@heroicons/react/24/outline';
+import axios from 'axios'; // Import axios
+
+// Define static arrays outside the component
+const CARD_COLORS = [
+  'bg-blue-50 border-blue-200 text-blue-800',
+  'bg-purple-50 border-purple-200 text-purple-800', 
+  'bg-pink-50 border-pink-200 text-pink-800',
+  'bg-orange-50 border-orange-200 text-orange-800',
+  'bg-green-50 border-green-200 text-green-800'
+];
 
 function TemplateBuilder() {
   const [templates, setTemplates] = useState([]);
@@ -37,53 +56,38 @@ function TemplateBuilder() {
   const [movingOverviewField, setMovingOverviewField] = useState(null); // New state for overview field move mode
   
   // Card colors for saved templates
-  const cardColors = [
-    'bg-blue-50 border-blue-200 text-blue-800',
-    'bg-purple-50 border-purple-200 text-purple-800', 
-    'bg-pink-50 border-pink-200 text-pink-800',
-    'bg-orange-50 border-orange-200 text-orange-800',
-    'bg-green-50 border-green-200 text-green-800'
-  ];
+  const cardColors = CARD_COLORS;
   
   // Load templates, inputs, and outputs from server
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch templates from server
-        const templatesResponse = await fetch('http://localhost:5000/api/config/templates');
-        if (templatesResponse.ok) {
-          const templatesData = await templatesResponse.json();
-          setTemplates(templatesData);
+        const [templatesRes, inputsRes, outputsRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/config/templates'),
+          axios.get('http://localhost:5000/api/config/inputs'),
+          axios.get('http://localhost:5000/api/config/outputs')
+        ]);
+
+        if (templatesRes.data) {
+          setTemplates(templatesRes.data);
         }
         
-        // Fetch inputs from server
-        const inputsResponse = await fetch('http://localhost:5000/api/config/inputs');
-        if (inputsResponse.ok) {
-          const inputsData = await inputsResponse.json();
-          setAvailableInputs(inputsData);
-          
-          // Auto-select all inputs by default
-          setSelectedInputs(new Set(Object.keys(inputsData)));
+        if (inputsRes.data) {
+          setAvailableInputs(inputsRes.data);
+          if (!editMode) { // Only set selected inputs if not in edit mode
+             setSelectedInputs(new Set(Object.keys(inputsRes.data)));
+          }
         }
         
-        // Fetch outputs from server
-        const outputsResponse = await fetch('http://localhost:5000/api/config/outputs');
-        if (outputsResponse.ok) {
-          const outputsData = await outputsResponse.json();
-          setAvailableOutputs(outputsData);
-          
-          // Auto-select all outputs by default
-          if (Object.keys(outputsData).length > 0 && !editMode) {
+        if (outputsRes.data) {
+          setAvailableOutputs(outputsRes.data);
+          if (Object.keys(outputsRes.data).length > 0 && !editMode && !currentTemplate.id) { // also check if it's a new template
             const newOutputs = {};
-            Object.keys(outputsData).forEach(key => {
-              newOutputs[key] = outputsData[key];
+            Object.keys(outputsRes.data).forEach(key => {
+              newOutputs[key] = outputsRes.data[key];
             });
-            
-            setCurrentTemplate(prev => ({
-              ...prev,
-              outputs: newOutputs
-            }));
+            setCurrentTemplate(prev => ({ ...prev, outputs: newOutputs }));
           }
         }
       } catch (error) {
@@ -94,24 +98,25 @@ function TemplateBuilder() {
     };
     
     fetchData();
-  }, [editMode]);
+  }, [editMode, currentTemplate.id]); // Add currentTemplate.id to ensure re-fetch if template context changes significantly
+
+  // Clear success message after 3 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   // Save templates to server when they change
   const saveTemplatesToServer = async (templatesData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/config/templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templatesData),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save templates to server');
-      }
+      await axios.post('http://localhost:5000/api/config/templates', templatesData);
     } catch (error) {
       console.error('Error saving templates to server:', error);
+      // Optionally set an error state here to inform the user
     }
   };
 

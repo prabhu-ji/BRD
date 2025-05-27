@@ -1,82 +1,96 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    DocumentTextIcon,
-    ArrowDownTrayIcon,
+    // DocumentTextIcon, // Unused
+    // ArrowDownTrayIcon, // Unused
     CheckCircleIcon,
     ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import axios from "axios";
 
+const LOCAL_STORAGE_BRD_INPUT_KEY = "brd_generation_data";
+const LOCAL_STORAGE_LAST_RESULT_KEY = "brd_last_generated_result";
+const API_ENDPOINT_GENERATE_BRD = "http://localhost:5000/api/generate-brd";
+
 function GenerateBRD() {
     const navigate = useNavigate();
-    const [brdData, setBrdData] = useState(null);
+    const [brdData, setBrdData] = useState(null); // Keep for now, might remove later if direct passing is feasible
     const [status, setStatus] = useState("loading"); // loading, generating, success, error
     const [progress, setProgress] = useState(0);
     const [generatedDoc, setGeneratedDoc] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
 
     useEffect(() => {
-        try {
-            const savedBrdInputData = localStorage.getItem(
-                "brd_generation_data"
-            );
-            const lastGeneratedResult = localStorage.getItem(
-                "brd_last_generated_result"
-            );
+        let savedBrdInputData = null;
+        let lastGeneratedResult = null;
 
-            if (savedBrdInputData) {
-                // If we have new input data, prioritize generating new BRD
+        try {
+            savedBrdInputData = localStorage.getItem(LOCAL_STORAGE_BRD_INPUT_KEY);
+            lastGeneratedResult = localStorage.getItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+        } catch (error) {
+            console.error("Error reading from localStorage:", error);
+            setStatus("error");
+            setErrorMessage("Failed to access required data. Please try clearing site data and try again.");
+            return;
+        }
+
+        if (savedBrdInputData) {
+            try {
                 const parsedInputData = JSON.parse(savedBrdInputData);
-                setBrdData(parsedInputData);
+                setBrdData(parsedInputData); // Set for potential display or re-use, though startGenerationProcess uses its own arg
                 setStatus("generating");
-                // Clear any previous result since we're generating new
-                localStorage.removeItem("brd_last_generated_result");
+                localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY); // Clear previous result
                 startGenerationProcess(parsedInputData);
-            } else if (lastGeneratedResult) {
-                // Only show previous result if there's no new input data
+            } catch (parseError) {
+                console.error("Error parsing BRD input data from localStorage:", parseError);
+                setStatus("error");
+                setErrorMessage("Corrupted BRD input data. Please create a new BRD.");
+                localStorage.removeItem(LOCAL_STORAGE_BRD_INPUT_KEY); // Clear corrupted data
+            }
+        } else if (lastGeneratedResult) {
+            try {
                 const parsedResult = JSON.parse(lastGeneratedResult);
                 setGeneratedDoc(parsedResult);
                 setStatus("success");
-                setBrdData(null);
-            } else {
+                // setBrdData(null); // No need to explicitly set to null, initial state is null
+            } catch (parseError) {
+                console.error("Error parsing last generated result from localStorage:", parseError);
                 setStatus("error");
-                setErrorMessage(
-                    "No BRD data found. Please create a BRD first."
-                );
+                setErrorMessage("Corrupted previous result data. Please try generating again.");
+                localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY); // Clear corrupted data
             }
-        } catch (error) {
-            console.error("Error initializing GenerateBRD page:", error);
+        } else {
             setStatus("error");
-            setErrorMessage("Failed to initialize BRD generation process.");
+            setErrorMessage(
+                "No BRD data found. Please create a BRD first."
+            );
         }
-    }, [navigate]);
+    }, [navigate]); // navigate dependency is fine if certain navigation actions should re-trigger this logic
 
     const startGenerationProcess = async (data) => {
-        // Simulate initial progress while preparing data
-        const progressTimer = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 20) {
-                    clearInterval(progressTimer);
-                    return prev;
-                }
-                return prev + 5;
-            });
-        }, 500);
+        setProgress(0);
+        let progressInterval;
 
         try {
             // Helper function to convert base64 to File
             const base64ToFile = (base64Data, fileName, mimeType) => {
-                const byteCharacters = atob(base64Data.split(",")[1]);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                try {
+                    const byteCharacters = atob(base64Data.split(",")[1]);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    return new File([byteArray], fileName, { type: mimeType });
+                } catch (e) {
+                    console.error("Error in base64ToFile:", e);
+                    throw new Error(`Failed to decode file data for ${fileName}. Ensure the file data is valid.`);
                 }
-                const byteArray = new Uint8Array(byteNumbers);
-                return new File([byteArray], fileName, { type: mimeType });
             };
 
-            // Create form data for API call
+            // Simulate initial data preparation and upload start (0-10%)
+            setProgress(5); 
+
             const formData = new FormData();
             formData.append("template", JSON.stringify(data.template));
             formData.append("formData", JSON.stringify(data.formData));
@@ -84,124 +98,108 @@ function GenerateBRD() {
             formData.append("businessLogic", data.businessLogic);
             formData.append("outputs", JSON.stringify(data.outputs));
 
-            // Include technical data as JSON instead of files
             if (data.technicalData) {
-                formData.append(
-                    "technicalData",
-                    JSON.stringify(data.technicalData)
-                );
+                formData.append("technicalData", JSON.stringify(data.technicalData));
             }
 
-            // Convert base64 data back to files and add to form data
             if (data.imageFileData) {
-                const imageFile = base64ToFile(
-                    data.imageFileData.data,
-                    data.imageFileData.name,
-                    data.imageFileData.type
-                );
-                formData.append("image", imageFile);
+                formData.append("image", base64ToFile(data.imageFileData.data, data.imageFileData.name, data.imageFileData.type));
             }
 
             if (data.docFileData) {
-                const docFile = base64ToFile(
-                    data.docFileData.data,
-                    data.docFileData.name,
-                    data.docFileData.type
-                );
-                formData.append("doc", docFile);
+                formData.append("doc", base64ToFile(data.docFileData.data, data.docFileData.name, data.docFileData.type));
             }
+            
+            // Update progress after form data prep (e.g., 10%)
+            setProgress(10);
 
-            // Choose the appropriate endpoint based on Confluence settings
-            const endpoint = "http://localhost:5000/api/generate-brd";
-
-            // Make API call to generate BRD
-            const response = await axios.post(endpoint, formData, {
+            const response = await axios.post(API_ENDPOINT_GENERATE_BRD, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round(
-                        (progressEvent.loaded * 100) / progressEvent.total
+                        (progressEvent.loaded * 100) / (progressEvent.total || 1) // Add fallback for total
                     );
-                    // Cap at 30% for upload progress
-                    setProgress(Math.min(20 + percentCompleted * 0.1, 30));
+                    // Upload progress contributes to 10-40% of total progress
+                    setProgress(10 + Math.min(percentCompleted * 0.3, 30)); 
                 },
             });
+            
+            // Upload complete, backend processing starts (40%)
+            setProgress(40);
 
-            // Clear progress timer
-            clearInterval(progressTimer);
-
-            // Start generation progress simulation
-            const generationTimer = setInterval(() => {
+            // Simulate backend processing progress (40-95%)
+            // This interval simulates the server-side generation time.
+            progressInterval = setInterval(() => {
                 setProgress((prev) => {
                     if (prev >= 95) {
-                        clearInterval(generationTimer);
-                        return prev;
+                        clearInterval(progressInterval);
+                        return 95;
                     }
-                    // Slower progress after 60%
-                    const increment = prev < 60 ? 5 : 2;
-                    return prev + increment;
+                    // Increment slower as it gets closer to completion
+                    const increment = prev < 70 ? 5 : (prev < 90 ? 2 : 1);
+                    return Math.min(prev + increment, 95);
                 });
-            }, 1000);
+            }, 700); // Adjusted interval time
 
             if (response.data.success) {
-                // Simulate completion
+                // Wait for backend processing simulation to nearly complete before finalizing
+                // This timeout ensures the progress bar reaches ~95% before jumping to 100%
                 setTimeout(() => {
-                    clearInterval(generationTimer);
+                    clearInterval(progressInterval); 
                     setProgress(100);
                     setStatus("success");
                     const resultToSave = {
-                        fileName: response.data.fileName, // May not be needed if not displayed
-                        url: `http://localhost:5000${response.data.downloadUrl}`, // May not be needed if not displayed
-                        timestamp: response.data.timestamp, // May not be needed if not displayed
-                        confluence: response.data.confluence, // This is important
-                        // Add an identifier if dataToProcess had one, to match input with result
-                        // inputDataId: dataToProcess.id (if you add an ID to brd_generation_data)
+                        fileName: response.data.fileName || "generated_brd.docx", // Fallback filename
+                        url: `http://localhost:5000${response.data.downloadUrl}`,
+                        timestamp: response.data.timestamp,
+                        confluence: response.data.confluence,
                     };
                     setGeneratedDoc(resultToSave);
-                    localStorage.setItem(
-                        "brd_last_generated_result",
-                        JSON.stringify(resultToSave)
-                    );
-                    // Now that we have a result, we can consider brd_generation_data processed for this session.
-                    // Clearing it prevents re-generation on refresh if user somehow lands here before result is shown.
-                    localStorage.removeItem("brd_generation_data");
-                }, 3000);
+                    localStorage.setItem(LOCAL_STORAGE_LAST_RESULT_KEY, JSON.stringify(resultToSave));
+                    localStorage.removeItem(LOCAL_STORAGE_BRD_INPUT_KEY);
+                }, 4000); // Adjust this timeout based on expected backend processing time simulation
             } else {
-                throw new Error(
-                    response.data.message || "Failed to generate BRD"
-                );
+                clearInterval(progressInterval); // Stop progress simulation on API error
+                throw new Error(response.data.message || "Failed to generate BRD from API");
             }
         } catch (error) {
             console.error("Error generating BRD:", error);
+            clearInterval(progressInterval); // Ensure interval is cleared on any error
             setStatus("error");
             setErrorMessage(
-                error.response?.data?.message ||
-                    error.message ||
-                    "Failed to generate BRD. Please try again."
+                error.response?.data?.message || error.message || "Failed to generate BRD. Please try again."
             );
+            setProgress(0); // Reset progress on error
         }
     };
 
     const downloadDocument = () => {
         if (!generatedDoc || !generatedDoc.url) {
-            alert("Document URL not available");
+            setErrorMessage("Document URL not available for download.");
+            // alert("Document URL not available"); // Replaced with state update
             return;
         }
 
-        // Create a link and trigger download
         const link = document.createElement("a");
         link.href = generatedDoc.url;
-        link.setAttribute("download", generatedDoc.fileName);
+        // Use a default filename if generatedDoc.fileName is not present
+        link.setAttribute("download", generatedDoc.fileName || "BRD_Document.docx");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setErrorMessage(""); // Clear any previous error message
     };
 
     const createNewBRD = () => {
-        // Clear any stored data when creating new BRD
-        localStorage.removeItem("brd_generation_data");
-        localStorage.removeItem("brd_last_generated_result");
+        localStorage.removeItem(LOCAL_STORAGE_BRD_INPUT_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+        setBrdData(null);
+        setGeneratedDoc(null);
+        setProgress(0);
+        setStatus("loading"); // Or directly navigate, depending on desired UX
+        setErrorMessage("");
         navigate("/create-brd");
     };
 

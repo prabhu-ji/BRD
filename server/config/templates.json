@@ -572,13 +572,13 @@
         "label": "Integration Approach",
         "key": "Integration Approach",
         "type": "textarea",
-        "default": "\tSFTP — Boomi Server: connect.visteon.com /dropzone/ultipro/IN/INF0045"
+        "default": "SFTP — Boomi Server: connect.visteon.com /dropzone/ultipro/IN/INF0045"
       },
       {
         "label": "Employee Selection Criteria",
         "key": "Employee Selection Criteria",
         "type": "textarea",
-        "default": "\tOnly Terminated employees with Date of exit ≥ Jan 1, 2020, and all Active employees"
+        "default": "Only Terminated employees with Date of exit ≥ Jan 1, 2020, and all Active employees"
       },
       {
         "label": "Data Exclusion Logic",

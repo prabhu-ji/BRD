@@ -3,7 +3,7 @@ node_modules/
 npm-debug.log
 yarn-debug.log
 yarn-error.log
-package-lock.json
+# package-lock.json # Usually committed, remove if not intended
 
 # Build files
 dist/
@@ -26,13 +26,9 @@ Thumbs.db
 
 # Editor directories and files
 .idea/
-.vscode/
+# .vscode/ # More specific rules are better, see below
 *.swp
 *.swo
-
-# Server uploads and generated files
-brd/server/uploads/
-brd/server/generated/
 
 # Python
 __pycache__/
@@ -40,8 +36,81 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/ 
+# env/ # Covered by general venv/
+# venv/ # Covered by general venv/
+# ENV/ # Covered by general venv/
 
-confluence.json
+# Confluence credentials file (if stored locally and not in .env)
+confluence.json 
+
+# General Dependencies (can be more specific if needed)
+# /node_modules # Already covered at the top
+# /.pnp
+# .pnp.js
+
+# Testing
+coverage/
+
+# Production
+# /build # Already covered at the top
+
+# Misc
+# .DS_Store # Already covered
+*.pem
+
+# Logs (duplicates, covered above)
+# npm-debug.log*
+# yarn-debug.log*
+# yarn-error.log*
+
+# Environment Variables (duplicates)
+# .env*.local
+
+# Editor directories and files (refined rules)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# --- BRD Generator Specific --- 
+
+# Output folders for generated documents and intermediary files from server
+# These paths should be relative to the .gitignore file (project root)
+server/generated/
+server/uploads/
+
+# Output folders for client-side generated/downloaded content (if any, adjust path if needed)
+# client/generated/
+# client/uploads/
+
+# General generated and uploads folders at project root (as requested)
+generated/
+uploads/
+
+# Configuration files that might contain sensitive info if not handled by env vars
+# server/config.json # Example
+
+# Specific user data or temp files
+*.brd.json
+*.temp
+*.backup
+
+# AI Model related files (if any are downloaded or cached locally)
+# *.pth
+# *.bin
+
+# Python virtual environment (consolidated)
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache (already covered)
+# __pycache__/
+# *.py[cod]
+# *$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
