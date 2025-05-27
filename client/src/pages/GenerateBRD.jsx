@@ -18,41 +18,39 @@ function GenerateBRD() {
 
     useEffect(() => {
         try {
-            const savedBrdInputData = localStorage.getItem("brd_generation_data");
-            const lastGeneratedResult = localStorage.getItem("brd_last_generated_result");
+            const savedBrdInputData = localStorage.getItem(
+                "brd_generation_data"
+            );
+            const lastGeneratedResult = localStorage.getItem(
+                "brd_last_generated_result"
+            );
 
-            if (lastGeneratedResult) {
-                // If there's a previously generated result, display it immediately
-                const parsedResult = JSON.parse(lastGeneratedResult);
-                // We need to ensure this result corresponds to the current input data if possible,
-                // or decide if just showing the last result is okay.
-                // For simplicity now, if lastGeneratedResult exists, we assume it's the one to show.
-                // A more robust solution might involve matching IDs if inputData also had an ID.
-                setGeneratedDoc(parsedResult);
-                setStatus("success");
-                setBrdData(savedBrdInputData ? JSON.parse(savedBrdInputData) : null); // Still set brdData for context if needed by UI
-                // Potentially clear brd_generation_data if we don't want it to be used again automatically
-                // localStorage.removeItem("brd_generation_data"); 
-            } else if (savedBrdInputData) {
-                // No last result, but we have input data, so generate.
+            if (savedBrdInputData) {
+                // If we have new input data, prioritize generating new BRD
                 const parsedInputData = JSON.parse(savedBrdInputData);
                 setBrdData(parsedInputData);
                 setStatus("generating");
+                // Clear any previous result since we're generating new
+                localStorage.removeItem("brd_last_generated_result");
                 startGenerationProcess(parsedInputData);
-                // Important: Clear brd_generation_data after starting generation to prevent re-trigger on simple refresh during generation
-                // or if generation fails and user refreshes before success.
-                // However, if it fails, user might want to retry with same data. So, maybe clear only on success OR when navigating away.
-                // For now, let's clear it after successful storage of generatedDoc.
+            } else if (lastGeneratedResult) {
+                // Only show previous result if there's no new input data
+                const parsedResult = JSON.parse(lastGeneratedResult);
+                setGeneratedDoc(parsedResult);
+                setStatus("success");
+                setBrdData(null);
             } else {
                 setStatus("error");
-                setErrorMessage("No BRD data found. Please create a BRD first.");
+                setErrorMessage(
+                    "No BRD data found. Please create a BRD first."
+                );
             }
         } catch (error) {
             console.error("Error initializing GenerateBRD page:", error);
             setStatus("error");
             setErrorMessage("Failed to initialize BRD generation process.");
         }
-    }, [navigate]); // Added navigate to dependency array as it's used in createNewBRD which could be part of effect cleanup in future
+    }, [navigate]);
 
     const startGenerationProcess = async (data) => {
         // Simulate initial progress while preparing data
@@ -161,10 +159,13 @@ function GenerateBRD() {
                         // inputDataId: dataToProcess.id (if you add an ID to brd_generation_data)
                     };
                     setGeneratedDoc(resultToSave);
-                    localStorage.setItem('brd_last_generated_result', JSON.stringify(resultToSave));
+                    localStorage.setItem(
+                        "brd_last_generated_result",
+                        JSON.stringify(resultToSave)
+                    );
                     // Now that we have a result, we can consider brd_generation_data processed for this session.
                     // Clearing it prevents re-generation on refresh if user somehow lands here before result is shown.
-                    localStorage.removeItem("brd_generation_data"); 
+                    localStorage.removeItem("brd_generation_data");
                 }, 3000);
             } else {
                 throw new Error(
@@ -198,6 +199,9 @@ function GenerateBRD() {
     };
 
     const createNewBRD = () => {
+        // Clear any stored data when creating new BRD
+        localStorage.removeItem("brd_generation_data");
+        localStorage.removeItem("brd_last_generated_result");
         navigate("/create-brd");
     };
 
