@@ -4,8 +4,10 @@ import Navbar from "./components/Navbar.jsx";
 
 const HomePage = lazy(() => import("./pages/HomePage.jsx"));
 const TemplateBuilder = lazy(() => import("./pages/TemplateBuilder.jsx"));
-const CreateBRD = lazy(() => import("./pages/CreateBRD.jsx"));
+const CreateBRDPage = lazy(() => import("./pages/CreateBRD.jsx"));
+const CreateBRDEditorPage = lazy(() => import("./pages/CreateBRDEditorPage.jsx"));
 const GenerateBRD = lazy(() => import("./pages/GenerateBRD.jsx"));
+const HistoryPage = lazy(() => import("./pages/HistoryPage.jsx"));
 
 // Loading fallback
 const Loading = () => (
@@ -29,8 +31,10 @@ function App() {
                             path="/template-builder"
                             element={<TemplateBuilder />}
                         />
-                        <Route path="/create-brd" element={<CreateBRD />} />
+                        <Route path="/create-brd" element={<CreateBRDPage />} />
+                        <Route path="/build-brd" element={<CreateBRDEditorPage />} />
                         <Route path="/generate-brd" element={<GenerateBRD />} />
+                        <Route path="/history" element={<HistoryPage />} />
                         <Route
                             path="/"
                             element={<Navigate to="/create-brd" replace />}

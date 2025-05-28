@@ -6,12 +6,29 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
+const { MongoClient } = require("mongodb");
 const BRDAIGenerator = require("./ai-generator");
 const ConfluenceGenerator = require("./confluence");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const API_KEY = "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";
+
+// MongoDB Configuration - Replace with your actual connection string
+const MONGO_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/brd_generator_db"; // Placeholder
+let db; // Variable to hold the database connection
+
+async function connectDB() {
+  try {
+    const client = new MongoClient(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+    await client.connect();
+    db = client.db(); // Specify the database name if not in URI, or remove .db() if URI has it.
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection error:", err);
+    process.exit(1); // Exit process with failure
+  }
+}
 
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const GENERATED_DIR = path.join(__dirname, "generated");
@@ -719,6 +736,30 @@ app.post(
                 };
             }
 
+            // Save BRD metadata to MongoDB for History page if Confluence creation was successful
+            if (confluenceResult && confluenceResult.success) {
+                try {
+                    if (!db || !db.collection) {
+                        console.error('MongoDB database or collection not initialized for saving BRD history.');
+                    } else {
+                        const brdsCollection = db.collection('brds');
+                        const historyEntry = {
+                            name: confluenceResult.pageTitle,
+                            createdAt: brdData.metadata?.createdAt || new Date(),
+                            templateName: brdData.isAdHoc ? "Ad-Hoc" : (brdData.template?.templateName || null),
+                            isAdHoc: brdData.isAdHoc || false,
+                            confluenceLink: confluenceResult.pageUrl,
+                            pageId: confluenceResult.pageId,
+                        };
+                        await brdsCollection.insertOne(historyEntry);
+                        console.log(`📝 BRD history entry saved for: ${confluenceResult.pageTitle}`);
+                    }
+                } catch (dbError) {
+                    console.error("Error saving BRD history to MongoDB:", dbError);
+                    // Decide if this error should affect the overall response. For now, just log it.
+                }
+            }
+
             // Return the result with optional Confluence data
             const finalResult = {
                 ...brdResult,
@@ -938,6 +979,30 @@ app.post(
                     brdResult.brdData,
                     confluenceOpts
                 );
+
+                // Save BRD metadata to MongoDB for History page if Confluence creation was successful
+                if (confluenceResult && confluenceResult.success) {
+                    try {
+                        if (!db || !db.collection) {
+                            console.error('MongoDB database or collection not initialized for saving BRD history.');
+                        } else {
+                            const brdsCollection = db.collection('brds');
+                            const historyEntry = {
+                                name: confluenceResult.pageTitle,
+                                createdAt: brdData.metadata?.createdAt || new Date(),
+                                templateName: brdData.isAdHoc ? "Ad-Hoc" : (brdData.template?.templateName || null),
+                                isAdHoc: brdData.isAdHoc || false,
+                                confluenceLink: confluenceResult.pageUrl,
+                                pageId: confluenceResult.pageId,
+                            };
+                            await brdsCollection.insertOne(historyEntry);
+                            console.log(`📝 BRD history entry saved for: ${confluenceResult.pageTitle}`);
+                        }
+                    } catch (dbError) {
+                        console.error("Error saving BRD history to MongoDB:", dbError);
+                        // Decide if this error should affect the overall response. For now, just log it.
+                    }
+                }
             }
 
             // Return combined result
@@ -1036,7 +1101,48 @@ const cleanupOldSessions = async () => {
 // Run cleanup every 30 minutes
 setInterval(cleanupOldSessions, 30 * 60 * 1000);
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// NEW: BRD History Endpoint
+app.get("/api/brds/history", async (req, res) => {
+  //console.log("!!!!!!!!!!!!!! SERVER: /api/brds/history route handler reached !!!!!!!!!!!!!!"); // Added for debugging
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!db) { // Check if db is initialized
+        console.error('MongoDB database not initialized when trying to access /api/brds/history.');
+        return res.status(500).json({ message: 'Database not configured or connection failed.' });
+    }
+    const brdsCollection = db.collection('brds');
+
+    const totalItems = await brdsCollection.countDocuments();
+    const brds = await brdsCollection.find({})
+      .sort({ createdAt: -1 }) // Sort by creation date, newest first
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    res.json({ 
+      brds,
+      totalItems,
+      currentPage: page,
+      totalPages: Math.ceil(totalItems / limit)
+    });
+  } catch (error) {
+    console.error("Error fetching BRD history:", error);
+    res.status(500).json({ message: "Failed to fetch BRD history", error: error.message });
+  }
 });
+
+// Save uploaded template
+// ... existing code ...
+
+// Start server - modified to connect to DB first
+async function startServer() {
+    await connectDB(); // Connect to MongoDB
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+startServer(); // Call startServer instead of app.listen directly
