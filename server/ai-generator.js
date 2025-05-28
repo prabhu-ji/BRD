@@ -1,26 +1,23 @@
 const fs = require("fs-extra");
 const path = require("path");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const OpenAI = require("openai");
 const APIDocsManager = require("./api-docs-manager");
 
-// Initialize Google Generative AI client - handle missing API key gracefully
-let genAI = null;
-let model = null;
+// Initialize OpenAI client - handle missing API key gracefully
+let openai = null;
 try {
-    if (process.env.GOOGLE_GEMINI_API_KEY) {
-        genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
-        model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-        console.log("✅ Google Gemini 2.0 Flash initialized successfully");
+    if (process.env.OPENAI_API_KEY) {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+        console.log("✅ OpenAI GPT-4 initialized successfully");
     } else {
         console.warn(
-            "⚠️ GOOGLE_GEMINI_API_KEY not found - AI generation will be limited"
+            "⚠️ OPENAI_API_KEY not found - AI generation will be limited"
         );
     }
 } catch (error) {
-    console.warn(
-        "⚠️ Google Gemini client initialization failed:",
-        error.message
-    );
+    console.warn("⚠️ OpenAI client initialization failed:", error.message);
 }
 
 class BRDAIGenerator {
@@ -259,13 +256,21 @@ class BRDAIGenerator {
             outputsCount: brdData.outputs?.length || 0,
             hasBusinessLogic: !!brdData.businessLogic,
             hasTechnicalData: !!brdData.technicalData,
-            technicalDataKeys: brdData.technicalData ? Object.keys(brdData.technicalData) : [],
+            technicalDataKeys: brdData.technicalData
+                ? Object.keys(brdData.technicalData)
+                : [],
             sessionId: brdData.metadata?.sessionId || "N/A",
         });
 
         // Log technical data structure for debugging
-        if (brdData.technicalData && Object.keys(brdData.technicalData).length > 0) {
-            console.log("🔍 Technical data structure received:", JSON.stringify(brdData.technicalData, null, 2));
+        if (
+            brdData.technicalData &&
+            Object.keys(brdData.technicalData).length > 0
+        ) {
+            console.log(
+                "🔍 Technical data structure received:",
+                JSON.stringify(brdData.technicalData, null, 2)
+            );
         } else {
             console.log("⚠️ No technical data received by AI generator");
         }
@@ -322,6 +327,7 @@ class BRDAIGenerator {
                 title: documentTitle,
                 detailsTable: detailsTable,
                 sections: generatedSections,
+                technicalData: brdData.technicalData, // Preserve technical data with files
                 metadata: {
                     generatedAt: new Date().toISOString(),
                     totalSections: Object.keys(generatedSections).length,
@@ -792,9 +798,9 @@ class BRDAIGenerator {
         );
 
         try {
-            if (!model) {
+            if (!openai) {
                 throw new Error(
-                    "Google Gemini model not initialized - check GOOGLE_GEMINI_API_KEY"
+                    "OpenAI GPT-4 not initialized - check OPENAI_API_KEY"
                 );
             }
 
@@ -811,21 +817,21 @@ class BRDAIGenerator {
                         console.log("Prompt:", prompt);
                         console.log("System Prompt:", this.getSystemPrompt());
                     }
-                    return await model.generateContent({
-                        contents: [
-                            { role: "user", parts: [{ text: fullPrompt }] },
-                        ],
-                        generationConfig: {
-                            temperature: 0.2,
-                            maxOutputTokens: 1500,
-                            topP: 0.9,
-                        },
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: fullPrompt }],
+                        model: "gpt-4",
+                        max_tokens: 1500,
+                        n: 1,
+                        stop: null,
+                        temperature: 0.2,
                     });
                 },
                 { outputName, type: "text" }
             );
 
-            let content = result.response.text() || "Content generation failed";
+            let content =
+                result.choices[0].message.content ||
+                "Content generation failed";
 
             // Post-process content to use lists and match style
             content = this.postProcessTextContent(
@@ -1406,9 +1412,9 @@ ${contextGuidance.general}
         );
 
         try {
-            if (!model) {
+            if (!openai) {
                 throw new Error(
-                    "Google Gemini model not initialized - check GOOGLE_GEMINI_API_KEY"
+                    "OpenAI GPT-4 not initialized - check OPENAI_API_KEY"
                 );
             }
 
@@ -1419,14 +1425,28 @@ STRICT REQUIREMENTS:
 1. ONLY generate Graphviz DOT notation - NO Mermaid, NO other formats
 2. Always start with "digraph" or "graph"
 3. Use proper DOT syntax with nodes and edges
-4. Create professional system integration diagrams
-5. Include proper node styling and layout directions
-6. Return ONLY valid DOT code that can be rendered
+4. Create CONCISE, FOCUSED system integration diagrams
+5. AVOID obvious, unnecessary steps (like "authentication" unless critical)
+6. Focus on BUSINESS-SPECIFIC data flow and key decision points
+7. Maximum 6-8 nodes for clarity and simplicity
+8. Use meaningful business terminology, not generic tech terms
+9. Return ONLY valid DOT code that can be rendered
+
+DIAGRAM STYLE REQUIREMENTS:
+- Use compact, business-focused node labels
+- Show only critical integration points
+- Emphasize data transformation and business logic
+- Avoid redundant "API calls" and "responses" unless they add business value
+- Use color coding for different system types
+- Include business context in edge labels
 
 FORBIDDEN:
 - Mermaid syntax (graph TD, flowchart, etc.)
-- Any other diagram formats
-- Explanatory text outside the DOT code`;
+- Generic "API Gateway", "Database", "Service" labels
+- Obvious steps like "Send Request -> Receive Response"
+- More than 8 nodes in the diagram
+- Legend or documentation nodes (keep it clean)
+- Any other diagram formats`;
 
             const fullPrompt = `${systemPrompt}\n\n${prompt}`;
 
@@ -1434,20 +1454,19 @@ FORBIDDEN:
             const result = await this.makeRateLimitedAPICall(
                 async () => {
                     console.log(`🎨 Generating diagram for: ${outputName}`);
-                    return await model.generateContent({
-                        contents: [
-                            { role: "user", parts: [{ text: fullPrompt }] },
-                        ],
-                        generationConfig: {
-                            temperature: 0.1, // Very low for consistent diagram structure
-                            maxOutputTokens: 1000,
-                        },
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: fullPrompt }],
+                        model: "gpt-4",
+                        max_tokens: 1000,
+                        n: 1,
+                        stop: null,
+                        temperature: 0.1, // Very low for consistent diagram structure
                     });
                 },
                 { outputName, type: "diagram" }
             );
 
-            let diagramCode = result.response.text() || "";
+            let diagramCode = result.choices[0].message.content || "";
 
             // Post-process to ensure valid DOT notation
             diagramCode = this.postProcessDiagramCode(diagramCode, context);
@@ -1631,39 +1650,42 @@ API CONTEXT FOR DIAGRAM:
     // Enhanced diagram requirements
     getDiagramRequirements(outputName, context) {
         const baseRequirements = `
-- Show ${context.direction} data flow (${
-            context.direction === "Inbound"
-                ? "data coming INTO"
-                : "data going OUT OF"
-        } ${context.vendor})
-- Include ${context.client} and ${context.vendor} systems
-- Show integration points and data exchange
-- Use appropriate node shapes and styling
-- Include rankdir=LR for left-to-right layout`;
+- MAXIMUM 6 nodes for clarity - focus on business value
+- Show ONLY critical integration points, skip obvious API calls
+- Use business terminology: "${
+            context.businessUseCase || "integration"
+        }" instead of generic terms
+- Include ${context.client} and ${context.vendor} systems as main nodes
+- Show data transformation and business logic processing
+- Use rankdir=LR for left-to-right layout
+- Apply color coding: systems=lightblue, processing=lightgreen, data=lightyellow`;
 
         if (context.isApiIntegration) {
             return (
                 baseRequirements +
                 `
-- Show API endpoints and HTTP methods
-- Include authentication components
-- Display request/response flow patterns`
+- Show BUSINESS ENDPOINTS only (skip generic "API Gateway")
+- Include authentication ONLY if business-critical
+- Focus on data transformation, not request/response patterns
+- Emphasize: ${context.client} → Business Logic → ${context.vendor}`
             );
         } else if (context.isStandardIntegration) {
             return (
                 baseRequirements +
                 `
-- Show file/template processing steps
-- Include validation and transformation nodes
-- Display data exchange mechanisms`
+- Show file processing and validation as single nodes
+- Focus on business data transformation, not technical steps
+- Emphasize: Source → Transform → Destination
+- Skip obvious file I/O operations`
             );
         } else {
             return (
                 baseRequirements +
                 `
-- Show custom data processing steps
-- Include transformation and validation nodes
-- Display custom logic implementation`
+- Show custom business processes as transformation nodes
+- Focus on business decision points and data enrichment
+- Emphasize business workflow over technical implementation
+- Skip generic processing steps`
             );
         }
     }
@@ -1677,31 +1699,23 @@ API CONTEXT FOR DIAGRAM:
             context.vendor.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
             "vendor";
         const mode = context.mode.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        const businessUseCase = context.businessUseCase || "Data Integration";
 
         return `digraph ${mode}_integration {
     rankdir=LR;
-    node [shape=box, style="rounded,filled", fontname="Arial"];
-    edge [fontname="Arial"];
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
     
-    ${client} [label="${context.client}\\nSystem", fillcolor=lightblue];
-    api [label="Integration\\nLayer", fillcolor=lightgreen];
-    auth [label="Authentication\\nService", fillcolor=yellow];
-    ${vendor} [label="${context.vendor}\\nSystem", fillcolor=lightcoral];
+    ${client} [label="${context.client}", fillcolor=lightblue];
+    processing [label="${businessUseCase}\\nProcessing", fillcolor=lightgreen];
+    ${vendor} [label="${context.vendor}", fillcolor=lightcoral];
     
     ${
         context.direction === "Inbound"
-            ? `${client} -> api [label="Send Data"];
-           api -> auth [label="Authenticate"];
-           auth -> api [label="Validated"];
-           api -> ${vendor} [label="Process"];
-           ${vendor} -> api [label="Response"];
-           api -> ${client} [label="Confirmation"];`
-            : `${vendor} -> api [label="Request"];
-           api -> auth [label="Authenticate"];
-           auth -> api [label="Validated"];
-           api -> ${client} [label="Fetch Data"];
-           ${client} -> api [label="Data"];
-           api -> ${vendor} [label="Response"];`
+            ? `${client} -> processing [label="Business Data"];
+           processing -> ${vendor} [label="Processed Result"];`
+            : `${vendor} -> processing [label="Data Request"];
+           processing -> ${client} [label="Business Data"];`
     }
 }`;
     }
@@ -1809,11 +1823,6 @@ API CONTEXT FOR DIAGRAM:
                 brdData
             );
         } else if (
-            outputKey.includes("data") &&
-            outputKey.includes("mapping")
-        ) {
-            return this.generateDataMappingContent(context, brdData);
-        } else if (
             outputKey.includes("technical") &&
             (outputKey.includes("design") ||
                 outputKey.includes("specification"))
@@ -1854,7 +1863,7 @@ API CONTEXT FOR DIAGRAM:
                 brdData
             );
 
-            if (!model) {
+            if (!openai) {
                 return {
                     type: "text",
                     content: "", // No fallback content
@@ -1864,19 +1873,19 @@ API CONTEXT FOR DIAGRAM:
             const result = await this.makeRateLimitedAPICall(
                 async () => {
                     console.log(`🔌 Generating APIs Used content`);
-                    return await model.generateContent({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.2,
-                            maxOutputTokens: 1500,
-                            topP: 0.9,
-                        },
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        model: "gpt-4",
+                        max_tokens: 1500,
+                        n: 1,
+                        stop: null,
+                        temperature: 0.2,
                     });
                 },
                 { outputName: "APIs Used", type: "api_content" }
             );
 
-            let content = result.response.text() || "";
+            let content = result.choices[0].message.content || "";
             content = this.postProcessTextContent(
                 content,
                 "APIs Used",
@@ -1897,50 +1906,13 @@ API CONTEXT FOR DIAGRAM:
         }
     }
 
-    // Generate Data Mapping content - Only if CSV data exists, else empty
+    // Generate Data Mapping content - Disabled automatic CSV display behavior
     generateDataMappingContent(context, brdData) {
-        // Check if we have CSV data in the new structure
-        if (brdData.technicalData && Object.keys(brdData.technicalData).length > 0) {
-            // Look for CSV files in any output section
-            for (const [outputSection, sectionData] of Object.entries(brdData.technicalData)) {
-                if (sectionData && sectionData.files && Array.isArray(sectionData.files)) {
-                    // Find the first CSV file with table data
-                    const csvFile = sectionData.files.find(file => 
-                        file.fileType === 'csv' && file.tableData && file.tableData.headers && file.tableData.rows
-                    );
-                    
-                    if (csvFile) {
-                        // Return the actual CSV data as table
-                        return {
-                            type: "table",
-                            headers: csvFile.tableData.headers || [],
-                            data: csvFile.tableData.rows || [],
-                        };
-                    }
-                }
-            }
-        }
-
-        // Check for legacy CSV data structure for backward compatibility
-        if (
-            brdData.technicalData &&
-            brdData.technicalData.csv &&
-            brdData.technicalData.csv.data
-        ) {
-            const csvData = brdData.technicalData.csv.data;
-
-            // Return the actual CSV data as table
-            return {
-                type: "table",
-                headers: csvData.headers || [],
-                data: csvData.rows || [],
-            };
-        }
-
-        // Return empty content if no CSV data
+        // Return empty content - CSV auto-display disabled per user request
+        // Data Mapping Table sections will now be generated by AI like other sections
         return {
             type: "text",
-            content: "", // Completely empty
+            content: "",
         };
     }
 
@@ -1950,7 +1922,7 @@ API CONTEXT FOR DIAGRAM:
         const sectionExamples = examples || [];
 
         // Always provide fallback content if no model available
-        if (!model) {
+        if (!openai) {
             console.log(
                 "⚠️ No AI model available, using fallback technical specifications"
             );
@@ -2007,13 +1979,13 @@ API CONTEXT FOR DIAGRAM:
                     console.log(
                         `🔧 Generating Technical Design Specifications`
                     );
-                    return await model.generateContent({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.1, // Very low temperature for consistency
-                            maxOutputTokens: 300, // Severely limit output tokens
-                            topP: 0.8,
-                        },
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        model: "gpt-4",
+                        max_tokens: 300, // Severely limit output tokens
+                        n: 1,
+                        stop: null,
+                        temperature: 0.1, // Very low temperature for consistency
                     });
                 },
                 {
@@ -2022,7 +1994,7 @@ API CONTEXT FOR DIAGRAM:
                 }
             );
 
-            let content = result.response.text() || "";
+            let content = result.choices[0].message.content || "";
 
             // AGGRESSIVE post-processing for technical specifications
             content = this.postProcessTechnicalSpecifications(content, context);

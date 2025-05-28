@@ -1,3 +1,0 @@
-S.No,Field Type,Mandatory (Y/N),Required Fields,DB Field,Custom Field,Logic,Sample
-1,String,Y,Aadhaar ID,Aadhaar Identity,,remove spaces from source,3270 7862 8999
-2,Numeric,Y,age,emp_age,,employee age,69
