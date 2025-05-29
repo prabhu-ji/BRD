@@ -1000,7 +1000,7 @@ ${businessContext}
 
 ${apiDocumentation}
 
-EXAMPLES TO FOLLOW (Match this style and length exactly):
+EXAMPLES TO FOLLOW (Match this style and length exactly. Also refer these for existing processes in Darwinbox):
 ${exampleText}
 
 SPECIFIC REQUIREMENTS FOR ${outputName}:

@@ -47,3 +47,14 @@ Piramal tech team is required to store the endpoint status code, response and pa
 Piramal tech team). In case of an issue, the API consumption logs is to be provided to the Darwinbox account management team for validation.
 In case of any issue once the integration is live, kindly create an AD ticket and raise it to AD team. AD team will evaluate it, do the first level of validation and then assign the ticket to the
 relevant lead/ integration SPOC for issue resolution.
+
+#5
+An email will be sent to the concerned client SPOCs with success and error logs thrice a day. Please note that the Integrations team will ensure that client and Account Management
+Emails are added to all notification alerts. In case of any error (possible errors defined below), client/ AM need to create a AD ticket and raise it to AD team. AD team will evaluate it, do
+the first level of validation and then AM team need to assign the ticket to the relevant lead/ integration SPOC for issue resolution.
+
+#6
+Error or Success Notifications will be triggered on the Email recipients mentioned in the initial table.
+
+#7
+Error or Success Notifications will be triggered on the Email recipients mentioned in the initial table.

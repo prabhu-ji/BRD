@@ -33,14 +33,14 @@ const storage = multer.diskStorage({
     },
 });
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: {
         fileSize: 50 * 1024 * 1024, // 50MB per file
         fieldSize: 10 * 1024 * 1024, // 10MB per field (for technical data JSON)
         fields: 50, // Maximum number of non-file fields
-        files: 10 // Maximum number of files
-    }
+        files: 10, // Maximum number of files
+    },
 });
 
 app.use(
@@ -49,8 +49,8 @@ app.use(
         credentials: true,
     })
 );
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 app.use("/generated", express.static(GENERATED_DIR));
 
@@ -303,52 +303,56 @@ function parseCSVToTable(filePath) {
 }
 
 // API endpoint to convert CSV to table
-app.post("/api/convert-csv", (req, res, next) => {
-    upload.single("csv")(req, res, (err) => {
-        if (err) {
-            console.error("Multer error:", err);
-            if (err.code === 'LIMIT_FIELD_VALUE') {
-                return res.status(413).json({
-                    success: false,
-                    error: "Request payload too large. Please reduce the size of your CSV file."
-                });
-            } else if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(413).json({
-                    success: false,
-                    error: "CSV file too large. Maximum file size is 50MB."
-                });
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    error: `Upload error: ${err.message}`
-                });
+app.post(
+    "/api/convert-csv",
+    (req, res, next) => {
+        upload.single("csv")(req, res, (err) => {
+            if (err) {
+                console.error("Multer error:", err);
+                if (err.code === "LIMIT_FIELD_VALUE") {
+                    return res.status(413).json({
+                        success: false,
+                        error: "Request payload too large. Please reduce the size of your CSV file.",
+                    });
+                } else if (err.code === "LIMIT_FILE_SIZE") {
+                    return res.status(413).json({
+                        success: false,
+                        error: "CSV file too large. Maximum file size is 50MB.",
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        error: `Upload error: ${err.message}`,
+                    });
+                }
             }
-        }
-        next();
-    });
-}, (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: "No CSV file uploaded" });
-        }
-
-        const tableData = parseCSVToTable(req.file.path);
-
-        if (tableData.error) {
-            return res.status(500).json({ error: tableData.error });
-        }
-
-        return res.json({
-            success: true,
-            tableData,
+            next();
         });
-    } catch (error) {
-        console.error("Error converting CSV to table:", error);
-        return res
-            .status(500)
-            .json({ error: "Server error processing CSV file" });
+    },
+    (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: "No CSV file uploaded" });
+            }
+
+            const tableData = parseCSVToTable(req.file.path);
+
+            if (tableData.error) {
+                return res.status(500).json({ error: tableData.error });
+            }
+
+            return res.json({
+                success: true,
+                tableData,
+            });
+        } catch (error) {
+            console.error("Error converting CSV to table:", error);
+            return res
+                .status(500)
+                .json({ error: "Server error processing CSV file" });
+        }
     }
-});
+);
 
 // Initialize AI Generator and Confluence Generator
 const aiGenerator = new BRDAIGenerator();
@@ -383,10 +387,10 @@ async function generateBRD(brdData) {
             const outputFilePath = path.join(GENERATED_DIR, outputFileName);
 
             // Save the generated BRD as JSON
-            await fs.writeFile(
-                outputFilePath,
-                JSON.stringify(result.brd, null, 2)
-            );
+            // await fs.writeFile(
+            //     outputFilePath,
+            //     JSON.stringify(result.brd, null, 2)
+            // );
 
             console.log("✅ AI BRD Generation Successful");
             return {
@@ -504,34 +508,35 @@ app.post(
     "/api/generate-brd",
     (req, res, next) => {
         upload.fields([
-            { name: "image", maxCount: 1 },
-            { name: "doc", maxCount: 1 },
+            { name: "image", maxCount: 10 },
+            { name: "doc", maxCount: 10 },
         ])(req, res, (err) => {
             if (err) {
                 console.error("Multer error:", err);
-                if (err.code === 'LIMIT_FIELD_VALUE') {
+                if (err.code === "LIMIT_FIELD_VALUE") {
                     return res.status(413).json({
                         success: false,
-                        message: "Request payload too large. Please reduce the size of your technical data or files.",
-                        error: "Field value too long"
+                        message:
+                            "Request payload too large. Please reduce the size of your technical data or files.",
+                        error: "Field value too long",
                     });
-                } else if (err.code === 'LIMIT_FILE_SIZE') {
+                } else if (err.code === "LIMIT_FILE_SIZE") {
                     return res.status(413).json({
                         success: false,
                         message: "File too large. Maximum file size is 50MB.",
-                        error: "File size limit exceeded"
+                        error: "File size limit exceeded",
                     });
-                } else if (err.code === 'LIMIT_FILES') {
+                } else if (err.code === "LIMIT_FILES") {
                     return res.status(413).json({
                         success: false,
                         message: "Too many files. Maximum 10 files allowed.",
-                        error: "File count limit exceeded"
+                        error: "File count limit exceeded",
                     });
                 } else {
                     return res.status(400).json({
                         success: false,
                         message: "Upload error occurred.",
-                        error: err.message
+                        error: err.message,
                     });
                 }
             }
@@ -539,9 +544,11 @@ app.post(
         });
     },
     async (req, res) => {
-        const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        const requestId = `REQ-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 8)}`;
         console.log(`🔍 [${requestId}] Starting /api/generate-brd request`);
-        
+
         try {
             // Extract form data
             const {
@@ -595,9 +602,15 @@ app.post(
             let parsedTechnicalData = {};
             if (technicalData) {
                 try {
-                    console.log("🔍 Raw technical data received:", technicalData);
+                    console.log(
+                        "🔍 Raw technical data received:",
+                        technicalData
+                    );
                     parsedTechnicalData = JSON.parse(technicalData);
-                    console.log("✅ Parsed technical data:", JSON.stringify(parsedTechnicalData, null, 2));
+                    console.log(
+                        "✅ Parsed technical data:",
+                        JSON.stringify(parsedTechnicalData, null, 2)
+                    );
                 } catch (error) {
                     console.error("Error parsing technical data:", error);
                 }
@@ -663,11 +676,13 @@ app.post(
                 client: parsedFormData?.Client || "N/A",
                 outputsCount: transformedOutputs?.length || 0,
                 hasBusinessLogic: !!businessLogic,
-                sessionId: brdData.metadata?.sessionId
+                sessionId: brdData.metadata?.sessionId,
             });
 
             // Call the generateBRD function
-            console.log(`🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`);
+            console.log(
+                `🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`
+            );
             const brdResult = await generateBRD(brdData);
 
             if (!brdResult.success) {
@@ -731,7 +746,7 @@ app.post(
             res.json(finalResult);
         } catch (error) {
             console.error("Error in generate-brd endpoint:", error);
-            
+
             // Clean up files even on error
             try {
                 const files = req.files || {};
@@ -744,7 +759,10 @@ app.post(
                         };
                     }
                 });
-                await cleanupFiles(fileMap, req.body.sessionId || 'error-cleanup');
+                await cleanupFiles(
+                    fileMap,
+                    req.body.sessionId || "error-cleanup"
+                );
             } catch (cleanupError) {
                 console.error("Error during error cleanup:", cleanupError);
             }
@@ -767,29 +785,30 @@ app.post(
         ])(req, res, (err) => {
             if (err) {
                 console.error("Multer error:", err);
-                if (err.code === 'LIMIT_FIELD_VALUE') {
+                if (err.code === "LIMIT_FIELD_VALUE") {
                     return res.status(413).json({
                         success: false,
-                        message: "Request payload too large. Please reduce the size of your technical data or files.",
-                        error: "Field value too long"
+                        message:
+                            "Request payload too large. Please reduce the size of your technical data or files.",
+                        error: "Field value too long",
                     });
-                } else if (err.code === 'LIMIT_FILE_SIZE') {
+                } else if (err.code === "LIMIT_FILE_SIZE") {
                     return res.status(413).json({
                         success: false,
                         message: "File too large. Maximum file size is 50MB.",
-                        error: "File size limit exceeded"
+                        error: "File size limit exceeded",
                     });
-                } else if (err.code === 'LIMIT_FILES') {
+                } else if (err.code === "LIMIT_FILES") {
                     return res.status(413).json({
                         success: false,
                         message: "Too many files. Maximum 10 files allowed.",
-                        error: "File count limit exceeded"
+                        error: "File count limit exceeded",
                     });
                 } else {
                     return res.status(400).json({
                         success: false,
                         message: "Upload error occurred.",
-                        error: err.message
+                        error: err.message,
                     });
                 }
             }
@@ -797,9 +816,13 @@ app.post(
         });
     },
     async (req, res) => {
-        const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        console.log(`🔍 [${requestId}] Starting /api/generate-brd-with-confluence request`);
-        
+        const requestId = `REQ-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 8)}`;
+        console.log(
+            `🔍 [${requestId}] Starting /api/generate-brd-with-confluence request`
+        );
+
         try {
             // Extract form data (same as existing endpoint)
             const {
@@ -858,9 +881,15 @@ app.post(
             let parsedTechnicalData = {};
             if (technicalData) {
                 try {
-                    console.log("🔍 Raw technical data received:", technicalData);
+                    console.log(
+                        "🔍 Raw technical data received:",
+                        technicalData
+                    );
                     parsedTechnicalData = JSON.parse(technicalData);
-                    console.log("✅ Parsed technical data:", JSON.stringify(parsedTechnicalData, null, 2));
+                    console.log(
+                        "✅ Parsed technical data:",
+                        JSON.stringify(parsedTechnicalData, null, 2)
+                    );
                 } catch (error) {
                     console.error("Error parsing technical data:", error);
                 }
@@ -923,7 +952,9 @@ app.post(
             console.log("=== Generating BRD with Confluence Integration ===");
 
             // Call the generateBRD function
-            console.log(`🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`);
+            console.log(
+                `🔍 [${requestId}] Calling generateBRD with sessionId: ${brdData.metadata?.sessionId}`
+            );
             const brdResult = await generateBRD(brdData);
 
             if (!brdResult.success) {
@@ -955,7 +986,7 @@ app.post(
                 "Error in generate-brd-with-confluence endpoint:",
                 error
             );
-            
+
             // Clean up files even on error
             try {
                 const files = req.files || {};
@@ -968,7 +999,10 @@ app.post(
                         };
                     }
                 });
-                await cleanupFiles(fileMap, req.body.sessionId || 'error-cleanup');
+                await cleanupFiles(
+                    fileMap,
+                    req.body.sessionId || "error-cleanup"
+                );
             } catch (cleanupError) {
                 console.error("Error during error cleanup:", cleanupError);
             }
@@ -985,9 +1019,9 @@ app.post(
 const cleanupFiles = async (files, sessionId) => {
     try {
         if (!files || Object.keys(files).length === 0) return;
-        
+
         console.log(`🧹 Cleaning up uploaded files for session: ${sessionId}`);
-        
+
         // Delete individual files
         for (const [type, fileInfo] of Object.entries(files)) {
             if (fileInfo && fileInfo.path && fs.existsSync(fileInfo.path)) {
@@ -995,7 +1029,7 @@ const cleanupFiles = async (files, sessionId) => {
                 console.log(`✅ Deleted file: ${fileInfo.originalName}`);
             }
         }
-        
+
         // Clean up session directory if empty
         const sessionDir = path.join(UPLOADS_DIR, sessionId);
         if (fs.existsSync(sessionDir)) {
@@ -1015,14 +1049,14 @@ const cleanupFiles = async (files, sessionId) => {
 const cleanupOldSessions = async () => {
     try {
         if (!fs.existsSync(UPLOADS_DIR)) return;
-        
+
         const sessions = await fs.readdir(UPLOADS_DIR);
-        const oneHourAgo = Date.now() - (60 * 60 * 1000);
-        
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
         for (const session of sessions) {
             const sessionPath = path.join(UPLOADS_DIR, session);
             const stats = await fs.stat(sessionPath);
-            
+
             if (stats.isDirectory() && stats.mtime.getTime() < oneHourAgo) {
                 await fs.remove(sessionPath);
                 console.log(`🧹 Cleaned up old session: ${session}`);

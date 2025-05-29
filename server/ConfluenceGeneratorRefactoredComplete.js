@@ -24,19 +24,15 @@ const GraphVizProcessor = require("./attachments/GraphVizProcessor");
  */
 class ConfluenceGenerator {
     constructor(config = {}) {
-        try {
-            this.config = this.validateAndNormalizeConfig(config);
-        } catch (error) {
-            Logger.error(`Configuration validation failed: ${error.message}`);
-            throw error;
-        }
+        this.logger = new Logger();
+        this.config = this.validateAndNormalizeConfig(config);
 
         // Initialize core components
         this.apiClient = new ConfluenceApiClient(this.config);
         this.pageStateManager = new PageStateManager(this.config.baseUrl);
         this.contentBuilder = new PageContentBuilder();
 
-        Logger.success(
+        this.logger.success(
             "ConfluenceGenerator initialized with modular architecture"
         );
     }
@@ -64,11 +60,12 @@ class ConfluenceGenerator {
         );
 
         if (missingFields.length > 0) {
-            const errorMessage = `Configuration incomplete. Missing: ${missingFields.join(
-                ", "
-            )}`;
-            console.error(`❌ ${errorMessage}`);
-            throw new Error(errorMessage);
+            this.logger.error(
+                `Missing required configuration: ${missingFields.join(", ")}`
+            );
+            throw new Error(
+                `Configuration incomplete. Missing: ${missingFields.join(", ")}`
+            );
         }
 
         return normalizedConfig;
@@ -82,7 +79,7 @@ class ConfluenceGenerator {
      */
     async createOrUpdateBRD(brdData, options = {}) {
         try {
-            Logger.info("Starting BRD page creation/update process...");
+            this.logger.info("Starting BRD page creation/update process...");
 
             // Analyze BRD data
             this.contentBuilder.logBRDAnalysis(brdData);
@@ -95,16 +92,16 @@ class ConfluenceGenerator {
                 options.updateExisting &&
                 this.pageStateManager.hasCurrentPage()
             ) {
-                Logger.info(
+                this.logger.info(
                     `Updating existing page: ${this.pageStateManager.currentPageId}`
                 );
                 return await this.updateCurrentPage(brdData);
             } else {
-                Logger.info("Creating new page");
+                this.logger.info("Creating new page");
                 return await this.createNewPage(brdData, pageTitle, options);
             }
         } catch (error) {
-            Logger.error("Error in createOrUpdateBRD:", error.message);
+            this.logger.error("Error in createOrUpdateBRD:", error.message);
             return {
                 success: false,
                 error: error.message,
@@ -164,8 +161,8 @@ class ConfluenceGenerator {
                 attachmentResults.graphvizUpload
             );
 
-            Logger.success("New Confluence page created successfully");
-            Logger.pageUrl(this.pageStateManager.getCurrentPageUrl());
+            this.logger.success("New Confluence page created successfully");
+            this.logger.pageUrl(this.pageStateManager.getCurrentPageUrl());
 
             return this.pageStateManager.generateSuccessResult(
                 "create",
@@ -174,7 +171,7 @@ class ConfluenceGenerator {
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
-            Logger.error("Error creating new page:", error.message);
+            this.logger.error("Error creating new page:", error.message);
             throw error;
         }
     }
@@ -232,8 +229,8 @@ class ConfluenceGenerator {
                 );
             }
 
-            Logger.success("Page updated successfully");
-            Logger.pageUrl(this.pageStateManager.getCurrentPageUrl());
+            this.logger.success("Page updated successfully");
+            this.logger.pageUrl(this.pageStateManager.getCurrentPageUrl());
 
             return this.pageStateManager.generateSuccessResult(
                 "update",
@@ -242,7 +239,7 @@ class ConfluenceGenerator {
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
-            Logger.error("Error updating current page:", error.message);
+            this.logger.error("Error updating current page:", error.message);
             throw error;
         }
     }
@@ -258,7 +255,7 @@ class ConfluenceGenerator {
 
         // Process image attachments
         if (brdData.technicalData) {
-            Logger.info("Starting image attachment upload...");
+            this.logger.info("Starting image attachment upload...");
             results.imageUpload =
                 await ImageAttachmentProcessor.uploadImageAttachments(
                     this.apiClient.getClient(),
@@ -268,12 +265,12 @@ class ConfluenceGenerator {
                 );
 
             if (results.imageUpload.uploaded?.length > 0) {
-                Logger.success(
+                this.logger.success(
                     `Successfully uploaded ${results.imageUpload.uploaded.length} image attachments`
                 );
             }
             if (results.imageUpload.failed?.length > 0) {
-                Logger.warn(
+                this.logger.warn(
                     `Failed to upload ${results.imageUpload.failed.length} image attachments`
                 );
             }
@@ -281,7 +278,7 @@ class ConfluenceGenerator {
 
         // Process GraphViz diagrams
         if (contentResult.graphvizDiagrams?.length > 0) {
-            Logger.info(
+            this.logger.info(
                 `Processing ${contentResult.graphvizDiagrams.length} GraphViz diagrams...`
             );
             results.graphvizUpload =
@@ -293,7 +290,7 @@ class ConfluenceGenerator {
                 );
 
             if (results.graphvizUpload.success) {
-                Logger.success(
+                this.logger.success(
                     `Successfully processed ${results.graphvizUpload.diagrams.length} GraphViz diagrams`
                 );
             }
@@ -310,7 +307,7 @@ class ConfluenceGenerator {
      */
     async updatePageContentWithDiagrams(originalContent, diagrams) {
         try {
-            Logger.info(
+            this.logger.info(
                 "Updating page content with rendered GraphViz diagrams..."
             );
 
@@ -332,9 +329,12 @@ class ConfluenceGenerator {
             );
 
             this.pageStateManager.updateCurrentPageFromResponse(response.data);
-            Logger.success("Page updated with GraphViz diagram images");
+            this.logger.success("Page updated with GraphViz diagram images");
         } catch (error) {
-            Logger.error("Error updating page with diagrams:", error.message);
+            this.logger.error(
+                "Error updating page with diagrams:",
+                error.message
+            );
             throw error;
         }
     }
@@ -344,7 +344,7 @@ class ConfluenceGenerator {
      * @returns {Promise<Object>} Connection test result
      */
     async testConnection() {
-        Logger.connectionTest("Testing Confluence connection...");
+        this.logger.connectionTest("Testing Confluence connection...");
         return await this.apiClient.testConnection(this.config.spaceKey);
     }
 
@@ -387,7 +387,7 @@ class ConfluenceGenerator {
      * @returns {Promise<Object>} Generated content
      */
     async generateContentPreview(brdData) {
-        Logger.info("Generating content preview...");
+        this.logger.info("Generating content preview...");
         this.contentBuilder.logBRDAnalysis(brdData);
         return await this.contentBuilder.generateConfluenceContent(brdData);
     }
@@ -403,7 +403,7 @@ class ConfluenceGenerator {
         });
         this.apiClient.updateConfiguration(this.config);
         this.pageStateManager = new PageStateManager(this.config.baseUrl);
-        Logger.info("Configuration updated and components reinitialized");
+        this.logger.info("Configuration updated and components reinitialized");
     }
 
     /**
@@ -433,266 +433,12 @@ class ConfluenceGenerator {
         };
     }
 
-    // ========================================
-    // BACKWARD COMPATIBILITY METHODS
-    // ========================================
-
-    /**
-     * Legacy method for backward compatibility - redirects to createOrUpdateBRD
-     * @param {Object} brdData - BRD data
-     * @param {Object} options - Creation options
-     * @returns {Promise<Object>} Operation result
-     */
+    // Legacy method for backward compatibility
     async createBRDPage(brdData, options = {}) {
-        Logger.warn(
+        this.logger.warn(
             "createBRDPage is deprecated. Use createOrUpdateBRD instead."
         );
         return await this.createOrUpdateBRD(brdData, options);
-    }
-
-    /**
-     * Update a specific BRD page by ID - used by server.js API endpoints
-     * @param {string} pageId - Page ID to update
-     * @param {Object} brdData - BRD data
-     * @param {Object} options - Update options
-     * @returns {Promise<Object>} Update result
-     */
-    async updateSpecificBRDPage(pageId, brdData, options = {}) {
-        try {
-            Logger.info(`Updating specific page: ${pageId}`);
-
-            // Set the current page to the specified ID
-            this.pageStateManager.setCurrentPage(pageId);
-
-            // Update the page
-            const result = await this.updateCurrentPage(brdData);
-
-            return result;
-        } catch (error) {
-            Logger.error("Error updating specific page:", error.message);
-            return {
-                success: false,
-                error: error.message,
-                suggestion: this.apiClient.getErrorSuggestion(error),
-            };
-        }
-    }
-
-    /**
-     * Search BRD pages in Confluence - used by server.js API endpoints
-     * @param {string} query - Search query
-     * @param {number} limit - Result limit
-     * @returns {Promise<Object>} Search results
-     */
-    async searchBRDPages(query = "", limit = 25) {
-        try {
-            Logger.info(`Searching BRD pages: "${query}" (limit: ${limit})`);
-
-            // Build search query with space key filter
-            const searchQuery = query
-                ? `space=${this.config.spaceKey} AND (title~"${query}" OR text~"${query}")`
-                : `space=${this.config.spaceKey}`;
-
-            const searchResult = await this.apiClient
-                .getClient()
-                .get("/content/search", {
-                    params: {
-                        cql: searchQuery,
-                        limit: limit,
-                        expand: "version,space,history.lastUpdated",
-                    },
-                });
-
-            const pages = searchResult.data.results.map((page) => ({
-                id: page.id,
-                title: page.title,
-                url: `${this.config.baseUrl}/spaces/${page.space.key}/pages/${page.id}`,
-                lastModified:
-                    page.history?.lastUpdated?.when || page.version?.when,
-                version: page.version?.number,
-                spaceKey: page.space?.key,
-                spaceName: page.space?.name,
-            }));
-
-            Logger.success(`Found ${pages.length} BRD pages`);
-
-            return {
-                success: true,
-                pages: pages,
-                total: searchResult.data.size,
-                query: query,
-                limit: limit,
-            };
-        } catch (error) {
-            Logger.error("Error searching BRD pages:", error.message);
-            return {
-                success: false,
-                error: error.message,
-                pages: [],
-                total: 0,
-            };
-        }
-    }
-
-    /**
-     * Create BRD space in Confluence - used by server.js API endpoints
-     * @returns {Promise<Object>} Space creation result
-     */
-    async createBRDSpace() {
-        try {
-            Logger.info(`Creating BRD space: ${this.config.spaceKey}`);
-
-            // Check if space already exists
-            try {
-                const existingSpace = await this.apiClient
-                    .getClient()
-                    .get(`/space/${this.config.spaceKey}`);
-                if (existingSpace.data) {
-                    Logger.info("BRD space already exists");
-                    return {
-                        success: true,
-                        spaceKey: this.config.spaceKey,
-                        message: "Space already exists",
-                        url: `${this.config.baseUrl}/spaces/${this.config.spaceKey}`,
-                        existing: true,
-                    };
-                }
-            } catch (error) {
-                // Space doesn't exist, we can create it
-                Logger.info("Space doesn't exist, proceeding with creation");
-            }
-
-            // Create the space
-            const spacePayload = {
-                key: this.config.spaceKey,
-                name: `BRD Documents - ${this.config.spaceKey}`,
-                description: {
-                    plain: {
-                        value: "Business Requirements Documents space for integration projects",
-                        representation: "plain",
-                    },
-                },
-                type: "global",
-            };
-
-            const createResult = await this.apiClient
-                .getClient()
-                .post("/space", spacePayload);
-
-            Logger.success(
-                `BRD space created successfully: ${this.config.spaceKey}`
-            );
-
-            return {
-                success: true,
-                spaceKey: this.config.spaceKey,
-                spaceId: createResult.data.id,
-                message: "Space created successfully",
-                url: `${this.config.baseUrl}/spaces/${this.config.spaceKey}`,
-                existing: false,
-            };
-        } catch (error) {
-            Logger.error("Error creating BRD space:", error.message);
-            return {
-                success: false,
-                error: error.message,
-                spaceKey: this.config.spaceKey,
-            };
-        }
-    }
-
-    /**
-     * Upload image attachments - backward compatibility wrapper
-     * @param {string} pageId - Page ID
-     * @param {Object} brdData - BRD data with technical data
-     * @returns {Promise<Object>} Upload result
-     */
-    async uploadImageAttachments(pageId, brdData) {
-        Logger.info(
-            "Legacy uploadImageAttachments called - delegating to ImageAttachmentProcessor"
-        );
-        return await ImageAttachmentProcessor.uploadImageAttachments(
-            this.apiClient.getClient(),
-            pageId,
-            brdData,
-            this.apiClient.getAuth()
-        );
-    }
-
-    /**
-     * Process GraphViz diagrams - backward compatibility wrapper
-     * @param {string} pageId - Page ID
-     * @param {Array} diagrams - Diagram data
-     * @returns {Promise<Object>} Processing result
-     */
-    async processGraphvizDiagrams(pageId, diagrams) {
-        Logger.info(
-            "Legacy processGraphvizDiagrams called - delegating to GraphVizProcessor"
-        );
-        return await GraphVizProcessor.processMultipleDiagrams(
-            this.apiClient.getClient(),
-            pageId,
-            diagrams,
-            this.apiClient.getAuth()
-        );
-    }
-
-    /**
-     * Replace GraphViz placeholders - backward compatibility wrapper
-     * @param {string} content - Page content
-     * @param {Array} diagrams - Processed diagrams
-     * @returns {string} Updated content
-     */
-    async replaceGraphvizPlaceholders(content, diagrams) {
-        Logger.info(
-            "Legacy replaceGraphvizPlaceholders called - delegating to GraphVizProcessor"
-        );
-        return GraphVizProcessor.replaceGraphvizPlaceholders(content, diagrams);
-    }
-
-    /**
-     * Render GraphViz to image - backward compatibility wrapper
-     * @param {string} dotCode - DOT code
-     * @param {string} filename - Filename
-     * @returns {Promise<Object>} Render result
-     */
-    async renderGraphvizToImage(dotCode, filename) {
-        Logger.info(
-            "Legacy renderGraphvizToImage called - delegating to GraphVizProcessor"
-        );
-        return await GraphVizProcessor.renderToImage(dotCode, filename);
-    }
-
-    /**
-     * Upload GraphViz diagram - backward compatibility wrapper
-     * @param {string} pageId - Page ID
-     * @param {string} dotCode - DOT code
-     * @param {string} diagramName - Diagram name
-     * @returns {Promise<Object>} Upload result
-     */
-    async uploadGraphvizDiagram(pageId, dotCode, diagramName) {
-        Logger.info(
-            "Legacy uploadGraphvizDiagram called - delegating to GraphVizProcessor"
-        );
-        return await GraphVizProcessor.uploadDiagram(
-            this.apiClient.getClient(),
-            pageId,
-            dotCode,
-            diagramName,
-            this.apiClient.getAuth()
-        );
-    }
-
-    /**
-     * Generate Confluence content - backward compatibility wrapper
-     * @param {Object} brdData - BRD data
-     * @returns {Promise<Object>} Generated content
-     */
-    async generateConfluenceContent(brdData) {
-        Logger.info(
-            "Legacy generateConfluenceContent called - delegating to PageContentBuilder"
-        );
-        return await this.contentBuilder.generateConfluenceContent(brdData);
     }
 }
 

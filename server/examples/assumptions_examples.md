@@ -39,3 +39,12 @@ Assumptions
 The data sanity will be taken care of, in the Production instance, by Piramal HR team.
 The fields required for the CIBIL integration must be mandatorily captured before initiating the pre-bgv (at the job application level or at pre-offer stage)
 Pre-bgv is required to be initiated after pre offer stage.
+
+#6
+All mandatory fields required for Darwinbox-Open Air integration will be filled and maintained by HR/user during the entire life of
+the employee.
+
+#7
+The data sanity will be taken care of, in the Production instance, by AU Small Finance Bank HR team.
+The mapping table mentioned above are to be maintained by AU Small Finance Bank HR team. To add new updates to the mapping table, follow these steps: Go to Studio → Studio
+Designer → Lookup Tables. Choose your table and click on the edit button. Then, select 'Choose file' to upload the updated file and save your changes.

@@ -21,3 +21,9 @@ The HCM module must be fully configured according to the configuration workbook.
 -The client’s API endpoint should be up and running all the time.
 
 -   Authentication should be basic auth.
+
+#5
+The Darwinbox HCM module must be fully configured as per the configuration workbook.
+
+#6
+The Darwinbox HCM module must be fully configured as per the configuration workbook.

@@ -62,3 +62,48 @@ received the details from CIBIL.
 • Supports real-time attendance punch processing with advanced duplicate detection, validation rules, and business logic for shift management
 • Integrates with Darwinbox Attendance module to provide comprehensive workforce management including overtime calculations, leave adjustments, and policy compliance
 • Designed to process up to 100,000 attendance punches daily across multiple locations with real-time monitoring and alerting capabilities
+
+#10
+The integration will involve the below data touchpoint:
+Get the list of Candidates to be added to the Pending List by calling Candidate List API. All the candidates whose status is Offer Accepted and to be added to pending list (only
+those cases for which the offer letter and flow was generated from Darwinbox) will come in the Candidate list API response.
+Call the Candidate Detail API for the candidates obtained from the Candidate List API and gather the specific candidate fields from the offer and pre-offer JSON that are mandatory
+for candidate addition.
+Call the Add to pending list API to add the candidates having status Offer Accepted and to be added to pending list (only those cases for which the offer letter and flow was
+generated from Darwinbox) in the pending state.
+Call the Update Employee Record API to update the Clock-in priority of the candidate.
+Provide client team with proper logs in case of error and success.
+The diagram below depicts the flow and the direction of data transfer for this inbound and outbound integration:
+Special Note-
+Disclaimer: Please review this section in the BRD with careful attention and considerationOnly the fields listed below in mapping section will be synced automatically from recruitment to the candidate's core profile. Any documents and additional data gathered
+through the candidate's job application form will not undergo automatic synchronization. Instead, HR will need to manually input all remaining fields.
+NOTE- It is advisable to gather the majority of the fields from the candidate during the onboarding stage.
+If an offer letter is generated offline for a candidate such as when HR/recruiter directly updates the candidate's offer stage status to Offer Accepted and to be added to the
+pending list, that candidate will not be included in the Candidate List API. Therefore, this particular scenario falls outside the scope of this connector.
+In such cases, the client will need to manually add these candidates in the pending state. Here is an example of a situation that is categorized as offline offer letter generation-
+HR/ Recruiter needs to click on Generate offer letter as shown below-
+We will also handle the case where a candidate initially accepts the offer but later declines it. If HR generates a new offer letter and the candidate accepts it this time, they will
+be added to the pending list again since the candidate ID remains the same. HR must ensure that the employee's profile is deleted before sharing the revised offer letter.
+
+#11
+The integration will involve the below integration touchpoints coming in from Darwinbox HCM to SAP of the Altius environment
+using Reimbursement APIs and relevant APIs and an Altius SFTP to place the final file. There will also be a downloadable option
+of the file in Reports -Flow
+Sample Screen for Approver:Additional Logic:
+
+1. If any entries are rejected, they will be comma separated entries and will not flow to FCR and neither will they get updated.
+2. If entire flow rejected, no run will happen on the day.
+
+#12
+The integration will involve the below integration touchpoints coming in from Darwinbox HCM to MS On Premises AD AD of
+Darwinbox using relevant Darwinbox and Graph APIs -
+No changes made in MS On Premises AD will reflect in Darwinbox. The integration will be uni-directional only.
+
+#13
+The integration will involve the below integration touchpoints coming in from Darwinbox HCM to SAP of the Hetero environment
+using Payroll Reports and relevant APIs and an SAP PI/PO endpoint
+
+#14
+The integration will involve the below integration touchpoints coming in from Darwinbox HCM to Open Air and fetch back MS
+Azure AD of Darwinbox using relevant Darwinbox and Graph APIs -
+No changes made in MS Azure will reflect in Darwinbox. The integration will be uni-directional only.
