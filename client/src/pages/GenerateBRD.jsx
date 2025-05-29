@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
 import axios from "axios";
@@ -7,14 +7,17 @@ import axios from "axios";
 const LOCAL_STORAGE_BRD_INPUT_KEY = "brd_generation_data";
 const LOCAL_STORAGE_LAST_RESULT_KEY = "brd_last_generated_result";
 const API_ENDPOINT_GENERATE_BRD = "http://localhost:5000/api/generate-brd";
+const API_ENDPOINT_CANCEL_BRD = "http://localhost:5000/api/cancel-brd-generation";
 
 function GenerateBRD() {
     const navigate = useNavigate();
     const [brdData, setBrdData] = useState(null);
-    const [status, setStatus] = useState("loading"); // loading, generating, success, error
+    const [status, setStatus] = useState("loading"); // loading, generating, success, error, cancelled
     const [progress, setProgress] = useState(0);
     const [generatedDoc, setGeneratedDoc] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
+    const abortControllerRef = useRef(null);
+    const [generationId, setGenerationId] = useState(null);
 
     useEffect(() => {
         const initializeData = () => {
@@ -27,7 +30,9 @@ function GenerateBRD() {
                     setBrdData(parsedInputData);
                     setStatus("generating");
                     localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY); // Clear previous result
-                    startGenerationProcess(parsedInputData);
+                    const newGenerationId = `gen_${Date.now()}`;
+                    setGenerationId(newGenerationId);
+                    startGenerationProcess(parsedInputData, newGenerationId);
                 } else if (lastGeneratedResult) {
                     const parsedResult = JSON.parse(lastGeneratedResult);
                     setGeneratedDoc(parsedResult);
@@ -47,6 +52,13 @@ function GenerateBRD() {
         };
 
         initializeData();
+
+        // Ensure cleanup if the component unmounts during generation
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, []);
 
     // Convert base64 to File utility
@@ -65,9 +77,10 @@ function GenerateBRD() {
         }
     };
 
-    const startGenerationProcess = async (data) => {
+    const startGenerationProcess = async (data, genId) => {
         setProgress(0);
         let progressInterval;
+        abortControllerRef.current = new AbortController();
 
         try {
             setProgress(5);
@@ -78,6 +91,7 @@ function GenerateBRD() {
             formData.append("businessUseCase", data.businessUseCase);
             formData.append("businessLogic", data.businessLogic);
             formData.append("outputs", JSON.stringify(data.outputs));
+            formData.append("generationId", genId);
 
             // Add technical data if available
             if (data.technicalData) {
@@ -97,6 +111,7 @@ function GenerateBRD() {
 
             const response = await axios.post(API_ENDPOINT_GENERATE_BRD, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
+                signal: abortControllerRef.current.signal,
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round(
                         (progressEvent.loaded * 100) / (progressEvent.total || 1)
@@ -145,6 +160,31 @@ function GenerateBRD() {
             setErrorMessage(
                 error.response?.data?.message || error.message || "Failed to generate BRD. Please try again."
             );
+            if (axios.isCancel(error)) {
+                setStatus("cancelled");
+                setErrorMessage("BRD generation has been cancelled.");
+            } else {
+                setStatus("error");
+                setErrorMessage(
+                    error.response?.data?.message || error.message || "Failed to generate BRD. Please try again."
+                );
+            }
+            setProgress(0);
+        }
+    };
+
+    const handleCancelGeneration = async () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            if (generationId) {
+                try {
+                    await axios.post(`${API_ENDPOINT_CANCEL_BRD}/${generationId}`);
+                } catch (cancelError) {
+                    console.error("Error explicitly notifying backend of cancellation:", cancelError);
+                }
+            }
+            setStatus("cancelled"); 
+            setErrorMessage("BRD generation has been cancelled by the user.");
             setProgress(0);
         }
     };
@@ -164,7 +204,9 @@ function GenerateBRD() {
             setStatus("generating");
             setProgress(0);
             setErrorMessage("");
-            startGenerationProcess(brdData);
+            const newGenerationId = `gen_${Date.now()}`;
+            setGenerationId(newGenerationId);
+            startGenerationProcess(brdData, newGenerationId);
         }
     };
 
@@ -243,6 +285,13 @@ function GenerateBRD() {
                         <p className="text-sm text-gray-600 mt-4">
                             Please wait while we generate your BRD document. This process may take a few minutes.
                         </p>
+
+                        <button
+                            onClick={handleCancelGeneration}
+                            className="mt-6 px-6 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600 transition duration-150 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75"
+                        >
+                            Cancel Generation
+                        </button>
                     </div>
                 )}
 
@@ -303,29 +352,45 @@ function GenerateBRD() {
                 )}
 
                 {status === "error" && (
-                    <div className="py-8 text-center">
-                        <div className="flex items-center justify-center mb-6">
-                            <div className="rounded-full bg-red-100 p-3">
-                                <ExclamationCircleIcon className="h-12 w-12 text-red-600" />
-                            </div>
-                        </div>
-
-                        <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                            Error Generating BRD
-                        </h2>
-                        <p className="text-gray-600 mb-6">
-                            {errorMessage || "There was an error generating your BRD document. Please try again."}
-                        </p>
-
-                        <div className="flex justify-center space-x-4">
-                            <button onClick={createNewBRD} className="btn btn-secondary">
-                                Back to Create BRD
+                    <div className="text-center py-12">
+                        <ExclamationCircleIcon className="h-16 w-16 text-red-500 mx-auto" />
+                        <p className="mt-4 text-xl font-semibold text-gray-800">Generation Failed</p>
+                        <p className="mt-2 text-gray-600">{errorMessage}</p>
+                        <div className="mt-6 space-x-3">
+                            <button
+                                onClick={retryGeneration}
+                                className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
+                            >
+                                Try Again
                             </button>
-                            {errorMessage !== "No BRD data found. Please create a BRD first." && brdData && (
-                                <button onClick={retryGeneration} className="btn btn-primary">
-                                    Try Again
-                                </button>
-                            )}
+                            <button
+                                onClick={createNewBRD}
+                                className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-400 transition duration-150"
+                            >
+                                Create New BRD
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {status === "cancelled" && (
+                    <div className="text-center py-12">
+                        <ExclamationCircleIcon className="h-16 w-16 text-yellow-500 mx-auto" />
+                        <p className="mt-4 text-xl font-semibold text-gray-800">Generation Cancelled</p>
+                        <p className="mt-2 text-gray-600">{errorMessage}</p>
+                        <div className="mt-6 space-x-3">
+                             <button
+                                onClick={retryGeneration}
+                                className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
+                            >
+                                Try Again
+                            </button>
+                            <button
+                                onClick={createNewBRD}
+                                className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-md hover:bg-gray-400 transition duration-150"
+                            >
+                                Create New BRD
+                            </button>
                         </div>
                     </div>
                 )}

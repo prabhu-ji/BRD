@@ -114,3 +114,6 @@ env/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
+
+# Explanation file
+codebase_explanation.txt
