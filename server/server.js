@@ -14,9 +14,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const API_KEY = "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";
 
-// In-memory store for active generation tasks
-const activeGenerations = {};
-
 // MongoDB Configuration - Replace with your actual connection string
 const MONGO_URI =
     process.env.MONGODB_URI || "mongodb://localhost:27017/brd_generator_db"; // Placeholder
@@ -380,7 +377,25 @@ app.post(
 
 // Initialize AI Generator and Confluence Generator
 const aiGenerator = new BRDAIGenerator();
-const confluenceGenerator = new ConfluenceGenerator();
+
+// Load Confluence configuration and initialize generator
+let confluenceGenerator;
+try {
+    const configPath = path.join(__dirname, "config", "confluence.json");
+    let confluenceConfig = {};
+    
+    if (fs.existsSync(configPath)) {
+        confluenceConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        console.log("📄 Loaded Confluence configuration from file");
+    } else {
+        console.log("⚠️ No Confluence configuration file found, using environment variables");
+    }
+    
+    confluenceGenerator = new ConfluenceGenerator(confluenceConfig);
+} catch (error) {
+    console.error("❌ Error loading Confluence configuration:", error);
+    confluenceGenerator = new ConfluenceGenerator(); // Fallback to empty config
+}
 
 // Generate BRD using AI
 async function generateBRD(brdData) {
@@ -529,236 +544,6 @@ app.post("/api/confluence/create-space", async (req, res) => {
 
 // API routes
 app.post(
-    "/api/generate-brd",
-    upload.fields([
-        { name: "image", maxCount: 1 },
-        { name: "doc", maxCount: 1 },
-    ]),
-    async (req, res) => {
-        const {
-            template,
-            formData,
-            businessUseCase,
-            businessLogic,
-            outputs,
-            technicalData,
-            generationId,
-        } = req.body;
-        const files = req.files;
-
-        if (!generationId) {
-            return res
-                .status(400)
-                .json({ success: false, message: "generationId is required." });
-        }
-
-        // Register the generation task
-        activeGenerations[generationId] = {
-            status: "running",
-            cancel: () => {},
-        };
-        // The cancel function would ideally signal underlying long-running processes
-
-        // Handle client-side cancellation
-        let clientClosedRequest = false;
-        req.on("close", () => {
-            clientClosedRequest = true;
-            console.log(
-                `Client closed request for generationId: ${generationId}`
-            );
-            if (activeGenerations[generationId]) {
-                activeGenerations[generationId].status = "cancelledByClient";
-                // Call the task-specific cancel function if defined and meaningful
-                if (
-                    typeof activeGenerations[generationId].cancel === "function"
-                ) {
-                    activeGenerations[generationId].cancel(
-                        "Client closed connection"
-                    );
-                }
-                // Potentially, further cleanup could be triggered here
-                // delete activeGenerations[generationId]; // Or mark as completed/cancelled
-            }
-        });
-
-        try {
-            console.log(`Starting BRD generation for ID: ${generationId}`);
-            // Simulate some initial work
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            if (
-                clientClosedRequest ||
-                (activeGenerations[generationId] &&
-                    activeGenerations[generationId].status !== "running")
-            ) {
-                console.log(
-                    `Generation ${generationId} was cancelled before major processing.`
-                );
-                // Clean up activeGenerations entry if it was set
-                if (activeGenerations[generationId])
-                    delete activeGenerations[generationId];
-                return res
-                    .status(499)
-                    .json({
-                        success: false,
-                        message: "Generation cancelled by client.",
-                    }); // 499 Client Closed Request
-            }
-
-            const parsedTemplate = JSON.parse(template);
-            const parsedFormData = JSON.parse(formData);
-            const parsedOutputs = JSON.parse(outputs);
-            const parsedTechnicalData = technicalData
-                ? JSON.parse(technicalData)
-                : null;
-
-            const imageFile = files && files.image ? files.image[0] : null;
-            const docFile = files && files.doc ? files.doc[0] : null;
-
-            // Construct brdData object for aiGenerator
-            const brdDataInput = {
-                template: parsedTemplate,
-                formData: parsedFormData,
-                businessUseCase,
-                businessLogic,
-                outputs: parsedOutputs,
-                technicalData: parsedTechnicalData,
-                imageFile: imageFile
-                    ? {
-                          path: imageFile.path,
-                          originalname: imageFile.originalname,
-                          mimetype: imageFile.mimetype,
-                      }
-                    : null,
-                docFile: docFile
-                    ? {
-                          path: docFile.path,
-                          originalname: docFile.originalname,
-                          mimetype: docFile.mimetype,
-                      }
-                    : null,
-                generationId: generationId, // Pass generationId to aiGenerator
-                checkCancellation: () =>
-                    clientClosedRequest ||
-                    (activeGenerations[generationId] &&
-                        activeGenerations[generationId].status !== "running"),
-                // Provide a way for aiGenerator to update its cancel function
-                registerCancelFunction: (cancelFn) => {
-                    if (activeGenerations[generationId]) {
-                        activeGenerations[generationId].cancel = cancelFn;
-                    }
-                },
-            };
-
-            // Placeholder for actual BRD generation logic using aiGenerator
-            // This part needs to be made cancellable. For instance, aiGenerator's methods
-            // should periodically check brdDataInput.checkCancellation()
-            // and gracefully stop if it returns true.
-            console.log(`[${generationId}] Calling AI Generator...`);
-
-            // Example of how aiGenerator might be structured to accept cancellation signal
-            const generator = new BRDAIGenerator(
-                process.env.OPENAI_API_KEY,
-                db,
-                brdDataInput.registerCancelFunction
-            );
-            const result = await generator.generateBRD(brdDataInput);
-
-            if (
-                clientClosedRequest ||
-                (activeGenerations[generationId] &&
-                    activeGenerations[generationId].status !== "running")
-            ) {
-                console.log(
-                    `Generation ${generationId} cancelled during AI processing.`
-                );
-                // Perform cleanup if necessary based on `result` (e.g., delete partial files)
-                if (activeGenerations[generationId])
-                    delete activeGenerations[generationId];
-                return res
-                    .status(499)
-                    .json({
-                        success: false,
-                        message: "Generation cancelled by client.",
-                    });
-            }
-
-            if (!result || !result.success) {
-                throw new Error(result.message || "AI Generation failed.");
-            }
-
-            console.log(`[${generationId}] BRD generation successful.`);
-            res.json({
-                success: true,
-                message: "BRD generated successfully!",
-                downloadUrl: result.downloadUrl, // Assuming aiGenerator returns this
-                fileName: result.fileName, // Assuming aiGenerator returns this
-                timestamp: new Date().toISOString(),
-                confluence: result.confluence, // Assuming aiGenerator returns this
-            });
-        } catch (error) {
-            console.error(`[${generationId}] Error generating BRD:`, error);
-            if (axios.isCancel(error)) {
-                // Though axios cancel is frontend, check anyway
-                res.status(499).json({
-                    success: false,
-                    message:
-                        "Generation cancelled by client request (detected on server).",
-                });
-            } else if (
-                clientClosedRequest ||
-                (activeGenerations[generationId] &&
-                    activeGenerations[generationId].status === "cancelledByApi")
-            ) {
-                res.status(400).json({
-                    success: false,
-                    message: "Generation was cancelled via API.",
-                });
-            } else {
-                res.status(500).json({
-                    success: false,
-                    message: error.message || "Failed to generate BRD.",
-                });
-            }
-        } finally {
-            // Clean up the task from activeGenerations
-            if (activeGenerations[generationId]) {
-                delete activeGenerations[generationId];
-            }
-            console.log(
-                `[${generationId}] Cleaned up active generation entry.`
-            );
-            // Cleanup uploaded files associated with this generationId if necessary and not handled elsewhere
-            // This depends on how your file cleanup logic is structured
-        }
-    }
-);
-
-app.post("/api/cancel-brd-generation/:generationId", (req, res) => {
-    const { generationId } = req.params;
-    console.log(
-        `Received cancellation request for generationId: ${generationId}`
-    );
-    if (activeGenerations[generationId]) {
-        activeGenerations[generationId].status = "cancelledByApi";
-        // Call the task-specific cancel function
-        if (typeof activeGenerations[generationId].cancel === "function") {
-            activeGenerations[generationId].cancel("Cancelled via API");
-        }
-        // The main generate-brd route will handle cleanup in its finally block or req.on('close')
-        res.json({
-            success: true,
-            message: `Cancellation signal sent for generation ID: ${generationId}.`,
-        });
-    } else {
-        res.status(404).json({
-            success: false,
-            message: "Generation ID not found or already completed/cancelled.",
-        });
-    }
-});
-
-// Generate BRD and optionally publish to Confluence
-app.post(
     "/api/generate-brd-with-confluence",
     (req, res, next) => {
         upload.fields([
@@ -857,6 +642,24 @@ app.post(
             }
 
             const shouldPublishToConfluence = publishToConfluence === "true";
+            
+            // Fallback: Check saved Confluence configuration if client didn't request publishing
+            let actuallyPublishToConfluence = shouldPublishToConfluence;
+            if (!shouldPublishToConfluence) {
+                try {
+                    const configPath = path.join(__dirname, "config", "confluence.json");
+                    if (fs.existsSync(configPath)) {
+                        const savedConfluenceConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+                        if (savedConfluenceConfig.enabled === true) {
+                            actuallyPublishToConfluence = true;
+                            console.log("📄 Using saved Confluence configuration to enable publishing...");
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error reading Confluence config:", error);
+                }
+            }
+            
             const confluenceOpts = JSON.parse(confluenceOptions);
 
             // Parse technical data if it exists
@@ -945,7 +748,7 @@ app.post(
 
             // Publish to Confluence if requested
             let confluenceResult = null;
-            if (shouldPublishToConfluence) {
+            if (actuallyPublishToConfluence) {
                 console.log("📄 Publishing to Confluence...");
                 confluenceResult = await confluenceGenerator.createBRDPage(
                     brdResult.brdData,
@@ -1099,11 +902,9 @@ app.get("/api/brds/history", async (req, res) => {
             console.error(
                 "MongoDB database not initialized when trying to access /api/brds/history."
             );
-            return res
-                .status(500)
-                .json({
-                    message: "Database not configured or connection failed.",
-                });
+            return res.status(500).json({
+                message: "Database not configured or connection failed.",
+            });
         }
         const brdsCollection = db.collection("brds");
 

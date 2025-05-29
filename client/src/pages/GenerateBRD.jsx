@@ -6,8 +6,7 @@ import axios from "axios";
 // Constants
 const LOCAL_STORAGE_BRD_INPUT_KEY = "brd_generation_data";
 const LOCAL_STORAGE_LAST_RESULT_KEY = "brd_last_generated_result";
-const API_ENDPOINT_GENERATE_BRD = "http://localhost:5000/api/generate-brd";
-const API_ENDPOINT_CANCEL_BRD = "http://localhost:5000/api/cancel-brd-generation";
+const API_ENDPOINT_GENERATE_BRD = "http://localhost:5000/api/generate-brd-with-confluence";
 
 function GenerateBRD() {
     const navigate = useNavigate();
@@ -16,50 +15,66 @@ function GenerateBRD() {
     const [progress, setProgress] = useState(0);
     const [generatedDoc, setGeneratedDoc] = useState(null);
     const [errorMessage, setErrorMessage] = useState("");
+    const [confluenceConfig, setConfluenceConfig] = useState(null);
     const abortControllerRef = useRef(null);
-    const [generationId, setGenerationId] = useState(null);
 
+    // Load BRD data and Confluence configuration
     useEffect(() => {
-        const initializeData = () => {
+        const loadData = async () => {
             try {
-                const savedBrdInputData = localStorage.getItem(LOCAL_STORAGE_BRD_INPUT_KEY);
-                const lastGeneratedResult = localStorage.getItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+                // First, check if we have a previous successful result
+                const lastResult = localStorage.getItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+                const savedData = localStorage.getItem(LOCAL_STORAGE_BRD_INPUT_KEY);
+                
+                if (lastResult && savedData) {
+                    try {
+                        const parsedResult = JSON.parse(lastResult);
+                        const parsedData = JSON.parse(savedData);
+                        
+                        // Check if the last result is successful and recent
+                        if (parsedResult.success) {
+                            setBrdData(parsedData);
+                            setGeneratedDoc(parsedResult);
+                            setStatus("success");
+                            setProgress(100);
+                            return; // Skip generation, show the existing result
+                        }
+                    } catch (parseError) {
+                        console.warn("Failed to parse stored result, will proceed with new generation:", parseError);
+                        // Continue with normal flow if parsing fails
+                    }
+                }
 
-                if (savedBrdInputData) {
-                    const parsedInputData = JSON.parse(savedBrdInputData);
-                    setBrdData(parsedInputData);
-                    setStatus("generating");
-                    localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY); // Clear previous result
-                    const newGenerationId = `gen_${Date.now()}`;
-                    setGenerationId(newGenerationId);
-                    startGenerationProcess(parsedInputData, newGenerationId);
-                } else if (lastGeneratedResult) {
-                    const parsedResult = JSON.parse(lastGeneratedResult);
-                    setGeneratedDoc(parsedResult);
-                    setStatus("success");
+                // Load BRD data from localStorage
+                if (savedData) {
+                    setBrdData(JSON.parse(savedData));
                 } else {
                     setStatus("error");
-                    setErrorMessage("No BRD data found. Please create a BRD first.");
+                    setErrorMessage("No BRD data found. Please go back and fill out the form.");
+                    return;
                 }
+
+                // Load Confluence configuration
+                const confluenceResponse = await axios.get("http://localhost:5000/api/config/confluence");
+                setConfluenceConfig(confluenceResponse.data);
+                
+                setStatus("generating");
             } catch (error) {
-                console.error("Error reading from localStorage:", error);
+                console.error("Error loading configuration:", error);
                 setStatus("error");
-                setErrorMessage("Failed to access required data. Please try creating a new BRD.");
-                // Clean up corrupted data
-                localStorage.removeItem(LOCAL_STORAGE_BRD_INPUT_KEY);
-                localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+                setErrorMessage("Failed to load configuration. Please try again.");
             }
         };
 
-        initializeData();
-
-        // Ensure cleanup if the component unmounts during generation
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
+        loadData();
     }, []);
+
+    // Auto-start generation when data is loaded
+    useEffect(() => {
+        if (status === "generating" && brdData && confluenceConfig) {
+            generateBRD();
+        }
+    }, [status, brdData, confluenceConfig]);
 
     // Convert base64 to File utility
     const base64ToFile = (base64Data, fileName, mimeType) => {
@@ -77,34 +92,37 @@ function GenerateBRD() {
         }
     };
 
-    const startGenerationProcess = async (data, genId) => {
-        setProgress(0);
-        let progressInterval;
+    const generateBRD = async () => {
+        // Initialize abort controller for this generation
         abortControllerRef.current = new AbortController();
-
+        
         try {
             setProgress(5);
 
             const formData = new FormData();
-            formData.append("template", JSON.stringify(data.template));
-            formData.append("formData", JSON.stringify(data.formData));
-            formData.append("businessUseCase", data.businessUseCase);
-            formData.append("businessLogic", data.businessLogic);
-            formData.append("outputs", JSON.stringify(data.outputs));
-            formData.append("generationId", genId);
+            formData.append("template", JSON.stringify(brdData.template));
+            formData.append("formData", JSON.stringify(brdData.formData));
+            formData.append("businessUseCase", brdData.businessUseCase);
+            formData.append("businessLogic", brdData.businessLogic);
+            formData.append("outputs", JSON.stringify(brdData.outputs));
+            
+            // Set publishToConfluence based on saved configuration
+            const shouldPublish = confluenceConfig?.enabled === true;
+            formData.append("publishToConfluence", shouldPublish ? "true" : "false");
+            formData.append("confluenceOptions", JSON.stringify({}));
 
             // Add technical data if available
-            if (data.technicalData) {
-                formData.append("technicalData", JSON.stringify(data.technicalData));
+            if (brdData.technicalData) {
+                formData.append("technicalData", JSON.stringify(brdData.technicalData));
             }
 
             // Handle legacy file data if present
-            if (data.imageFileData) {
-                formData.append("image", base64ToFile(data.imageFileData.data, data.imageFileData.name, data.imageFileData.type));
+            if (brdData.imageFileData) {
+                formData.append("image", base64ToFile(brdData.imageFileData.data, brdData.imageFileData.name, brdData.imageFileData.type));
             }
 
-            if (data.docFileData) {
-                formData.append("doc", base64ToFile(data.docFileData.data, data.docFileData.name, data.docFileData.type));
+            if (brdData.docFileData) {
+                formData.append("doc", base64ToFile(brdData.docFileData.data, brdData.docFileData.name, brdData.docFileData.type));
             }
             
             setProgress(10);
@@ -123,66 +141,66 @@ function GenerateBRD() {
             setProgress(40);
 
             // Simulate backend processing progress
-            progressInterval = setInterval(() => {
-                setProgress((prev) => {
+            const progressInterval = setInterval(() => {
+                setProgress(prev => {
                     if (prev >= 95) {
                         clearInterval(progressInterval);
                         return 95;
                     }
-                    const increment = prev < 70 ? 5 : (prev < 90 ? 2 : 1);
-                    return Math.min(prev + increment, 95);
+                    return prev + Math.random() * 15;
                 });
-            }, 700);
+            }, 1000);
+
+            // Clear progress interval when response is received
+            if (response.data) {
+                clearInterval(progressInterval);
+                setProgress(100);
+            }
 
             if (response.data.success) {
-                setTimeout(() => {
-                    clearInterval(progressInterval); 
-                    setProgress(100);
-                    setStatus("success");
-                    const resultToSave = {
-                        fileName: response.data.fileName || "generated_brd.docx",
-                        url: `http://localhost:5000${response.data.downloadUrl}`,
+                setGeneratedDoc(response.data);
+                setStatus("success");
+                
+                // Store only essential result data for history (avoid localStorage quota issues)
+                try {
+                    const essentialResult = {
+                        success: response.data.success,
                         timestamp: response.data.timestamp,
-                        confluence: response.data.confluence,
+                        message: response.data.message,
+                        fileName: response.data.fileName,
+                        downloadUrl: response.data.downloadUrl,
+                        confluence: response.data.confluence ? {
+                            success: response.data.confluence.success,
+                            pageTitle: response.data.confluence.pageTitle,
+                            pageUrl: response.data.confluence.pageUrl,
+                            pageId: response.data.confluence.pageId,
+                            spaceKey: response.data.confluence.spaceKey
+                        } : null
                     };
-                    setGeneratedDoc(resultToSave);
-                    localStorage.setItem(LOCAL_STORAGE_LAST_RESULT_KEY, JSON.stringify(resultToSave));
-                    localStorage.removeItem(LOCAL_STORAGE_BRD_INPUT_KEY);
-                }, 4000);
-            } else {
-                clearInterval(progressInterval);
-                throw new Error(response.data.message || "Failed to generate BRD from API");
-            }
-        } catch (error) {
-            console.error("Error generating BRD:", error);
-            clearInterval(progressInterval);
-            setStatus("error");
-            setErrorMessage(
-                error.response?.data?.message || error.message || "Failed to generate BRD. Please try again."
-            );
-            if (axios.isCancel(error)) {
-                setStatus("cancelled");
-                setErrorMessage("BRD generation has been cancelled.");
+                    localStorage.setItem(LOCAL_STORAGE_LAST_RESULT_KEY, JSON.stringify(essentialResult));
+                } catch (storageError) {
+                    console.warn("Could not save result to localStorage:", storageError.message);
+                    // Don't fail the entire operation if localStorage fails
+                }
             } else {
                 setStatus("error");
-                setErrorMessage(
-                    error.response?.data?.message || error.message || "Failed to generate BRD. Please try again."
-                );
+                setErrorMessage(response.data.message || "Unknown error occurred");
             }
-            setProgress(0);
+        } catch (error) {
+            if (error.name === "AbortError") {
+                console.log("Request was cancelled");
+                return;
+            }
+            
+            console.error("Generation error:", error);
+            setStatus("error");
+            setErrorMessage(error.response?.data?.message || error.message || "Failed to generate BRD");
         }
     };
 
     const handleCancelGeneration = async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
-            if (generationId) {
-                try {
-                    await axios.post(`${API_ENDPOINT_CANCEL_BRD}/${generationId}`);
-                } catch (cancelError) {
-                    console.error("Error explicitly notifying backend of cancellation:", cancelError);
-                }
-            }
             setStatus("cancelled"); 
             setErrorMessage("BRD generation has been cancelled by the user.");
             setProgress(0);
@@ -204,10 +222,17 @@ function GenerateBRD() {
             setStatus("generating");
             setProgress(0);
             setErrorMessage("");
-            const newGenerationId = `gen_${Date.now()}`;
-            setGenerationId(newGenerationId);
-            startGenerationProcess(brdData, newGenerationId);
+            generateBRD();
         }
+    };
+
+    const regenerateBRD = () => {
+        // Clear the previous result and start a new generation
+        localStorage.removeItem(LOCAL_STORAGE_LAST_RESULT_KEY);
+        setGeneratedDoc(null);
+        setProgress(0);
+        setErrorMessage("");
+        setStatus("generating");
     };
 
     return (
@@ -344,6 +369,12 @@ function GenerateBRD() {
                         )}
 
                         <div className="flex justify-center space-x-4">
+                            <button 
+                                onClick={regenerateBRD} 
+                                className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
+                            >
+                                Generate New
+                            </button>
                             <button onClick={createNewBRD} className="btn btn-secondary">
                                 Create Another BRD
                             </button>
