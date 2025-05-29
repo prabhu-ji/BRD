@@ -492,7 +492,11 @@ class BRDAIGenerator {
                   ])
                 : "",
             Modules:
-                context.modules.length > 0 ? context.modules.join(", ") : "",
+                context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "",
             Direction: context.direction
                 ? this.formatDropdownField(context.direction.toUpperCase(), [
                       "INBOUND",
@@ -734,58 +738,195 @@ class BRDAIGenerator {
         };
     }
 
-    // Generate specific output type - ENHANCED FOR LIST USAGE
+    // Generate specific output type - ENHANCED FOR MULTIPLE TYPES
     async generateOutput(outputName, outputTypes, context, brdData) {
         const outputKey = this.getOutputKey(outputName);
         const examples = this.examples[outputKey] || [];
 
-        // Choose generator based on output type with better detection
-        if (this.isDiagramOutput(outputName, outputTypes)) {
-            return await this.generateDiagram(
-                outputName,
-                context,
-                examples,
-                brdData
-            );
-        } else if (this.isTableOutput(outputName, outputTypes)) {
-            return await this.generateTable(
-                outputName,
-                context,
-                examples,
-                brdData
-            );
-        } else {
-            return await this.generateTextContent(
-                outputName,
-                context,
-                examples,
-                brdData
-            );
+        // Initialize result structure for multiple content types
+        const result = {
+            types: outputTypes,
+            content: {},
+        };
+
+        // Generate content for each requested type
+        for (const type of outputTypes) {
+            try {
+                switch (type) {
+                    case "content":
+                        console.log(
+                            `📝 Processing text content for: ${outputName}`
+                        );
+
+                        // Check if uploaded TEXT content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "content",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded text content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI text content for: ${outputName}`
+                            );
+                            try {
+                                const textContent =
+                                    await this.generateTextContent(
+                                        outputName,
+                                        context,
+                                        examples,
+                                        brdData
+                                    );
+                                result.content.text = textContent.content;
+                                if (textContent.error)
+                                    result.content.textError =
+                                        textContent.error;
+                                if (textContent.fallback)
+                                    result.content.textFallback =
+                                        textContent.fallback;
+                            } catch (textError) {
+                                console.log(
+                                    `⚠️ Text generation failed for ${outputName}: ${textError.message}`
+                                );
+                                // Don't add any content for failed text generation
+                                result.content.textError = textError.message;
+                            }
+                        }
+                        break;
+
+                    case "image":
+                    case "diagram":
+                        console.log(`🎨 Processing diagram for: ${outputName}`);
+
+                        // Check if uploaded IMAGE content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "image",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded image content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI diagram for: ${outputName}`
+                            );
+                            const diagramContent = await this.generateDiagram(
+                                outputName,
+                                context,
+                                examples,
+                                brdData
+                            );
+                            result.content.diagram = {
+                                code: diagramContent.code,
+                                format: diagramContent.format || "dot",
+                            };
+                            if (diagramContent.error)
+                                result.content.diagramError =
+                                    diagramContent.error;
+                            if (diagramContent.fallback)
+                                result.content.diagramFallback =
+                                    diagramContent.fallback;
+                        }
+                        break;
+
+                    case "table":
+                        console.log(`📊 Processing table for: ${outputName}`);
+
+                        // Check if uploaded TABLE content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "table",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded table content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI table content for: ${outputName}`
+                            );
+                            try {
+                                const tableContent = await this.generateTable(
+                                    outputName,
+                                    context,
+                                    examples,
+                                    brdData
+                                );
+                                // Tables can return text content or structured data
+                                if (tableContent.type === "text") {
+                                    result.content.table = tableContent.content;
+                                } else {
+                                    result.content.table = tableContent;
+                                }
+                                if (tableContent.error)
+                                    result.content.tableError =
+                                        tableContent.error;
+                                if (tableContent.fallback)
+                                    result.content.tableFallback = "";
+                            } catch (tableError) {
+                                console.log(
+                                    `⚠️ Table generation failed for ${outputName}: ${tableError.message}`
+                                );
+                                // Don't add any content for failed table generation
+                                result.content.tableError = tableError.message;
+                            }
+                        }
+                        break;
+
+                    default:
+                        console.warn(
+                            `⚠️ Unknown content type: ${type} for ${outputName}`
+                        );
+                        break;
+                }
+            } catch (error) {
+                console.error(
+                    `❌ Error generating ${type} content for ${outputName}:`,
+                    error
+                );
+                result.content[`${type}Error`] = error.message;
+            }
         }
-    }
 
-    // Better diagram detection
-    isDiagramOutput(outputName, outputTypes) {
-        const diagramKeywords = [
-            "diagram",
-            "flow",
-            "chart",
-            "architecture",
-            "process",
-        ];
-        const nameCheck = diagramKeywords.some((keyword) =>
-            outputName.toLowerCase().includes(keyword)
-        );
-        return outputTypes.includes("diagram") || nameCheck;
-    }
+        // If only one type requested, maintain backward compatibility by also setting legacy fields
+        if (outputTypes.length === 1) {
+            const singleType = outputTypes[0];
+            if (singleType === "content" && result.content.text) {
+                result.type = "text";
+                // Don't overwrite content object - add legacy content field alongside
+                result.legacyContent = result.content.text;
+            } else if (
+                (singleType === "image" || singleType === "diagram") &&
+                result.content.diagram
+            ) {
+                result.type = "graphviz";
+                result.code = result.content.diagram.code;
+                result.format = result.content.diagram.format;
+            } else if (singleType === "table" && result.content.table) {
+                result.type = "table";
+                // Don't overwrite content object - add legacy content field alongside
+                result.legacyContent = result.content.table;
+            }
+        }
 
-    // Better table detection
-    isTableOutput(outputName, outputTypes) {
-        const tableKeywords = ["mapping", "table", "specification", "matrix"];
-        const nameCheck = tableKeywords.some((keyword) =>
-            outputName.includes(keyword)
+        console.log(
+            `✅ Generated content for ${outputName} with types: ${outputTypes.join(
+                ", "
+            )}`
         );
-        return outputTypes.includes("table") || nameCheck;
+        return result;
     }
 
     // Generate text-based content - ENHANCED TO USE MORE LISTS
@@ -826,7 +967,7 @@ class BRDAIGenerator {
                         temperature: 0.2,
                     });
                 },
-                { outputName, type: "text" }
+                { outputName, types: ["text"] }
             );
 
             let content =
@@ -851,19 +992,8 @@ class BRDAIGenerator {
         } catch (error) {
             console.error(`❌ Error generating ${outputName}:`, error);
 
-            // Provide fallback content for critical sections
-            const fallbackContent = this.getFallbackContent(
-                outputName,
-                context,
-                brdData
-            );
-
-            return {
-                type: "text",
-                content: fallbackContent,
-                error: error.message,
-                fallback: true,
-            };
+            // Re-throw the error instead of providing fallback content
+            throw error;
         }
     }
 
@@ -1028,136 +1158,13 @@ BUSINESS CONTEXT:
 - Integration Type: ${context.mode} ${context.direction}
 - Client System: ${context.client}
 - Target System: ${context.vendor}
-- Modules: ${context.modules.join(", ") || "Core modules"}
-
-Generate ONLY the content starting directly with bullet points or lists - no headers, no explanations, no introductions.`.trim();
-    }
-
-    // Format examples for better prompting
-    formatExamplesForPrompt(examples) {
-        if (!examples || examples.length === 0) {
-            return "No specific examples available - follow general BRD best practices with professional, list-based formatting.";
+- Modules: ${
+            context.modules && context.modules.length > 0
+                ? context.modules && context.modules.length > 0
+                    ? context.modules.join(", ")
+                    : "Core modules"
+                : "Core modules"
         }
-
-        return examples
-            .slice(0, 3)
-            .map((ex, index) => `EXAMPLE ${index + 1}:\n${ex.content}`)
-            .join("\n\n");
-    }
-
-    // Format API docs for prompting - ENHANCED TO PROVIDE GRANULAR DETAILS
-    formatApiDocsForPrompt(context) {
-        if (!context.hasApiDocs || !context.apiSummary) {
-            return "";
-        }
-
-        const summary = context.apiSummary;
-        const apiContext = context.apiContext;
-
-        let apiDetails = `
-API DOCUMENTATION CONTEXT:
-- Total Available APIs: ${summary.totalEndpoints}
-- Available Modules: ${summary.availableModules.join(", ")}
-- Authentication: ${summary.authType || "Required"}`;
-
-        // Add specific endpoint details for better context
-        if (summary.sampleEndpoints && summary.sampleEndpoints.length > 0) {
-            apiDetails += `\n- Key Endpoints:`;
-            summary.sampleEndpoints.forEach((endpoint) => {
-                apiDetails += `\n  • ${endpoint.method} ${endpoint.path}`;
-                if (endpoint.description) {
-                    apiDetails += ` - ${endpoint.description}`;
-                }
-                if (endpoint.module) {
-                    apiDetails += ` [${endpoint.module}]`;
-                }
-            });
-        }
-
-        // Add module-specific information if available
-        if (summary.moduleInfo && Object.keys(summary.moduleInfo).length > 0) {
-            apiDetails += `\n- Module Details:`;
-            Object.entries(summary.moduleInfo).forEach(([module, info]) => {
-                apiDetails += `\n  • ${module}: ${
-                    info.description || "Available"
-                }`;
-                if (info.endpoints && info.endpoints.length > 0) {
-                    apiDetails += ` (${info.endpoints.length} endpoints)`;
-                }
-            });
-        }
-
-        return apiDetails;
-    }
-
-    // NEW: Get detailed API context for specific sections
-    getDetailedApiContext(context, sectionType) {
-        if (!context.hasApiDocs || !context.apiContext) {
-            return null;
-        }
-
-        const apiContext = context.apiContext;
-        const relevantEndpoints = [];
-
-        // Filter endpoints based on section type and business context
-        if (sectionType === "apis_used") {
-            // For APIs Used section, focus on endpoints relevant to the business use case
-            const businessKeywords = [
-                context.businessUseCase?.toLowerCase(),
-                context.businessLogic?.toLowerCase(),
-                ...context.modules.map((m) => m.toLowerCase()),
-            ].filter(Boolean);
-
-            apiContext.endpoints.forEach((endpoint) => {
-                const searchText = [
-                    endpoint.path,
-                    endpoint.description,
-                    endpoint.module,
-                ]
-                    .join(" ")
-                    .toLowerCase();
-
-                const isRelevant =
-                    businessKeywords.some((keyword) =>
-                        searchText.includes(keyword)
-                    ) ||
-                    (endpoint.module &&
-                        context.modules.some((module) =>
-                            endpoint.module
-                                .toLowerCase()
-                                .includes(module.toLowerCase())
-                        ));
-
-                if (isRelevant) {
-                    relevantEndpoints.push(endpoint);
-                }
-            });
-        } else if (sectionType === "technical_specification") {
-            // For technical specs, focus on authentication, data models, and core endpoints
-            relevantEndpoints.push(...apiContext.endpoints.slice(0, 3)); // Top 3 endpoints
-        }
-
-        return {
-            endpoints: relevantEndpoints,
-            authentication: apiContext.authentication,
-            moduleInfo: apiContext.moduleInfo,
-            examples: apiContext.examples || [],
-            totalAvailable: apiContext.endpoints.length,
-        };
-    }
-
-    // Format business context
-    formatBusinessContext(context, brdData) {
-        return `
-INTEGRATION CONTEXT:
-- Pattern: ${context.integrationPattern}
-- Business Use Case: ${
-            context.businessUseCase || "Standard integration requirement"
-        }
-- Business Logic: ${
-            context.businessLogic || "Standard data exchange and processing"
-        }
-- Modules: ${context.modules.join(", ") || "Core modules"}
 - Data Direction: ${context.direction} (data flowing ${
             context.direction === "Inbound" ? "INTO" : "OUT OF"
         } ${context.vendor})`;
@@ -1193,7 +1200,11 @@ ${contextGuidance.apiGuidance}`,
                 context.businessLogic || "standard data processing"
             }"
 - Include implementation methodology referencing available modules: ${
-                context.modules.join(", ") || "core modules"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core modules"
             }
 - Reference specific systems (${context.client} and ${
                 context.vendor
@@ -1222,7 +1233,11 @@ ${contextGuidance.apiGuidance}`,
 - Mention API access, authentication needs, and connectivity requirements
 - Specify data validation requirements and business rule dependencies
 - Include module-specific dependencies: ${
-                context.modules.join(", ") || "core modules"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core modules"
             }
 - Reference business process dependencies from: "${
                 context.businessLogic || "standard operations"
@@ -1244,7 +1259,11 @@ ${contextGuidance.apiGuidance}`,
             }"
 - Include technical assumptions about API availability and functionality
 - Reference module-specific assumptions: ${
-                context.modules.join(", ") || "core modules"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core modules"
             }
 - Keep items realistic, verifiable, and specific to this business context`,
 
@@ -1263,7 +1282,11 @@ ${contextGuidance.apiGuidance}`,
             }"
 - Include specific endpoint details, HTTP methods, and authentication
 - Reference actual API modules: ${
-                context.modules.join(", ") || "available modules"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "available modules"
             }
 - Detail request/response structures and data formats
 - Specify API usage patterns for ${context.direction} data flow
@@ -1280,7 +1303,13 @@ ${contextGuidance.general}
             }"
 - Include technical details for ${context.mode} ${context.direction} integration
 - Use specific system names: ${context.client} and ${context.vendor}
-- Reference available modules: ${context.modules.join(", ") || "core modules"}`
+- Reference available modules: ${
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core modules"
+            }`
         );
     }
 
@@ -1463,7 +1492,7 @@ FORBIDDEN:
                         temperature: 0.1, // Very low for consistent diagram structure
                     });
                 },
-                { outputName, type: "diagram" }
+                { outputName, types: ["diagram"] }
             );
 
             let diagramCode = result.choices[0].message.content || "";
@@ -1521,7 +1550,13 @@ INTEGRATION DETAILS:
 - Vendor: ${context.vendor}
 - Business Use Case: ${context.businessUseCase || "Standard integration"}
 - Business Logic: ${context.businessLogic || "Standard data processing"}
-- Modules: ${context.modules.join(", ") || "Core modules"}
+- Modules: ${
+            context.modules && context.modules.length > 0
+                ? context.modules && context.modules.length > 0
+                    ? context.modules.join(", ")
+                    : "Core modules"
+                : "Core modules"
+        }
 
 ${businessContext}
 
@@ -1538,7 +1573,11 @@ BUSINESS-SPECIFIC LABELING INSTRUCTIONS:
             context.businessLogic || "data processing"
         }"
 - Reference actual modules in node labels: ${
-            context.modules.join(", ") || "core modules"
+            context.modules && context.modules.length > 0
+                ? context.modules && context.modules.length > 0
+                    ? context.modules.join(", ")
+                    : "Core modules"
+                : "core modules"
         }
 - Show data flow that supports the business requirement
 - Use meaningful business terminology in edge labels
@@ -1813,34 +1852,14 @@ API CONTEXT FOR DIAGRAM:
 
     // FIXED: Section-specific content generation instead of generic table generation
     async generateTable(outputName, context, examples, brdData) {
-        const outputKey = this.getOutputKey(outputName);
-
-        // Route to specific generators based on section type
-        if (outputKey.includes("api") && outputKey.includes("used")) {
-            return await this.generateAPIsUsedContent(
-                context,
-                examples,
-                brdData
-            );
-        } else if (
-            outputKey.includes("technical") &&
-            (outputKey.includes("design") ||
-                outputKey.includes("specification"))
-        ) {
-            return await this.generateTechnicalSpecificationContent(
-                context,
-                examples,
-                brdData
-            );
-        } else {
-            // For any other table-like content, generate based on examples
-            return await this.generateGenericTableContent(
-                outputName,
-                context,
-                examples,
-                brdData
-            );
-        }
+        // For all table content, use the generic table content generator
+        // This ensures proper table structure is returned for all table types
+        return await this.generateGenericTableContent(
+            outputName,
+            context,
+            examples,
+            brdData
+        );
     }
 
     // Generate APIs Used content - Simple description + API details
@@ -1882,7 +1901,7 @@ API CONTEXT FOR DIAGRAM:
                         temperature: 0.2,
                     });
                 },
-                { outputName: "APIs Used", type: "api_content" }
+                { outputName: "APIs Used", types: ["api_content"] }
             );
 
             let content = result.choices[0].message.content || "";
@@ -1933,7 +1952,11 @@ API CONTEXT FOR DIAGRAM:
             } via ${context.mode} integration
 • Data is authenticated and validated using standard security protocols
 • ${context.vendor} processes and stores the data in the ${
-                context.modules.join(", ") || "core"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core"
             } module
 • Confirmation response is sent back to ${context.client} system`;
 
@@ -1956,7 +1979,11 @@ API CONTEXT FOR DIAGRAM:
             } via ${context.mode} integration
 • Data is authenticated and validated using standard security protocols
 • ${context.vendor} processes and stores the data in the ${
-                context.modules.join(", ") || "core"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core"
             } module
 • Confirmation response is sent back to ${context.client} system`;
 
@@ -1990,7 +2017,7 @@ API CONTEXT FOR DIAGRAM:
                 },
                 {
                     outputName: "Technical Design Specifications",
-                    type: "technical_content",
+                    types: ["technical_content"],
                 }
             );
 
@@ -2017,7 +2044,11 @@ API CONTEXT FOR DIAGRAM:
             } via ${context.mode} integration
 • Data is authenticated and validated using standard security protocols
 • ${context.vendor} processes and stores the data in the ${
-                context.modules.join(", ") || "core"
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "core"
             } module
 • Confirmation response is sent back to ${context.client} system`;
 
@@ -2091,13 +2122,102 @@ API CONTEXT FOR DIAGRAM:
 
     // Generate generic table content for other sections
     async generateGenericTableContent(outputName, context, examples, brdData) {
-        // Use text generation instead of hardcoded table data
-        return await this.generateTextContent(
-            outputName,
-            context,
-            examples,
-            brdData
-        );
+        try {
+            if (!openai) {
+                // Just throw an error instead of generating error tables
+                throw new Error("OpenAI API not available");
+            }
+
+            const prompt = `
+Generate a table for "${outputName}" section in a ${context.mode} ${
+                context.direction
+            } integration between ${context.client} and ${context.vendor}.
+
+BUSINESS CONTEXT:
+- Use Case: ${context.businessUseCase || "Integration requirement"}
+- Business Logic: ${context.businessLogic || "Standard data processing"}
+- Modules: ${
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "Core modules"
+            }
+
+EXAMPLES TO FOLLOW (if available):
+${this.formatExamplesForPrompt(examples)}
+
+REQUIRED TABLE FORMAT:
+Generate a table with 3-4 columns relevant to "${outputName}". Common table structures:
+- For Dependencies: ["Dependency", "System/Component", "Description", "Critical Level"]
+- For Assumptions: ["Assumption", "Area", "Description", "Impact"]
+- For Test Cases: ["Test Case", "Type", "Description", "Expected Result"]
+- For APIs Used: ["API Endpoint", "Method", "Purpose", "Parameters"]
+
+Return ONLY a JSON object with this structure:
+{
+  "type": "table",
+  "headers": ["Column1", "Column2", "Column3", "Column4"],
+  "data": [
+    ["row1_col1", "row1_col2", "row1_col3", "row1_col4"],
+    ["row2_col1", "row2_col2", "row2_col3", "row2_col4"],
+    ...
+  ]
+}
+
+Generate 4-6 rows of relevant data for the "${outputName}" section.`;
+
+            const result = await this.makeRateLimitedAPICall(
+                async () => {
+                    console.log(
+                        `📊 Generating table structure for: ${outputName}`
+                    );
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        model: "gpt-4",
+                        max_tokens: 800,
+                        n: 1,
+                        stop: null,
+                        temperature: 0.2,
+                    });
+                },
+                { outputName, types: ["table"] }
+            );
+
+            let content = result.choices[0].message.content || "";
+
+            // Try to parse the JSON response
+            try {
+                // Clean up the response to extract JSON
+                content = content
+                    .replace(/```json\n?/g, "")
+                    .replace(/```/g, "")
+                    .trim();
+                const tableData = JSON.parse(content);
+
+                if (
+                    tableData.type === "table" &&
+                    tableData.headers &&
+                    tableData.data
+                ) {
+                    return tableData;
+                }
+            } catch (parseError) {
+                console.log("⚠️ Could not parse AI response as table");
+                throw new Error(`Table parsing failed: ${parseError.message}`);
+            }
+
+            // If we reach here, AI response was not valid table format
+            throw new Error(`Invalid AI response for ${outputName}`);
+        } catch (error) {
+            console.error(
+                `❌ Error generating table for ${outputName}:`,
+                error
+            );
+
+            // Re-throw the error instead of returning fallback tables
+            throw error;
+        }
     }
 
     // Build APIs Used specific prompt - ENHANCED WITH DETAILED API CONTEXT
@@ -2193,7 +2313,13 @@ INTEGRATION CONTEXT:
 - Client: ${context.client}
 - Vendor: ${context.vendor}
 - Business Use Case: ${context.businessUseCase || ""}
-- Modules: ${context.modules.join(", ") || "Core modules"}
+- Modules: ${
+            context.modules && context.modules.length > 0
+                ? context.modules && context.modules.length > 0
+                    ? context.modules.join(", ")
+                    : "Core modules"
+                : "Core modules"
+        }
 
 ${apiSpecificGuidance}
 
@@ -2268,6 +2394,342 @@ Generate ONLY 3-4 simple bullet points describing the data flow - nothing else.`
             .replace(/[^a-z0-9]/g, "_")
             .replace(/_+/g, "_")
             .replace(/^_+|_+$/g, "");
+    }
+
+    // Generate actual table content for Data Mapping Table
+    async generateDataMappingTableContent(context, examples, brdData) {
+        try {
+            if (!openai) {
+                // Throw error instead of returning fallback
+                throw new Error("OpenAI API not available");
+            }
+
+            const prompt = `
+Generate a data mapping table for ${context.mode} ${
+                context.direction
+            } integration between ${context.client} and ${context.vendor}.
+
+BUSINESS CONTEXT:
+- Use Case: ${context.businessUseCase || "Employee data synchronization"}
+- Business Logic: ${context.businessLogic || "Standard data processing"}
+- Modules: ${
+                context.modules && context.modules.length > 0
+                    ? context.modules && context.modules.length > 0
+                        ? context.modules.join(", ")
+                        : "Core modules"
+                    : "Core modules"
+            }
+
+REQUIRED TABLE FORMAT:
+Generate exactly 5-7 rows of data mapping with these columns:
+1. Data Field - The business data element being mapped
+2. Source System (${context.client}) - Field name in source system  
+3. Target System (${context.vendor}) - Field name in target system
+4. Transformation Logic - How data is transformed or mapped
+
+EXAMPLE FIELDS TO INCLUDE:
+- Employee ID/Identifier
+- Employee Name/Full Name
+- Employee Status/Employment Status
+- Department/Division
+- Manager/Reporting Manager
+- Date fields (hire date, termination date)
+- Contact information (email, phone)
+
+RULES:
+- Use realistic field names for ${context.client} and ${context.vendor}
+- Include business logic from: "${
+                context.businessLogic || "standard processing"
+            }"
+- Show both direct mappings and transformations
+- Reference the business use case: "${context.businessUseCase || "integration"}"
+
+Return ONLY a JSON object with this structure:
+{
+  "type": "table",
+  "headers": ["Data Field", "Source System (${
+      context.client
+  })", "Target System (${context.vendor})", "Transformation Logic"],
+  "data": [
+    ["field1", "source_field1", "target_field1", "transformation_logic1"],
+    ["field2", "source_field2", "target_field2", "transformation_logic2"],
+    ...
+  ]
+}`;
+
+            const result = await this.makeRateLimitedAPICall(
+                async () => {
+                    console.log(`📊 Generating Data Mapping Table content`);
+                    return await openai.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        model: "gpt-4",
+                        max_tokens: 800,
+                        n: 1,
+                        stop: null,
+                        temperature: 0.2,
+                    });
+                },
+                { outputName: "Data Mapping Table", types: ["table"] }
+            );
+
+            let content = result.choices[0].message.content || "";
+
+            // Try to parse the JSON response
+            try {
+                // Clean up the response to extract JSON
+                content = content
+                    .replace(/```json\n?/g, "")
+                    .replace(/```/g, "")
+                    .trim();
+                const tableData = JSON.parse(content);
+
+                if (
+                    tableData.type === "table" &&
+                    tableData.headers &&
+                    tableData.data
+                ) {
+                    return tableData;
+                }
+            } catch (parseError) {
+                console.log("⚠️ Could not parse AI response as table");
+                throw new Error(`Table parsing failed: ${parseError.message}`);
+            }
+
+            // If we reach here, AI response was not valid table format
+            throw new Error(`Invalid AI response for Data Mapping Table`);
+        } catch (error) {
+            console.error(`❌ Error generating Data Mapping Table:`, error);
+            // Re-throw the error instead of returning fallback
+            throw error;
+        }
+    }
+
+    // Format examples for better prompting
+    formatExamplesForPrompt(examples) {
+        if (!examples || examples.length === 0) {
+            return "No specific examples available - follow general BRD best practices with professional, list-based formatting.";
+        }
+
+        return examples
+            .slice(0, 3)
+            .map((ex, index) => `EXAMPLE ${index + 1}:\n${ex.content}`)
+            .join("\n\n");
+    }
+
+    // Format API docs for prompting - ENHANCED TO PROVIDE GRANULAR DETAILS
+    formatApiDocsForPrompt(context) {
+        if (!context.hasApiDocs || !context.apiSummary) {
+            return "";
+        }
+
+        const summary = context.apiSummary;
+        const apiContext = context.apiContext;
+
+        let apiDetails = `
+API DOCUMENTATION CONTEXT:
+- Total Available APIs: ${summary.totalEndpoints}
+- Available Modules: ${summary.availableModules.join(", ")}
+- Authentication: ${summary.authType || "Required"}`;
+
+        // Add specific endpoint details for better context
+        if (summary.sampleEndpoints && summary.sampleEndpoints.length > 0) {
+            apiDetails += `\n- Key Endpoints:`;
+            summary.sampleEndpoints.forEach((endpoint) => {
+                apiDetails += `\n  • ${endpoint.method} ${endpoint.path}`;
+                if (endpoint.description) {
+                    apiDetails += ` - ${endpoint.description}`;
+                }
+                if (endpoint.module) {
+                    apiDetails += ` [${endpoint.module}]`;
+                }
+            });
+        }
+
+        // Add module-specific information if available
+        if (summary.moduleInfo && Object.keys(summary.moduleInfo).length > 0) {
+            apiDetails += `\n- Module Details:`;
+            Object.entries(summary.moduleInfo).forEach(([module, info]) => {
+                apiDetails += `\n  • ${module}: ${
+                    info.description || "Available"
+                }`;
+                if (info.endpoints && info.endpoints.length > 0) {
+                    apiDetails += ` (${info.endpoints.length} endpoints)`;
+                }
+            });
+        }
+
+        return apiDetails;
+    }
+
+    // NEW: Get detailed API context for specific sections
+    getDetailedApiContext(context, sectionType) {
+        if (!context.hasApiDocs || !context.apiContext) {
+            return null;
+        }
+
+        const apiContext = context.apiContext;
+        const relevantEndpoints = [];
+
+        // Filter endpoints based on section type and business context
+        if (sectionType === "apis_used") {
+            // For APIs Used section, focus on endpoints relevant to the business use case
+            const businessKeywords = [
+                context.businessUseCase?.toLowerCase(),
+                context.businessLogic?.toLowerCase(),
+                ...(context.modules && context.modules.length > 0
+                    ? context.modules.map((m) => m.toLowerCase())
+                    : []),
+            ].filter(Boolean);
+
+            apiContext.endpoints.forEach((endpoint) => {
+                const searchText = [
+                    endpoint.path,
+                    endpoint.description,
+                    endpoint.module,
+                ]
+                    .join(" ")
+                    .toLowerCase();
+
+                const isRelevant =
+                    businessKeywords.some((keyword) =>
+                        searchText.includes(keyword)
+                    ) ||
+                    (endpoint.module &&
+                        context.modules &&
+                        context.modules.some((module) =>
+                            endpoint.module
+                                .toLowerCase()
+                                .includes(module.toLowerCase())
+                        ));
+
+                if (isRelevant) {
+                    relevantEndpoints.push(endpoint);
+                }
+            });
+        } else if (sectionType === "technical_specification") {
+            // For technical specs, focus on authentication, data models, and core endpoints
+            relevantEndpoints.push(...apiContext.endpoints.slice(0, 3)); // Top 3 endpoints
+        }
+
+        return {
+            endpoints: relevantEndpoints,
+            authentication: apiContext.authentication,
+            moduleInfo: apiContext.moduleInfo,
+            examples: apiContext.examples || [],
+            totalAvailable: apiContext.endpoints.length,
+        };
+    }
+
+    // Format business context
+    formatBusinessContext(context, brdData) {
+        return `
+INTEGRATION CONTEXT:
+- Pattern: ${context.integrationPattern || ""}
+- Business Use Case: ${
+            context.businessUseCase || "Standard integration requirement"
+        }
+- Business Logic: ${
+            context.businessLogic || "Standard data exchange and processing"
+        }
+- Modules: ${
+            context.modules && context.modules.length > 0
+                ? context.modules.join(", ")
+                : "Core modules"
+        }
+- Data Direction: ${context.direction} (data flowing ${
+            context.direction === "Inbound" ? "INTO" : "OUT OF"
+        } ${context.vendor})`;
+    }
+
+    // FIXED: Check if uploaded content exists for a SPECIFIC content type
+    hasUploadedContentForType(outputName, contentType, brdData) {
+        if (
+            !brdData.technicalData ||
+            Object.keys(brdData.technicalData).length === 0
+        ) {
+            return false;
+        }
+
+        // Find matching technical data section
+        let sectionData = brdData.technicalData[outputName];
+
+        // Try flexible matching if exact match not found
+        if (!sectionData) {
+            const normalizedOutputName = outputName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "_")
+                .replace(/_+/g, "_")
+                .replace(/^_+|_+$/g, "");
+
+            for (const [techKey, techData] of Object.entries(
+                brdData.technicalData
+            )) {
+                const normalizedTechKey = techKey
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, "_")
+                    .replace(/_+/g, "_")
+                    .replace(/^_+|_+$/g, "");
+
+                if (normalizedOutputName === normalizedTechKey) {
+                    sectionData = techData;
+                    break;
+                }
+            }
+        }
+
+        if (
+            !sectionData ||
+            !sectionData.files ||
+            !Array.isArray(sectionData.files)
+        ) {
+            return false;
+        }
+
+        // Check for SPECIFIC content type
+        const hasTypeSpecificContent = sectionData.files.some((file) => {
+            switch (contentType) {
+                case "content":
+                case "text":
+                    // Text content would be in text files, documents, etc. (not CSV or images)
+                    return (
+                        file.fileType === "txt" ||
+                        file.fileType === "doc" ||
+                        file.fileType === "docx"
+                    );
+
+                case "table":
+                    // Table content is in CSV files with tableData OR CSV attachments
+                    return (
+                        file.fileType === "csv" &&
+                        (file.tableData || file.isAttachment)
+                    );
+
+                case "image":
+                case "diagram":
+                    // Image content is in image files
+                    return (
+                        file.fileType === "image" ||
+                        file.fileType === "png" ||
+                        file.fileType === "jpg" ||
+                        file.fileType === "jpeg"
+                    );
+
+                default:
+                    return false;
+            }
+        });
+
+        if (hasTypeSpecificContent) {
+            console.log(
+                `✅ Found uploaded ${contentType} content for: ${outputName}`
+            );
+            return true;
+        }
+
+        console.log(
+            `🔍 No uploaded ${contentType} content found for: ${outputName} (has other types)`
+        );
+        return false;
     }
 }
 

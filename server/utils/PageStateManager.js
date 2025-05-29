@@ -94,9 +94,10 @@ class PageStateManager {
      * Add page to history
      * @param {Object} pageInfo - Page information
      * @param {Object} imageUploadResult - Image upload results
+     * @param {Object} csvUploadResult - CSV upload results
      * @param {Object} graphvizUploadResult - GraphViz upload results
      */
-    addToHistory(pageInfo, imageUploadResult = null, graphvizUploadResult = null) {
+    addToHistory(pageInfo, imageUploadResult = null, csvUploadResult = null, graphvizUploadResult = null) {
         const historyEntry = {
             id: pageInfo.id || this.currentPageId,
             title: pageInfo.title || this.currentPageTitle,
@@ -104,6 +105,7 @@ class PageStateManager {
             createdAt: new Date().toISOString(),
             url: `${this.baseUrl}/wiki/pages/viewpage.action?pageId=${pageInfo.id || this.currentPageId}`,
             imageUpload: imageUploadResult,
+            csvUpload: csvUploadResult,
             graphvizUpload: graphvizUploadResult,
             operation: pageInfo.operation || 'unknown'
         };
@@ -128,10 +130,11 @@ class PageStateManager {
      * @param {string} operation - Operation type ('create' or 'update')
      * @param {string} spaceKey - Confluence space key
      * @param {Object} imageUploadResult - Image upload results
+     * @param {Object} csvUploadResult - CSV upload results
      * @param {Object} graphvizUploadResult - GraphViz upload results
      * @returns {Object} Success result object
      */
-    generateSuccessResult(operation, spaceKey, imageUploadResult = null, graphvizUploadResult = null) {
+    generateSuccessResult(operation, spaceKey, imageUploadResult = null, csvUploadResult = null, graphvizUploadResult = null) {
         const result = {
             success: true,
             pageId: this.currentPageId,
@@ -144,6 +147,10 @@ class PageStateManager {
 
         if (imageUploadResult) {
             result.imageUpload = imageUploadResult;
+        }
+
+        if (csvUploadResult) {
+            result.csvUpload = csvUploadResult;
         }
 
         if (graphvizUploadResult) {

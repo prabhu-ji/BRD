@@ -1,12 +1,12 @@
 // Import utility modules
-const Logger = require("./utils/Logger");
-const PageStateManager = require("./utils/PageStateManager");
-const ConfluenceApiClient = require("./utils/ConfluenceApiClient");
-const PageContentBuilder = require("./utils/PageContentBuilder");
+const Logger = require("../utils/Logger");
+const PageStateManager = require("../utils/PageStateManager");
+const ConfluenceApiClient = require("../utils/ConfluenceApiClient");
+const PageContentBuilder = require("../utils/PageContentBuilder");
 
 // Import attachment processing modules
-const ImageAttachmentProcessor = require("./attachments/ImageAttachmentProcessor");
-const GraphVizProcessor = require("./attachments/GraphVizProcessor");
+const ImageAttachmentProcessor = require("../attachments/ImageAttachmentProcessor");
+const GraphVizProcessor = require("../attachments/GraphVizProcessor");
 
 /**
  * Fully Refactored Confluence Generator - Clean Architecture Implementation

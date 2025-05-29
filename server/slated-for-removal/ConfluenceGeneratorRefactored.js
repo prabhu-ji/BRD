@@ -1,16 +1,16 @@
 const axios = require("axios");
 
 // Import utility modules
-const Logger = require("./utils/Logger");
-const HtmlUtils = require("./utils/HtmlUtils");
+const Logger = require("../utils/Logger");
+const HtmlUtils = require("../utils/HtmlUtils");
 
 // Import content generation modules
-const ContentRouter = require("./content/ContentRouter");
-const TechnicalDataMatcher = require("./content/TechnicalDataMatcher");
+const ContentRouter = require("../content/ContentRouter");
+const TechnicalDataMatcher = require("../content/TechnicalDataMatcher");
 
 // Import attachment processing modules
-const ImageAttachmentProcessor = require("./attachments/ImageAttachmentProcessor");
-const GraphVizProcessor = require("./attachments/GraphVizProcessor");
+const ImageAttachmentProcessor = require("../attachments/ImageAttachmentProcessor");
+const GraphVizProcessor = require("../attachments/GraphVizProcessor");
 
 /**
  * Refactored Confluence Generator with modular design following Single Responsibility Principle

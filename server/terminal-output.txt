@@ -1,0 +1,208 @@
+🔍 Getting API context for: hr term bot
+⚠️  No API documentation found for hr term bot
+📚 No API documentation found for hr term bot
+📋 Context built: {
+  mode: 'CUSTOM-DEV',
+  direction: 'INBOUND',
+  integrationPattern: 'CUSTOM-DEV_INBOUND',
+  hasApiDocs: false
+}
+🔄 Generating: Purpose/Justification
+📝 Processing text content for: Purpose/Justification
+🤖 Generating AI text content for: Purpose/Justification
+🔄 API call attempt 1/5
+🤖 Generating text content for: Purpose/Justification
+✅ API call successful on attempt 1
+✅ Text content generated for Purpose/Justification (1675 chars)
+✅ Generated content for Purpose/Justification with types: content
+🔄 Generating: Integration Description and Overview
+📝 Processing text content for: Integration Description and Overview
+🤖 Generating AI text content for: Integration Description and Overview
+⏳ Waiting 1998ms for rate limit...
+🔄 API call attempt 1/5
+🤖 Generating text content for: Integration Description and Overview
+✅ API call successful on attempt 1
+✅ Text content generated for Integration Description and Overview (1528 chars)
+✅ Generated content for Integration Description and Overview with types: content
+🔄 Generating: Technical Design Specifications
+📝 Processing text content for: Technical Design Specifications
+✅ Found exact uploaded content match for: Technical Design Specifications
+📋 Using uploaded text content for: Technical Design Specifications (skipping AI generation)
+✅ Generated content for Technical Design Specifications with types: content
+🔄 Generating: Data Mapping Table
+📊 Processing table for: Data Mapping Table
+✅ Found exact uploaded content match for: Data Mapping Table
+📋 Using uploaded table content for: Data Mapping Table (skipping AI generation)
+✅ Generated content for Data Mapping Table with types: table
+🔄 Generating: Data Flow Diagram
+🎨 Processing diagram for: Data Flow Diagram
+🤖 Generating AI diagram for: Data Flow Diagram
+⏳ Waiting 1998ms for rate limit...
+🔄 API call attempt 1/5
+🎨 Generating diagram for: Data Flow Diagram
+✅ API call successful on attempt 1
+✅ Diagram generated for Data Flow Diagram
+📝 Processing text content for: Data Flow Diagram
+🤖 Generating AI text content for: Data Flow Diagram
+⏳ Waiting 1999ms for rate limit...
+🔄 API call attempt 1/5
+🤖 Generating text content for: Data Flow Diagram
+✅ API call successful on attempt 1
+✅ Text content generated for Data Flow Diagram (2088 chars)
+✅ Generated content for Data Flow Diagram with types: image, content
+🔄 Generating: Assumptions
+📝 Processing text content for: Assumptions
+🤖 Generating AI text content for: Assumptions
+🔄 Rate limiter: Request counter reset
+⏳ Waiting 1998ms for rate limit...
+🔄 API call attempt 1/5
+🤖 Generating text content for: Assumptions
+✅ API call successful on attempt 1
+✅ Text content generated for Assumptions (1565 chars)
+✅ Generated content for Assumptions with types: content
+🔄 Generating: Dependencies
+📝 Processing text content for: Dependencies
+🤖 Generating AI text content for: Dependencies
+⏳ Waiting 1999ms for rate limit...
+🔄 API call attempt 1/5
+🤖 Generating text content for: Dependencies
+✅ API call successful on attempt 1
+✅ Text content generated for Dependencies (1185 chars)
+✅ Generated content for Dependencies with types: content
+🔄 Generating: Test Cases
+📝 Processing text content for: Test Cases
+🤖 Generating AI text content for: Test Cases
+⏳ Waiting 2000ms for rate limit...
+🔄 API call attempt 1/5
+🤖 Generating text content for: Test Cases
+✅ API call successful on attempt 1
+✅ Text content generated for Test Cases (2132 chars)
+✅ Generated content for Test Cases with types: content
+✅ BRD Generation Complete
+✅ AI BRD Generation Successful
+📄 Publishing to Confluence...
+⚠️ createBRDPage is deprecated. Use createOrUpdateBRD instead.
+ℹ️ Starting BRD page creation/update process...
+ℹ️ BRD Analysis - Sections: 8, Complexity: moderate
+ℹ️ Expected 1 images to upload
+ℹ️ Creating new page
+🔍 Available sections: [
+  'Purpose/Justification',
+  'Integration Description and Overview',
+  'Technical Design Specifications',
+  'Data Mapping Table',
+  'Data Flow Diagram',
+  'Assumptions',
+  'Dependencies',
+  'Test Cases'
+]
+🔍 Available technical data: [ 'Data Mapping Table', 'Technical Design Specifications' ]
+📝 Processing section: Purpose/Justification (type: object)
+📝 Processing section: Purpose/Justification (type: object)
+ℹ️ Generating multi-type content for Purpose/Justification with types: [content]
+ℹ️ Processing technical data for section: "Purpose/Justification"
+📝 Processing section: Integration Description and Overview (type: object)
+📝 Processing section: Integration Description and Overview (type: object)
+ℹ️ Generating multi-type content for Integration Description and Overview with types: [content]
+ℹ️ Processing technical data for section: "Integration Description and Overview"
+📝 Processing section: Technical Design Specifications (type: object)
+📝 Processing section: Technical Design Specifications (type: object)
+ℹ️ Generating multi-type content for Technical Design Specifications with types: [content]
+ℹ️ Processing technical data for section: "Technical Design Specifications"
+📝 Processing section: Data Mapping Table (type: object)
+📝 Processing section: Data Mapping Table (type: object)
+ℹ️ Generating multi-type content for Data Mapping Table with types: [table]
+ℹ️ Processing technical data for section: "Data Mapping Table"
+📝 Processing section: Data Flow Diagram (type: object)
+📝 Processing section: Data Flow Diagram (type: object)
+ℹ️ Generating multi-type content for Data Flow Diagram with types: [image, content]
+ℹ️ Processing technical data for section: "Data Flow Diagram"
+🎨 Processing GraphViz diagram: Found GraphViz diagram in section: Data Flow Diagram
+📝 Processing section: Assumptions (type: object)
+📝 Processing section: Assumptions (type: object)
+ℹ️ Generating multi-type content for Assumptions with types: [content]
+ℹ️ Processing technical data for section: "Assumptions"
+📝 Processing section: Dependencies (type: object)
+📝 Processing section: Dependencies (type: object)
+ℹ️ Generating multi-type content for Dependencies with types: [content]
+ℹ️ Processing technical data for section: "Dependencies"
+📝 Processing section: Test Cases (type: object)
+📝 Processing section: Test Cases (type: object)
+ℹ️ Generating multi-type content for Test Cases with types: [content]
+ℹ️ Processing technical data for section: "Test Cases"
+✅ Generated 17460 characters of content
+🎨 Found 1 GraphViz diagrams for rendering
+🔗 Confluence API Request: POST /content
+✅ Confluence API Response: 200 OK
+✅ Page created: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD (ID: 30146574)
+✅ ✅ Page state updated from API response
+ℹ️ 📋 Page ID stored internally: 30146574
+ℹ️ Starting image attachment upload...
+ℹ️ Uploading image attachments to page: 30146574
+ℹ️ Found 1 image files to upload
+📤 Uploading image: 20250523_102513.jpg
+🔍 Uploading file: 20250523_102513.jpg to page: 30146574
+🔗 Confluence API Request: GET /content/30146574
+✅ Confluence API Response: 200 OK
+✅ Page verified: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD (ID: 30146574)
+🔍 Upload path: https://raghuvardhan07.atlassian.net/wiki/rest/api/content/30146574/child/attachment
+✅ Successfully uploaded: 20250523_102513.jpg
+✅ All images uploaded successfully: 1
+✅ Successfully uploaded 1 image attachments
+ℹ️ Processing 1 GraphViz diagrams...
+ℹ️ Processing 1 GraphViz diagrams
+🎨 Processing GraphViz diagram: Processing diagram: Multi-type Diagram
+🎨 Processing GraphViz diagram: Rendering diagram: Multi_type_Diagram_2025-05-29T16-24-10-071Z.png
+🔍 DOT code length: 785 characters
+🔍 Found 5 nodes: [
+  'Darwinbox',
+  'Filter Inactive & Active Employees',
+  'Exclude Pending & Missing Fields',
+  'Employee Data',
+  'Visteon HR Term Bot'
+]
+🔍 Added rank constraints for vertical wrapping
+🔍 Preprocessed DOT code with vertical layout improvements
+🔍 Processed DOT code: digraph integration_flow {
+    rankdir=LR;
+    node [shape=box, style=rounded];
+    edge [fontname="Arial", fontsize=10, color=darkgray, penwidth=2];
+    
+    // Define nodes
+    "Darwinbox" [color=lightblue];
+    "Filter Inactive & Active Employees" [color=lightgreen];
+    "Exclude Pending & Missing Fields" [color=lightgreen];
+    "Visteon HR Term Bot" [color=lightblue];
+    "Employee Data" [color=lightyellow];
+    
+    // Define edges
+    "Darwinbox" -> "Filter Inactive & Active Employees" [label="Retrieve Employee Data"];
+    "Filter Inactive & Active Employees" -> "Exclude Pending & Missing Fields" [label="Filter Employees (Date of Exit ≥ 1st Jan 2020)"];
+    "Exclude Pending & Missing Fields" -> "Employee Data" [label="Exclude Pending Profiles & Missing Fields"];
+    "Employee Data" -> "Visteon HR Term Bot" [label="Send Employee Data"];
+
+    { rank=same; Darwinbox; "Filter Inactive & Active Employees"; "Exclude Pending & Missing Fields"; }
+    { rank=same; "Employee Data"; "Visteon HR Term Bot"; }
+}
+✅ SVG generated successfully (5470 chars)
+✅ PNG image generated: 22467 bytes (1200x900)
+🔍 Uploading file: Multi_type_Diagram_2025-05-29T16-24-10-071Z.png to page: 30146574
+🔗 Confluence API Request: GET /content/30146574
+✅ Confluence API Response: 200 OK
+✅ Page verified: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD (ID: 30146574)
+🔍 Upload path: https://raghuvardhan07.atlassian.net/wiki/rest/api/content/30146574/child/attachment
+✅ Successfully uploaded: Multi_type_Diagram_2025-05-29T16-24-10-071Z.png
+✅ GraphViz diagram uploaded: Multi_type_Diagram_2025-05-29T16-24-10-071Z.png
+✅ Successfully processed 1 GraphViz diagrams
+ℹ️ Updating page content with rendered GraphViz diagrams...
+✅ Replaced GraphViz placeholder for: Multi-type Diagram (width: 1000px)
+🔗 Confluence API Request: PUT /content/30146574
+✅ Confluence API Response: 200 OK
+✅ Page updated: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD (ID: 30146574)
+✅ ✅ Page state updated from API response
+ℹ️ 📋 Page ID stored internally: 30146574
+✅ Page updated with GraphViz diagram images
+ℹ️ 📚 Added page to history: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD
+✅ New Confluence page created successfully
+🔗 Page URL: https://raghuvardhan07.atlassian.net/wiki/pages/viewpage.action?pageId=30146574
+📝 BRD history entry saved for: BRD-2025-05-29-geb7gc Visteon :: HR Term Bot - Integration BRD

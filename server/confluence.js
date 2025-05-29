@@ -6,6 +6,7 @@ const PageContentBuilder = require("./utils/PageContentBuilder");
 
 // Import attachment processing modules
 const ImageAttachmentProcessor = require("./attachments/ImageAttachmentProcessor");
+const CSVAttachmentProcessor = require("./attachments/CSVAttachmentProcessor");
 const GraphVizProcessor = require("./attachments/GraphVizProcessor");
 
 /**
@@ -161,6 +162,7 @@ class ConfluenceGenerator {
             this.pageStateManager.addToHistory(
                 { ...response.data, operation: "create" },
                 attachmentResults.imageUpload,
+                attachmentResults.csvUpload,
                 attachmentResults.graphvizUpload
             );
 
@@ -171,6 +173,7 @@ class ConfluenceGenerator {
                 "create",
                 this.config.spaceKey,
                 attachmentResults.imageUpload,
+                attachmentResults.csvUpload,
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
@@ -239,6 +242,7 @@ class ConfluenceGenerator {
                 "update",
                 this.config.spaceKey,
                 attachmentResults.imageUpload,
+                attachmentResults.csvUpload,
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
@@ -275,6 +279,27 @@ class ConfluenceGenerator {
             if (results.imageUpload.failed?.length > 0) {
                 Logger.warn(
                     `Failed to upload ${results.imageUpload.failed.length} image attachments`
+                );
+            }
+
+            // Process CSV attachments
+            Logger.info("Starting CSV attachment upload...");
+            results.csvUpload =
+                await CSVAttachmentProcessor.uploadCSVAttachments(
+                    this.apiClient.getClient(),
+                    this.pageStateManager.currentPageId,
+                    brdData,
+                    this.apiClient.getAuth()
+                );
+
+            if (results.csvUpload.uploaded?.length > 0) {
+                Logger.success(
+                    `Successfully uploaded ${results.csvUpload.uploaded.length} CSV attachments`
+                );
+            }
+            if (results.csvUpload.failed?.length > 0) {
+                Logger.warn(
+                    `Failed to upload ${results.csvUpload.failed.length} CSV attachments`
                 );
             }
         }

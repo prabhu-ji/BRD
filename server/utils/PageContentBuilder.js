@@ -31,13 +31,13 @@ class PageContentBuilder {
         // Process generated sections
         const sections = brdData.sections || brdData.generatedContent || {};
         const technicalData = brdData.technicalData || {};
-        
+
         Logger.debug("Available sections:", Object.keys(sections));
         Logger.debug("Available technical data:", Object.keys(technicalData));
 
         for (const [sectionName, sectionContent] of Object.entries(sections)) {
             Logger.contentProcessing(sectionName, typeof sectionContent);
-            
+
             const sectionResult = this.generateSmartContent(
                 sectionName,
                 sectionContent,
@@ -49,7 +49,9 @@ class PageContentBuilder {
 
             // Track GraphViz diagrams for later processing
             if (sectionResult.diagram) {
-                Logger.graphvizProcessing(`Found GraphViz diagram in section: ${sectionName}`);
+                Logger.graphvizProcessing(
+                    `Found GraphViz diagram in section: ${sectionName}`
+                );
                 graphvizDiagrams.push(sectionResult.diagram);
             }
         }
@@ -66,28 +68,40 @@ class PageContentBuilder {
             content: content,
             graphvizDiagrams: graphvizDiagrams,
             sectionCount: Object.keys(sections).length,
-            hasGraphViz: graphvizDiagrams.length > 0
+            hasGraphViz: graphvizDiagrams.length > 0,
         };
     }
 
     /**
-     * Smart content generation with technical data integration
+     * Smart content generation with technical data integration - UPDATED FOR MULTI-TYPE SUPPORT
      * @param {string} key - Section key
-     * @param {*} value - Section content
+     * @param {*} value - Section content (can be new multi-type or legacy single-type)
      * @param {string} contentType - Optional content type
      * @param {Object} technicalData - Technical data
      * @returns {Object} Generated content result
      */
     generateSmartContent(key, value, contentType = null, technicalData = null) {
-        const detectedType = contentType || this.detectContentType(key, value);
+        Logger.contentProcessing(key, typeof value);
 
+        // Handle new multi-type structure from ai-generator.js
+        if (this.isMultiTypeStructure(value)) {
+            return this.generateMultiTypeContent(key, value, technicalData);
+        }
+
+        // Handle legacy single-type structure (backward compatibility)
+        const detectedType = contentType || this.detectContentType(key, value);
         let result = "";
         let diagramInfo = null;
 
         // Route content generation based on detected type
         switch (detectedType) {
-            case "text":
-                result = this.generateTextContent(key, value);
+            case "content":
+                if (value.text) {
+                    const textHtml = this.generateTextContentOnly(value.text);
+                    result = textHtml;
+                } else if (value.textFallback) {
+                    result = `<p><em>Content temporarily unavailable - fallback content used</em></p>\n`;
+                }
                 break;
             case "table":
                 result = this.generateTableContent(key, value);
@@ -95,7 +109,10 @@ class PageContentBuilder {
             case "diagram":
             case "graphviz":
                 const diagramResult = this.generateDiagramContent(key, value);
-                if (typeof diagramResult === "object" && diagramResult.isGraphviz) {
+                if (
+                    typeof diagramResult === "object" &&
+                    diagramResult.isGraphviz
+                ) {
                     result = diagramResult.content;
                     diagramInfo = {
                         diagramId: diagramResult.diagramId,
@@ -119,7 +136,10 @@ class PageContentBuilder {
 
         // Add technical data if available
         if (technicalData && Object.keys(technicalData).length > 0) {
-            const technicalContent = this.processTechnicalDataForSection(key, technicalData);
+            const technicalContent = this.processTechnicalDataForSection(
+                key,
+                technicalData
+            );
             result += technicalContent;
         }
 
@@ -130,7 +150,282 @@ class PageContentBuilder {
     }
 
     /**
-     * Detect content type for proper routing
+     * Check if value is the new multi-type structure from ai-generator.js
+     * @param {*} value - Value to check
+     * @returns {boolean} True if multi-type structure
+     */
+    isMultiTypeStructure(value) {
+        return (
+            value &&
+            typeof value === "object" &&
+            value.types &&
+            Array.isArray(value.types) &&
+            value.content &&
+            typeof value.content === "object"
+        );
+    }
+
+    /**
+     * Generate content for new multi-type structure
+     * @param {string} key - Section key
+     * @param {Object} value - Multi-type value structure
+     * @param {Object} technicalData - Technical data
+     * @returns {Object} Generated content result
+     */
+    generateMultiTypeContent(key, value, technicalData = null) {
+        Logger.info(
+            `Generating multi-type content for ${key} with types: [${value.types.join(
+                ", "
+            )}]`
+        );
+
+        let combinedContent = `<h3>${HtmlUtils.escapeHtml(key)}</h3>\n`;
+        let diagramInfo = null;
+        const { content } = value;
+
+        // Generate content for each type in order
+        for (const type of value.types) {
+            switch (type) {
+                case "content":
+                    if (content.text) {
+                        const textHtml = this.generateTextContentOnly(
+                            content.text
+                        );
+                        combinedContent += textHtml;
+                    } else if (content.textFallback) {
+                        combinedContent += `<p><em>Content temporarily unavailable - fallback content used</em></p>\n`;
+                    }
+                    break;
+
+                case "image":
+                case "diagram":
+                    if (content.diagram) {
+                        const diagramResult = this.generateDiagramContentOnly(
+                            content.diagram
+                        );
+                        if (diagramResult.isGraphviz) {
+                            combinedContent += diagramResult.content;
+                            diagramInfo = {
+                                diagramId: diagramResult.diagramId,
+                                diagramName: diagramResult.diagramName,
+                                dotCode: diagramResult.dotCode,
+                            };
+                        } else {
+                            combinedContent += diagramResult.content;
+                        }
+                    }
+                    break;
+
+                case "table":
+                    if (content.table) {
+                        combinedContent += this.generateTableContentOnly(
+                            content.table
+                        );
+                    }
+                    break;
+
+                default:
+                    Logger.warn(
+                        `Unknown content type: ${type} in section ${key}`
+                    );
+                    break;
+            }
+        }
+
+        // Add technical data if available
+        if (technicalData && Object.keys(technicalData).length > 0) {
+            const technicalContent = this.processTechnicalDataForSection(
+                key,
+                technicalData
+            );
+            combinedContent += technicalContent;
+        }
+
+        // Log any errors from the multi-type generation
+        if (content.textError) {
+            Logger.warn(
+                `Text generation error in ${key}: ${content.textError}`
+            );
+        }
+        if (content.diagramError) {
+            Logger.warn(
+                `Diagram generation error in ${key}: ${content.diagramError}`
+            );
+        }
+        if (content.tableError) {
+            Logger.warn(
+                `Table generation error in ${key}: ${content.tableError}`
+            );
+        }
+
+        return {
+            content: combinedContent,
+            diagram: diagramInfo,
+        };
+    }
+
+    /**
+     * Generate text content without header (for multi-type sections)
+     * @param {string} textContent - Text content
+     * @returns {string} Generated HTML
+     */
+    generateTextContentOnly(textContent) {
+        if (typeof textContent === "string") {
+            // Clean up content - remove unwanted dashes and formatting
+            let cleanedContent = this.cleanContentFormatting(textContent);
+
+            // Check if content should be formatted as a list
+            if (this.shouldFormatAsList(cleanedContent)) {
+                return this.formatAsBulletList(cleanedContent);
+            } else {
+                // Format as paragraphs
+                return this.formatAsParagraphs(cleanedContent);
+            }
+        } else {
+            return `<p>${HtmlUtils.escapeHtml(String(textContent))}</p>\n`;
+        }
+    }
+
+    /**
+     * Generate diagram content without header (for multi-type sections)
+     * @param {Object} diagramContent - Diagram content object
+     * @returns {Object} Generated diagram result
+     */
+    generateDiagramContentOnly(diagramContent) {
+        let code = "";
+        let isGraphviz = false;
+
+        if (typeof diagramContent === "object" && diagramContent !== null) {
+            code = diagramContent.code || diagramContent.content || "";
+            // Check if it's GraphViz content
+            if (
+                diagramContent.format === "dot" ||
+                code.includes("digraph") ||
+                code.includes("->")
+            ) {
+                isGraphviz = true;
+            }
+        } else if (typeof diagramContent === "string") {
+            code = diagramContent;
+            if (code.includes("digraph") || code.includes("->")) {
+                isGraphviz = true;
+            }
+        }
+
+        if (isGraphviz) {
+            const diagramId = `graphviz_${Date.now()}_${Math.random()
+                .toString(36)
+                .substring(2, 8)}`;
+            const content = `<!-- GRAPHVIZ_PLACEHOLDER_${diagramId}: ${Buffer.from(
+                code
+            ).toString("base64")} -->`;
+
+            return {
+                content,
+                isGraphviz: true,
+                diagramId,
+                diagramName: "Multi-type Diagram",
+                dotCode: code,
+            };
+        } else {
+            const content = `<ac:structured-macro ac:name="code">
+    <ac:parameter ac:name="language">text</ac:parameter>
+    <ac:parameter ac:name="title">Diagram</ac:parameter>
+    <ac:plain-text-body><![CDATA[${code}]]></ac:plain-text-body>
+</ac:structured-macro>`;
+
+            return { content, isGraphviz: false };
+        }
+    }
+
+    /**
+     * Generate table content without header (for multi-type sections)
+     * @param {*} tableContent - Table content
+     * @returns {string} Generated HTML
+     */
+    generateTableContentOnly(tableContent) {
+        if (typeof tableContent === "string") {
+            // If table content is a string, treat it as formatted text
+            return this.generateTextContentOnly(tableContent);
+        } else if (typeof tableContent === "object" && tableContent !== null) {
+            // If it's structured table data, generate table HTML
+            if (tableContent.headers && tableContent.data) {
+                return this.generateStructuredTable(tableContent);
+            } else {
+                // If it's some other object, stringify it safely
+                return `<p>${HtmlUtils.escapeHtml(
+                    JSON.stringify(tableContent, null, 2)
+                )}</p>\n`;
+            }
+        } else {
+            return `<p>${HtmlUtils.escapeHtml(String(tableContent))}</p>\n`;
+        }
+    }
+
+    /**
+     * Generate structured table HTML
+     * @param {Object} tableData - Table data with headers and rows
+     * @returns {string} Generated table HTML
+     */
+    generateStructuredTable(tableData) {
+        if (!tableData.headers || !tableData.data) {
+            return `<p style="color: #999;"><em>Invalid table data structure</em></p>\n`;
+        }
+
+        let content = `<table class="confluenceTable" style="max-width: 100%; border-collapse: collapse; margin: 10px 0;">
+<colgroup>`;
+
+        // Add column definitions
+        tableData.headers.forEach(() => {
+            content += `<col style="width: ${Math.floor(
+                100 / tableData.headers.length
+            )}%;" />`;
+        });
+
+        content += `</colgroup>
+<tbody>
+`;
+
+        // Add headers
+        content += "<tr>";
+        tableData.headers.forEach((header) => {
+            content += `<th class="confluenceTh" style="padding: 8px; font-size: 11px; text-align: left;">${HtmlUtils.escapeHtml(
+                String(header)
+            )}</th>`;
+        });
+        content += "</tr>\n";
+
+        // Add data rows
+        const rowsToShow = Array.isArray(tableData.data)
+            ? tableData.data.slice(0, 20)
+            : [];
+        rowsToShow.forEach((row) => {
+            content += "<tr>";
+            if (Array.isArray(row)) {
+                row.forEach((cell) => {
+                    content += `<td class="confluenceTd" style="padding: 8px; font-size: 11px;">${HtmlUtils.escapeHtml(
+                        String(cell || "")
+                    )}</td>`;
+                });
+            } else if (typeof row === "object" && row !== null) {
+                tableData.headers.forEach((header) => {
+                    const cellValue = row[header] || "";
+                    content += `<td class="confluenceTd" style="padding: 8px; font-size: 11px;">${HtmlUtils.escapeHtml(
+                        String(cellValue)
+                    )}</td>`;
+                });
+            }
+            content += "</tr>\n";
+        });
+
+        content += `</tbody>
+</table>
+`;
+        return content;
+    }
+
+    /**
+     * Detect content type for proper routing - ENHANCED FOR MULTI-TYPE SUPPORT
      * @param {string} key - Section key
      * @param {*} value - Section value
      * @returns {string} Detected content type
@@ -138,26 +433,88 @@ class PageContentBuilder {
     detectContentType(key, value) {
         if (!value) return "empty";
 
-        // Handle AI-generated objects with type field
+        // Handle new multi-type structure (this should be caught by isMultiTypeStructure first)
+        if (this.isMultiTypeStructure(value)) {
+            return "multi-type";
+        }
+
+        // Handle legacy AI-generated objects with type field
         if (typeof value === "object" && value !== null && value.type) {
-            return value.type;
+            // Check if this is a single-type section that has both legacy and multi-type fields
+            if (
+                value.types &&
+                Array.isArray(value.types) &&
+                value.types.length === 1
+            ) {
+                // This is a single-type section with backward compatibility
+                // Process as multi-type to get the full content
+                return "multi-type";
+            }
+
+            // Pure legacy single-type structure from old ai-generator
+            if (
+                value.type === "content" &&
+                (value.content || value.legacyContent)
+            ) {
+                return "content";
+            } else if (
+                value.type === "graphviz" &&
+                (value.code || value.content)
+            ) {
+                return "graphviz";
+            } else {
+                return value.type;
+            }
+        }
+
+        // Handle legacy backward compatibility structures
+        if (typeof value === "object" && value !== null) {
+            // Check for legacy graphviz structure
+            if (
+                value.code &&
+                (value.format === "dot" ||
+                    String(value.code).includes("digraph") ||
+                    String(value.code).includes("->"))
+            ) {
+                return "graphviz";
+            }
+
+            // Check for table data structure
+            if (value.headers && value.data) return "table";
+
+            // Check for other object structures
+            if (value.content && typeof value.content === "string") {
+                return "content";
+            }
+
+            return "object";
         }
 
         if (typeof value === "string") {
-            if (value.includes("*   ") || value.includes("\n*")) {
-                return "text";
+            // Check for GraphViz DOT notation
+            if (
+                value.includes("digraph") ||
+                value.includes("->") ||
+                value.includes("graph")
+            ) {
+                return "graphviz";
             }
-            return value.length > 100 ? "text" : "short_text";
+
+            // Check for list formatting
+            if (
+                value.includes("*   ") ||
+                value.includes("\n*") ||
+                value.includes("• ")
+            ) {
+                return "content";
+            }
+
+            return value.length > 100 ? "content" : "short_content";
         }
 
         if (Array.isArray(value)) {
             if (value.length === 0) return "empty";
             return this.isTableData(value) ? "table" : "list";
-        }
-
-        if (typeof value === "object" && value !== null) {
-            if (value.headers && value.data) return "table";
-            return "object";
         }
 
         return "unknown";
@@ -171,18 +528,20 @@ class PageContentBuilder {
      */
     processTechnicalDataForSection(sectionKey, technicalData) {
         Logger.info(`Processing technical data for section: "${sectionKey}"`);
-        
+
         // Try exact match first
         let sectionTechnicalData = technicalData[sectionKey];
 
         // If no exact match, try flexible matching
         if (!sectionTechnicalData) {
             const normalizedKey = this.normalizeKeyForMatching(sectionKey);
-            
+
             for (const [techKey, techData] of Object.entries(technicalData)) {
                 const normalizedTechKey = this.normalizeKeyForMatching(techKey);
                 if (normalizedKey === normalizedTechKey) {
-                    Logger.info(`Found matching technical data: "${sectionKey}" matches "${techKey}"`);
+                    Logger.info(
+                        `Found matching technical data: "${sectionKey}" matches "${techKey}"`
+                    );
                     sectionTechnicalData = techData;
                     break;
                 }
@@ -193,7 +552,10 @@ class PageContentBuilder {
             return "";
         }
 
-        return this.generateTechnicalFilesForSection(sectionKey, sectionTechnicalData);
+        return this.generateTechnicalFilesForSection(
+            sectionKey,
+            sectionTechnicalData
+        );
     }
 
     /**
@@ -203,18 +565,43 @@ class PageContentBuilder {
      * @returns {string} Generated content
      */
     generateTechnicalFilesForSection(sectionName, sectionTechnicalData) {
-        if (!sectionTechnicalData?.files || !Array.isArray(sectionTechnicalData.files)) {
+        if (
+            !sectionTechnicalData?.files ||
+            !Array.isArray(sectionTechnicalData.files)
+        ) {
             return "";
         }
 
         let content = "";
         sectionTechnicalData.files.forEach((file) => {
-            if (file.fileType === "csv" && file.tableData) {
-                content += this.generateCSVTable(file);
+            if (file.fileType === "csv") {
+                if (file.isAttachment) {
+                    // Generate attachment link for CSV files marked as attachments
+                    content += this.generateCSVAttachmentLink(file);
+                } else {
+                    // Generate embedded table for CSV files marked as embedded content
+                    content += this.generateCSVTable(file);
+                }
             } else if (file.fileType === "image") {
                 content += this.generateImageContent(file);
             }
         });
+
+        return content;
+    }
+
+    /**
+     * Generate CSV attachment link content
+     * @param {Object} file - CSV file object
+     * @returns {string} Generated attachment link HTML
+     */
+    generateCSVAttachmentLink(file) {
+        let content = `<p><ac:link><ri:attachment ri:filename="${HtmlUtils.escapeHtml(file.name)}" /><ac:plain-text-link-body><![CDATA[${HtmlUtils.escapeHtml(file.name)}]]></ac:plain-text-link-body></ac:link></p>`;
+
+        // Add description if available
+        if (file.description && file.description.trim()) {
+            content += `<p style="font-style: italic; font-size: 0.9em; color: #666; margin-top: 5px;">${HtmlUtils.escapeHtml(file.description)}</p>\n`;
+        }
 
         return content;
     }
@@ -226,7 +613,9 @@ class PageContentBuilder {
      */
     generateCSVTable(file) {
         if (!file.tableData?.headers || !file.tableData?.rows) {
-            return `<p style="color: #999;"><em>Table data format is invalid for ${HtmlUtils.escapeHtml(file.name)}</em></p>\n`;
+            return `<p style="color: #999;"><em>Table data format is invalid for ${HtmlUtils.escapeHtml(
+                file.name
+            )}</em></p>\n`;
         }
 
         let content = `<table class="confluenceTable" style="max-width: 100%; border-collapse: collapse; margin: 10px 0;">
@@ -234,7 +623,9 @@ class PageContentBuilder {
 
         // Add column definitions
         file.tableData.headers.forEach(() => {
-            content += `<col style="width: ${Math.floor(100 / file.tableData.headers.length)}%;" />`;
+            content += `<col style="width: ${Math.floor(
+                100 / file.tableData.headers.length
+            )}%;" />`;
         });
 
         content += `</colgroup>
@@ -244,7 +635,9 @@ class PageContentBuilder {
         // Add headers
         content += "<tr>";
         file.tableData.headers.forEach((header) => {
-            content += `<th class="confluenceTh" style="padding: 8px; font-size: 11px; text-align: left;">${HtmlUtils.escapeHtml(String(header))}</th>`;
+            content += `<th class="confluenceTh" style="padding: 8px; font-size: 11px; text-align: left;">${HtmlUtils.escapeHtml(
+                String(header)
+            )}</th>`;
         });
         content += "</tr>\n";
 
@@ -261,11 +654,14 @@ class PageContentBuilder {
                     cellValue = row[headerIndex] || "";
                 }
 
-                const displayValue = String(cellValue).length > 30
-                    ? String(cellValue).substring(0, 27) + "..."
-                    : String(cellValue);
+                const displayValue =
+                    String(cellValue).length > 30
+                        ? String(cellValue).substring(0, 27) + "..."
+                        : String(cellValue);
 
-                content += `<td class="confluenceTd" style="padding: 6px; font-size: 10px; border: 1px solid #ddd;">${HtmlUtils.escapeHtml(displayValue)}</td>`;
+                content += `<td class="confluenceTd" style="padding: 6px; font-size: 10px; border: 1px solid #ddd;">${HtmlUtils.escapeHtml(
+                    displayValue
+                )}</td>`;
             });
             content += "</tr>\n";
         });
@@ -281,7 +677,9 @@ class PageContentBuilder {
 
         // Add description
         if (file.description?.trim()) {
-            content += `<p style="font-style: italic; font-size: 0.9em; color: #666;">${HtmlUtils.escapeHtml(file.description)}</p>\n`;
+            content += `<p style="font-style: italic; font-size: 0.9em; color: #666;">${HtmlUtils.escapeHtml(
+                file.description
+            )}</p>\n`;
         }
 
         return content;
@@ -304,7 +702,7 @@ class PageContentBuilder {
         if (typeof actualContent === "string") {
             // Clean up content - remove unwanted dashes and formatting
             let cleanedContent = this.cleanContentFormatting(actualContent);
-            
+
             // Check if content should be formatted as a list
             if (this.shouldFormatAsList(cleanedContent)) {
                 content += this.formatAsBulletList(cleanedContent);
@@ -313,7 +711,9 @@ class PageContentBuilder {
                 content += this.formatAsParagraphs(cleanedContent);
             }
         } else {
-            content += `<p>${HtmlUtils.escapeHtml(String(actualContent))}</p>\n`;
+            content += `<p>${HtmlUtils.escapeHtml(
+                String(actualContent)
+            )}</p>\n`;
         }
 
         return content;
@@ -325,16 +725,18 @@ class PageContentBuilder {
      * @returns {string} Cleaned content
      */
     cleanContentFormatting(content) {
-        return content
-            // Remove standalone dashes that are not part of lists (not followed by space and content)
-            .replace(/^-\s*$/gm, '')
-            // Remove multiple consecutive dashes (but preserve single dashes with content)
-            .replace(/--+/g, '—')
-            // Remove leading dashes only if they're NOT followed by a space and content (i.e., not list items)
-            .replace(/^-(?!\s+\S)/gm, '')
-            // Clean up excessive whitespace
-            .replace(/\n\s*\n\s*\n/g, '\n\n')
-            .trim();
+        return (
+            content
+                // Remove standalone dashes that are not part of lists (not followed by space and content)
+                .replace(/^-\s*$/gm, "")
+                // Remove multiple consecutive dashes (but preserve single dashes with content)
+                .replace(/--+/g, "—")
+                // Remove leading dashes only if they're NOT followed by a space and content (i.e., not list items)
+                .replace(/^-(?!\s+\S)/gm, "")
+                // Clean up excessive whitespace
+                .replace(/\n\s*\n\s*\n/g, "\n\n")
+                .trim()
+        );
     }
 
     /**
@@ -343,25 +745,29 @@ class PageContentBuilder {
      * @returns {boolean} True if should be formatted as list
      */
     shouldFormatAsList(content) {
-        const lines = content.split('\n').filter(line => line.trim());
-        const listIndicators = lines.filter(line => {
+        const lines = content.split("\n").filter((line) => line.trim());
+        const listIndicators = lines.filter((line) => {
             const trimmed = line.trim();
             return trimmed.match(/^[\*\-•]\s+/) || trimmed.match(/^\d+\.\s+/);
         });
-        
-        const nonListLines = lines.filter(line => {
+
+        const nonListLines = lines.filter((line) => {
             const trimmed = line.trim();
             // Exclude list intro lines (ending with :) and actual list items
-            return !trimmed.match(/^[\*\-•]\s+/) && 
-                   !trimmed.match(/^\d+\.\s+/) && 
-                   !trimmed.endsWith(':');
+            return (
+                !trimmed.match(/^[\*\-•]\s+/) &&
+                !trimmed.match(/^\d+\.\s+/) &&
+                !trimmed.endsWith(":")
+            );
         });
-        
+
         // If we have list items and they make up most of the meaningful content, format as list
         // Allow for intro lines and minimal non-list content
-        return listIndicators.length > 0 && 
-               (listIndicators.length >= nonListLines.length || 
-                listIndicators.length > 2);
+        return (
+            listIndicators.length > 0 &&
+            (listIndicators.length >= nonListLines.length ||
+                listIndicators.length > 2)
+        );
     }
 
     /**
@@ -370,9 +776,9 @@ class PageContentBuilder {
      * @returns {string} Formatted HTML list
      */
     formatAsBulletList(content) {
-        const lines = content.split('\n').filter(line => line.trim());
-        let html = '';
-        
+        const lines = content.split("\n").filter((line) => line.trim());
+        let html = "";
+
         // First pass: separate intro/outro content from list items
         const introLines = [];
         const listItems = [];
@@ -384,11 +790,11 @@ class PageContentBuilder {
             const trimmed = line.trim();
             const bulletMatch = trimmed.match(/^[\*\-•]\s+(.+)/);
             const numberedMatch = trimmed.match(/^\d+\.\s+(.+)/);
-            
+
             if (bulletMatch || numberedMatch) {
                 if (!foundFirstListItem) foundFirstListItem = true;
                 const content = bulletMatch ? bulletMatch[1] : numberedMatch[1];
-                const type = bulletMatch ? 'bullet' : 'numbered';
+                const type = bulletMatch ? "bullet" : "numbered";
                 listItems.push({ content: content.trim(), type });
             } else if (trimmed) {
                 if (!foundFirstListItem) {
@@ -398,11 +804,11 @@ class PageContentBuilder {
                     // After list items started - could be outro or break in list
                     // Check if there are more list items ahead
                     const remainingLines = lines.slice(index + 1);
-                    const hasMoreListItems = remainingLines.some(line => {
+                    const hasMoreListItems = remainingLines.some((line) => {
                         const t = line.trim();
                         return t.match(/^[\*\-•]\s+/) || t.match(/^\d+\.\s+/);
                     });
-                    
+
                     if (!hasMoreListItems) {
                         outroLines.push(trimmed);
                     } else {
@@ -414,9 +820,11 @@ class PageContentBuilder {
         });
 
         // Generate intro content
-        introLines.forEach(line => {
-            if (line.endsWith(':')) {
-                html += `<p><strong>${HtmlUtils.escapeHtml(line)}</strong></p>\n`;
+        introLines.forEach((line) => {
+            if (line.endsWith(":")) {
+                html += `<p><strong>${HtmlUtils.escapeHtml(
+                    line
+                )}</strong></p>\n`;
             } else {
                 html += `<p>${HtmlUtils.escapeHtml(line)}</p>\n`;
             }
@@ -425,20 +833,24 @@ class PageContentBuilder {
         // Generate the consolidated list
         if (listItems.length > 0) {
             // Determine list type based on majority
-            const bulletItems = listItems.filter(item => item.type === 'bullet');
-            const numberedItems = listItems.filter(item => item.type === 'numbered');
+            const bulletItems = listItems.filter(
+                (item) => item.type === "bullet"
+            );
+            const numberedItems = listItems.filter(
+                (item) => item.type === "numbered"
+            );
             const useOrderedList = numberedItems.length > bulletItems.length;
-            const listTag = useOrderedList ? 'ol' : 'ul';
-            
+            const listTag = useOrderedList ? "ol" : "ul";
+
             html += `<${listTag}>\n`;
-            listItems.forEach(item => {
+            listItems.forEach((item) => {
                 html += `<li>${HtmlUtils.escapeHtml(item.content)}</li>\n`;
             });
             html += `</${listTag}>\n`;
         }
 
         // Generate outro content
-        outroLines.forEach(line => {
+        outroLines.forEach((line) => {
             html += `<p>${HtmlUtils.escapeHtml(line)}</p>\n`;
         });
 
@@ -451,16 +863,18 @@ class PageContentBuilder {
      * @returns {string} Formatted HTML paragraphs
      */
     formatAsParagraphs(content) {
-        let html = '';
-        
+        let html = "";
+
         // Split into paragraphs and process each one
-        const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim());
-        
-        paragraphs.forEach(paragraph => {
+        const paragraphs = content.split(/\n\s*\n/).filter((p) => p.trim());
+
+        paragraphs.forEach((paragraph) => {
             const trimmed = paragraph.trim();
             if (trimmed) {
                 // Handle multi-line paragraphs by joining lines with spaces
-                const cleanParagraph = trimmed.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+                const cleanParagraph = trimmed
+                    .replace(/\n/g, " ")
+                    .replace(/\s+/g, " ");
                 html += `<p>${HtmlUtils.escapeHtml(cleanParagraph)}</p>\n`;
             }
         });
@@ -475,15 +889,21 @@ class PageContentBuilder {
      */
     generateImageContent(file) {
         // Use more reasonable image width - 800px instead of 1200px
-        let content = `<p style="text-align: center;"><ac:image ac:width="800"><ri:attachment ri:filename="${HtmlUtils.escapeHtml(file.name)}" /></ac:image></p>`;
-        
+        let content = `<p style="text-align: center;"><ac:image ac:width="800"><ri:attachment ri:filename="${HtmlUtils.escapeHtml(
+            file.name
+        )}" /></ac:image></p>`;
+
         // Add description with better styling
         if (file.description && file.description.trim()) {
-            content += `<p style="text-align: center; font-size: 0.9em; color: #666; font-style: italic; margin-top: 5px;">${HtmlUtils.escapeHtml(file.description)}</p>\n`;
+            content += `<p style="text-align: center; font-size: 0.9em; color: #666; font-style: italic; margin-top: 5px;">${HtmlUtils.escapeHtml(
+                file.description
+            )}</p>\n`;
         } else {
-            content += `<p style="text-align: center; font-size: 0.9em; color: #666; font-style: italic; margin-top: 5px;">${HtmlUtils.escapeHtml(file.name)}</p>\n`;
+            content += `<p style="text-align: center; font-size: 0.9em; color: #666; font-style: italic; margin-top: 5px;">${HtmlUtils.escapeHtml(
+                file.name
+            )}</p>\n`;
         }
-        
+
         return content;
     }
 
@@ -502,14 +922,14 @@ class PageContentBuilder {
         }
 
         if (Array.isArray(listData)) {
-            content += '<ul>\n';
+            content += "<ul>\n";
             listData.forEach((item) => {
                 // Clean item content to remove unwanted dashes
-                let cleanItem = String(item).replace(/^-\s*/, '').trim();
+                let cleanItem = String(item).replace(/^-\s*/, "").trim();
                 content += `<li>${HtmlUtils.escapeHtml(cleanItem)}</li>\n`;
             });
-            content += '</ul>\n';
-        } else if (typeof listData === 'string') {
+            content += "</ul>\n";
+        } else if (typeof listData === "string") {
             // Handle string-based lists
             content += this.formatAsBulletList(listData);
         }
@@ -526,14 +946,21 @@ class PageContentBuilder {
     generateTableContent(key, value) {
         let content = `<h3>${HtmlUtils.escapeHtml(key)}</h3>\n`;
 
-        if (typeof value === "object" && value !== null && value.headers && value.data) {
+        if (
+            typeof value === "object" &&
+            value !== null &&
+            value.headers &&
+            value.data
+        ) {
             content += `<table class="confluenceTable">
 <tbody>
 `;
             // Headers
             content += "<tr>";
             value.headers.forEach((header) => {
-                content += `<th class="confluenceTh">${HtmlUtils.escapeHtml(header)}</th>`;
+                content += `<th class="confluenceTh">${HtmlUtils.escapeHtml(
+                    header
+                )}</th>`;
             });
             content += "</tr>\n";
 
@@ -543,12 +970,16 @@ class PageContentBuilder {
                     content += "<tr>";
                     if (Array.isArray(row)) {
                         row.forEach((cell) => {
-                            content += `<td class="confluenceTd">${HtmlUtils.escapeHtml(String(cell))}</td>`;
+                            content += `<td class="confluenceTd">${HtmlUtils.escapeHtml(
+                                String(cell)
+                            )}</td>`;
                         });
                     } else if (typeof row === "object") {
                         value.headers.forEach((header) => {
                             const cellValue = row[header] || "";
-                            content += `<td class="confluenceTd">${HtmlUtils.escapeHtml(String(cellValue))}</td>`;
+                            content += `<td class="confluenceTd">${HtmlUtils.escapeHtml(
+                                String(cellValue)
+                            )}</td>`;
                         });
                     }
                     content += "</tr>\n";
@@ -573,8 +1004,18 @@ class PageContentBuilder {
         let isGraphviz = false;
 
         if (typeof value === "object" && value !== null) {
-            code = value.content || value.code || value.diagram || value.graphviz || value.dot || "";
-            if (value.type === "graphviz" || code.includes("digraph") || code.includes("->")) {
+            code =
+                value.content ||
+                value.code ||
+                value.diagram ||
+                value.graphviz ||
+                value.dot ||
+                "";
+            if (
+                value.type === "graphviz" ||
+                code.includes("digraph") ||
+                code.includes("->")
+            ) {
                 isGraphviz = true;
             }
         } else if (typeof value === "string") {
@@ -585,8 +1026,13 @@ class PageContentBuilder {
         }
 
         if (isGraphviz) {
-            const diagramId = `graphviz_${key.replace(/[^a-zA-Z0-9]/g, "_")}_${Date.now()}`;
-            content += `<!-- GRAPHVIZ_PLACEHOLDER_${diagramId}: ${Buffer.from(code).toString("base64")} -->`;
+            const diagramId = `graphviz_${key.replace(
+                /[^a-zA-Z0-9]/g,
+                "_"
+            )}_${Date.now()}`;
+            content += `<!-- GRAPHVIZ_PLACEHOLDER_${diagramId}: ${Buffer.from(
+                code
+            ).toString("base64")} -->`;
 
             return {
                 content,
@@ -641,7 +1087,11 @@ class PageContentBuilder {
     isTableData(value) {
         if (!Array.isArray(value) || value.length === 0) return false;
 
-        if (typeof value[0] === "object" && value[0] !== null && !Array.isArray(value[0])) {
+        if (
+            typeof value[0] === "object" &&
+            value[0] !== null &&
+            !Array.isArray(value[0])
+        ) {
             const firstKeys = Object.keys(value[0]);
             return firstKeys.length > 1;
         }
@@ -782,7 +1232,9 @@ class PageContentBuilder {
         }
 
         if (!brdData.detailsTable) {
-            warnings.push("No detailsTable found - metadata section will be minimal");
+            warnings.push(
+                "No detailsTable found - metadata section will be minimal"
+            );
         }
 
         const sections = brdData.sections || brdData.generatedContent || {};
@@ -795,7 +1247,10 @@ class PageContentBuilder {
             errors,
             warnings,
             sectionCount: Object.keys(sections).length,
-            hasTechnicalData: !!(brdData.technicalData && Object.keys(brdData.technicalData).length > 0)
+            hasTechnicalData: !!(
+                brdData.technicalData &&
+                Object.keys(brdData.technicalData).length > 0
+            ),
         };
     }
 
@@ -807,33 +1262,39 @@ class PageContentBuilder {
     estimateComplexity(brdData) {
         const sections = brdData.sections || brdData.generatedContent || {};
         const technicalData = brdData.technicalData || {};
-        
+
         let complexity = {
             sectionCount: Object.keys(sections).length,
             technicalDataSections: Object.keys(technicalData).length,
             estimatedGraphVizDiagrams: 0,
             estimatedImages: 0,
-            estimatedTables: 0
+            estimatedTables: 0,
         };
 
         // Estimate content types
-        Object.values(sections).forEach(sectionContent => {
-            if (typeof sectionContent === 'object' && sectionContent !== null) {
-                if (sectionContent.type === 'graphviz' || sectionContent.type === 'diagram') {
+        Object.values(sections).forEach((sectionContent) => {
+            if (typeof sectionContent === "object" && sectionContent !== null) {
+                if (
+                    sectionContent.type === "graphviz" ||
+                    sectionContent.type === "diagram"
+                ) {
                     complexity.estimatedGraphVizDiagrams++;
-                } else if (sectionContent.type === 'table' || (sectionContent.headers && sectionContent.data)) {
+                } else if (
+                    sectionContent.type === "table" ||
+                    (sectionContent.headers && sectionContent.data)
+                ) {
                     complexity.estimatedTables++;
                 }
             }
         });
 
         // Count technical files
-        Object.values(technicalData).forEach(techData => {
+        Object.values(technicalData).forEach((techData) => {
             if (techData.files && Array.isArray(techData.files)) {
-                techData.files.forEach(file => {
-                    if (file.fileType === 'image') {
+                techData.files.forEach((file) => {
+                    if (file.fileType === "image") {
                         complexity.estimatedImages++;
-                    } else if (file.fileType === 'csv') {
+                    } else if (file.fileType === "csv") {
                         complexity.estimatedTables++;
                     }
                 });
@@ -841,16 +1302,19 @@ class PageContentBuilder {
         });
 
         // Calculate overall complexity score
-        complexity.score = (
+        complexity.score =
             complexity.sectionCount * 1 +
             complexity.technicalDataSections * 2 +
             complexity.estimatedGraphVizDiagrams * 3 +
             complexity.estimatedImages * 2 +
-            complexity.estimatedTables * 1.5
-        );
+            complexity.estimatedTables * 1.5;
 
-        complexity.level = complexity.score < 10 ? 'simple' : 
-                          complexity.score < 25 ? 'moderate' : 'complex';
+        complexity.level =
+            complexity.score < 10
+                ? "simple"
+                : complexity.score < 25
+                ? "moderate"
+                : "complex";
 
         return complexity;
     }
@@ -863,20 +1327,26 @@ class PageContentBuilder {
         const validation = this.validateBRDData(brdData);
         const complexity = this.estimateComplexity(brdData);
 
-        Logger.info(`BRD Analysis - Sections: ${complexity.sectionCount}, Complexity: ${complexity.level}`);
-        
+        Logger.info(
+            `BRD Analysis - Sections: ${complexity.sectionCount}, Complexity: ${complexity.level}`
+        );
+
         if (validation.warnings.length > 0) {
-            validation.warnings.forEach(warning => Logger.warn(warning));
+            validation.warnings.forEach((warning) => Logger.warn(warning));
         }
 
         if (complexity.estimatedGraphVizDiagrams > 0) {
-            Logger.info(`Expected ${complexity.estimatedGraphVizDiagrams} GraphViz diagrams to process`);
+            Logger.info(
+                `Expected ${complexity.estimatedGraphVizDiagrams} GraphViz diagrams to process`
+            );
         }
 
         if (complexity.estimatedImages > 0) {
-            Logger.info(`Expected ${complexity.estimatedImages} images to upload`);
+            Logger.info(
+                `Expected ${complexity.estimatedImages} images to upload`
+            );
         }
     }
 }
 
-module.exports = PageContentBuilder; 
+module.exports = PageContentBuilder;

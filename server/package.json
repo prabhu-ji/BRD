@@ -8,6 +8,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@hpcc-js/wasm-graphviz": "^1.7.0",
     "axios": "^1.9.0",
     "cheerio": "^1.0.0",

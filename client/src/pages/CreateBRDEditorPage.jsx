@@ -550,11 +550,21 @@ function CreateBRDEditorPage() {
           
           for (const fileObj of section.files) {
             if (fileObj.isAttachment) {
-                 processedTechnicalData[outputSectionKey].files.push({
-                    name: fileObj.file.name, type: fileObj.file.type, size: fileObj.file.size,
-                    description: fileObj.description, fileType: section.type, isAttachment: true,
-                    // For attachments, data might be handled differently or not sent as base64
-                 });
+                // FIXED: Include file data for attachments too (server needs it for upload)
+                const base64Data = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => resolve(e.target.result);
+                  reader.readAsDataURL(fileObj.file);
+                });
+                processedTechnicalData[outputSectionKey].files.push({
+                    name: fileObj.file.name,
+                    type: fileObj.file.type, 
+                    size: fileObj.file.size,
+                    data: base64Data,
+                    description: fileObj.description,
+                    fileType: section.type,
+                    isAttachment: true
+                });
             } else {
                 const base64Data = await new Promise((resolve) => {
                   const reader = new FileReader();
