@@ -1,5 +1,6 @@
 [
   {
+    "id": 1748172636585,
     "templateName": "Attendance Inbound Integration",
     "overview": [
       {
@@ -149,28 +150,18 @@
         "default": ""
       }
     ],
-    "technical": {
-      "upload_csv": true,
-      "upload_image": false,
-      "upload_doc": false,
-      "labels": {
-        "csv": "Data Mapping Table",
-        "image": "Upload Image",
-        "doc": "Upload Document"
-      }
-    },
     "outputs": {
-      "Purpose/Justification": [
-        "content"
+      "Data Mapping Table": [
+        "table"
       ],
-      "Integration Description and Overview": [
+      "Purpose/Justification": [
         "content"
       ],
       "Technical Design Specifications": [
         "content"
       ],
-      "Data Mapping Table": [
-        "table"
+      "Integration Description and Overview": [
+        "content"
       ],
       "Assumptions": [
         "content"
@@ -189,8 +180,7 @@
         "image",
         "content"
       ]
-    },
-    "id": 1748172636585
+    }
   },
   {
     "templateName": "Sample Check Template",

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { DocumentTextIcon, Cog6ToothIcon, DocumentPlusIcon, RectangleGroupIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, Cog6ToothIcon, DocumentPlusIcon, RectangleGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 function Navbar() {
   const location = useLocation();
@@ -29,6 +29,10 @@ function Navbar() {
             <NavLink to="/config" isActive={isActive('/config')}>
               <Cog6ToothIcon className="h-4 w-4 mr-1" />
               Config
+            </NavLink>
+            <NavLink to="/history" isActive={isActive('/history')}>
+              <ClockIcon className="h-4 w-4 mr-1" />
+              History
             </NavLink>
           </div>
         </div>
