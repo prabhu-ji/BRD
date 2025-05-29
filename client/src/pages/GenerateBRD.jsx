@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircleIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import {
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+} from "@heroicons/react/24/outline";
 import axios from "axios";
 
 // Constants
 const LOCAL_STORAGE_BRD_INPUT_KEY = "brd_generation_data";
 const LOCAL_STORAGE_LAST_RESULT_KEY = "brd_last_generated_result";
-const API_ENDPOINT_GENERATE_BRD = "http://localhost:5000/api/generate-brd-with-confluence";
+const API_ENDPOINT_GENERATE_BRD =
+    "http://localhost:5000/api/generate-brd-with-confluence";
 
 function GenerateBRD() {
     const navigate = useNavigate();
@@ -22,25 +26,52 @@ function GenerateBRD() {
     useEffect(() => {
         const loadData = async () => {
             try {
+                // Check URL parameters to distinguish between fresh generation and page refresh
+                const urlParams = new URLSearchParams(window.location.search);
+                const isNewGeneration = urlParams.get("new") === "true";
+
                 // First, check if we have a previous successful result
-                const lastResult = localStorage.getItem(LOCAL_STORAGE_LAST_RESULT_KEY);
-                const savedData = localStorage.getItem(LOCAL_STORAGE_BRD_INPUT_KEY);
-                
-                if (lastResult && savedData) {
+                const lastResult = localStorage.getItem(
+                    LOCAL_STORAGE_LAST_RESULT_KEY
+                );
+                const savedData = localStorage.getItem(
+                    LOCAL_STORAGE_BRD_INPUT_KEY
+                );
+
+                // Only show cached results if it's NOT a new generation request and we have recent data
+                if (!isNewGeneration && lastResult && savedData) {
                     try {
                         const parsedResult = JSON.parse(lastResult);
                         const parsedData = JSON.parse(savedData);
-                        
-                        // Check if the last result is successful and recent
-                        if (parsedResult.success) {
-                            setBrdData(parsedData);
-                            setGeneratedDoc(parsedResult);
-                            setStatus("success");
-                            setProgress(100);
-                            return; // Skip generation, show the existing result
+
+                        // Check if the last result is successful and recent (within 10 minutes)
+                        if (parsedResult.success && parsedResult.timestamp) {
+                            const resultTime = new Date(parsedResult.timestamp);
+                            const now = new Date();
+                            const timeDiff = (now - resultTime) / 1000 / 60; // minutes
+
+                            if (timeDiff <= 10) {
+                                // Only show if within 10 minutes
+                                setBrdData(parsedData);
+                                setGeneratedDoc(parsedResult);
+                                setStatus("success");
+                                setProgress(100);
+                                console.log(
+                                    "Showing cached result from",
+                                    parsedResult.timestamp
+                                );
+                                return; // Skip generation, show the existing result
+                            } else {
+                                console.log(
+                                    "Cached result too old, generating new BRD"
+                                );
+                            }
                         }
                     } catch (parseError) {
-                        console.warn("Failed to parse stored result, will proceed with new generation:", parseError);
+                        console.warn(
+                            "Failed to parse stored result, will proceed with new generation:",
+                            parseError
+                        );
                         // Continue with normal flow if parsing fails
                     }
                 }
@@ -50,19 +81,26 @@ function GenerateBRD() {
                     setBrdData(JSON.parse(savedData));
                 } else {
                     setStatus("error");
-                    setErrorMessage("No BRD data found. Please go back and fill out the form.");
+                    setErrorMessage(
+                        "No BRD data found. Please go back and fill out the form."
+                    );
                     return;
                 }
 
                 // Load Confluence configuration
-                const confluenceResponse = await axios.get("http://localhost:5000/api/config/confluence");
+                const confluenceResponse = await axios.get(
+                    "http://localhost:5000/api/config/confluence"
+                );
                 setConfluenceConfig(confluenceResponse.data);
-                
+
+                console.log("Starting new BRD generation...");
                 setStatus("generating");
             } catch (error) {
                 console.error("Error loading configuration:", error);
                 setStatus("error");
-                setErrorMessage("Failed to load configuration. Please try again.");
+                setErrorMessage(
+                    "Failed to load configuration. Please try again."
+                );
             }
         };
 
@@ -88,14 +126,16 @@ function GenerateBRD() {
             return new File([byteArray], fileName, { type: mimeType });
         } catch (e) {
             console.error("Error in base64ToFile:", e);
-            throw new Error(`Failed to decode file data for ${fileName}. Ensure the file data is valid.`);
+            throw new Error(
+                `Failed to decode file data for ${fileName}. Ensure the file data is valid.`
+            );
         }
     };
 
     const generateBRD = async () => {
         // Initialize abort controller for this generation
         abortControllerRef.current = new AbortController();
-        
+
         try {
             setProgress(5);
 
@@ -105,44 +145,69 @@ function GenerateBRD() {
             formData.append("businessUseCase", brdData.businessUseCase);
             formData.append("businessLogic", brdData.businessLogic);
             formData.append("outputs", JSON.stringify(brdData.outputs));
-            
+
             // Set publishToConfluence based on saved configuration
             const shouldPublish = confluenceConfig?.enabled === true;
-            formData.append("publishToConfluence", shouldPublish ? "true" : "false");
+            formData.append(
+                "publishToConfluence",
+                shouldPublish ? "true" : "false"
+            );
             formData.append("confluenceOptions", JSON.stringify({}));
 
             // Add technical data if available
             if (brdData.technicalData) {
-                formData.append("technicalData", JSON.stringify(brdData.technicalData));
+                formData.append(
+                    "technicalData",
+                    JSON.stringify(brdData.technicalData)
+                );
             }
 
             // Handle legacy file data if present
             if (brdData.imageFileData) {
-                formData.append("image", base64ToFile(brdData.imageFileData.data, brdData.imageFileData.name, brdData.imageFileData.type));
+                formData.append(
+                    "image",
+                    base64ToFile(
+                        brdData.imageFileData.data,
+                        brdData.imageFileData.name,
+                        brdData.imageFileData.type
+                    )
+                );
             }
 
             if (brdData.docFileData) {
-                formData.append("doc", base64ToFile(brdData.docFileData.data, brdData.docFileData.name, brdData.docFileData.type));
+                formData.append(
+                    "doc",
+                    base64ToFile(
+                        brdData.docFileData.data,
+                        brdData.docFileData.name,
+                        brdData.docFileData.type
+                    )
+                );
             }
-            
+
             setProgress(10);
 
-            const response = await axios.post(API_ENDPOINT_GENERATE_BRD, formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-                signal: abortControllerRef.current.signal,
-                onUploadProgress: (progressEvent) => {
-                    const percentCompleted = Math.round(
-                        (progressEvent.loaded * 100) / (progressEvent.total || 1)
-                    );
-                    setProgress(10 + Math.min(percentCompleted * 0.3, 30));
-                },
-            });
-            
+            const response = await axios.post(
+                API_ENDPOINT_GENERATE_BRD,
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                    signal: abortControllerRef.current.signal,
+                    onUploadProgress: (progressEvent) => {
+                        const percentCompleted = Math.round(
+                            (progressEvent.loaded * 100) /
+                                (progressEvent.total || 1)
+                        );
+                        setProgress(10 + Math.min(percentCompleted * 0.3, 30));
+                    },
+                }
+            );
+
             setProgress(40);
 
             // Simulate backend processing progress
             const progressInterval = setInterval(() => {
-                setProgress(prev => {
+                setProgress((prev) => {
                     if (prev >= 95) {
                         clearInterval(progressInterval);
                         return 95;
@@ -160,7 +225,7 @@ function GenerateBRD() {
             if (response.data.success) {
                 setGeneratedDoc(response.data);
                 setStatus("success");
-                
+
                 // Store only essential result data for history (avoid localStorage quota issues)
                 try {
                     const essentialResult = {
@@ -169,39 +234,54 @@ function GenerateBRD() {
                         message: response.data.message,
                         fileName: response.data.fileName,
                         downloadUrl: response.data.downloadUrl,
-                        confluence: response.data.confluence ? {
-                            success: response.data.confluence.success,
-                            pageTitle: response.data.confluence.pageTitle,
-                            pageUrl: response.data.confluence.pageUrl,
-                            pageId: response.data.confluence.pageId,
-                            spaceKey: response.data.confluence.spaceKey
-                        } : null
+                        diagrams: response.data.diagrams || [], // Include diagram data for Mermaid code
+                        confluence: response.data.confluence
+                            ? {
+                                  success: response.data.confluence.success,
+                                  pageTitle: response.data.confluence.pageTitle,
+                                  pageUrl: response.data.confluence.pageUrl,
+                                  pageId: response.data.confluence.pageId,
+                                  spaceKey: response.data.confluence.spaceKey,
+                              }
+                            : null,
                     };
-                    localStorage.setItem(LOCAL_STORAGE_LAST_RESULT_KEY, JSON.stringify(essentialResult));
+                    localStorage.setItem(
+                        LOCAL_STORAGE_LAST_RESULT_KEY,
+                        JSON.stringify(essentialResult)
+                    );
                 } catch (storageError) {
-                    console.warn("Could not save result to localStorage:", storageError.message);
+                    console.warn(
+                        "Could not save result to localStorage:",
+                        storageError.message
+                    );
                     // Don't fail the entire operation if localStorage fails
                 }
             } else {
                 setStatus("error");
-                setErrorMessage(response.data.message || "Unknown error occurred");
+                setErrorMessage(
+                    response.data.message || "Unknown error occurred"
+                );
             }
         } catch (error) {
             if (error.name === "AbortError") {
                 console.log("Request was cancelled");
                 return;
             }
-            
+
             console.error("Generation error:", error);
             setStatus("error");
-            setErrorMessage(error.response?.data?.message || error.message || "Failed to generate BRD");
+            setErrorMessage(
+                error.response?.data?.message ||
+                    error.message ||
+                    "Failed to generate BRD"
+            );
         }
     };
 
     const handleCancelGeneration = async () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
-            setStatus("cancelled"); 
+            setStatus("cancelled");
             setErrorMessage("BRD generation has been cancelled by the user.");
             setProgress(0);
         }
@@ -233,19 +313,26 @@ function GenerateBRD() {
         setProgress(0);
         setErrorMessage("");
         setStatus("generating");
+
+        // Update URL to indicate new generation
+        window.history.replaceState(null, null, "/generate-brd?new=true");
     };
 
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-gray-900">Generate BRD</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                    Generate BRD
+                </h1>
             </div>
 
             <div className="card">
                 {status === "loading" && (
                     <div className="text-center py-12">
                         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Loading BRD data...</p>
+                        <p className="mt-4 text-gray-600">
+                            Loading BRD data...
+                        </p>
                     </div>
                 )}
 
@@ -274,7 +361,9 @@ function GenerateBRD() {
                             <ul className="space-y-2 text-sm">
                                 <li className="flex items-center">
                                     <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                                    <span>Analyzing business logic and use case</span>
+                                    <span>
+                                        Analyzing business logic and use case
+                                    </span>
                                 </li>
                                 <li className="flex items-center">
                                     <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
@@ -286,7 +375,9 @@ function GenerateBRD() {
                                     ) : (
                                         <div className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin mr-2"></div>
                                     )}
-                                    <span>Generating content for selected outputs</span>
+                                    <span>
+                                        Generating content for selected outputs
+                                    </span>
                                 </li>
                                 <li className="flex items-center">
                                     {progress >= 70 ? (
@@ -294,7 +385,10 @@ function GenerateBRD() {
                                     ) : (
                                         <div className="h-5 w-5 rounded-full border-2 border-gray-300 mr-2"></div>
                                     )}
-                                    <span>Formatting document with tables and images</span>
+                                    <span>
+                                        Formatting document with tables and
+                                        images
+                                    </span>
                                 </li>
                                 <li className="flex items-center">
                                     {progress >= 90 ? (
@@ -302,13 +396,17 @@ function GenerateBRD() {
                                     ) : (
                                         <div className="h-5 w-5 rounded-full border-2 border-gray-300 mr-2"></div>
                                     )}
-                                    <span>Finalizing document and preparing download</span>
+                                    <span>
+                                        Finalizing document and preparing
+                                        download
+                                    </span>
                                 </li>
                             </ul>
                         </div>
 
                         <p className="text-sm text-gray-600 mt-4">
-                            Please wait while we generate your BRD document. This process may take a few minutes.
+                            Please wait while we generate your BRD document.
+                            This process may take a few minutes.
                         </p>
 
                         <button
@@ -332,7 +430,8 @@ function GenerateBRD() {
                             Your BRD Document is Ready!
                         </h2>
                         <p className="text-center text-gray-600 mb-8">
-                            The document has been successfully generated and is ready for download.
+                            The document has been successfully generated and is
+                            ready for download.
                         </p>
 
                         {/* Show Confluence success message if published */}
@@ -345,16 +444,25 @@ function GenerateBRD() {
                                     </h3>
                                 </div>
                                 <p className="text-green-700 text-sm mb-3">
-                                    Your BRD has been successfully published to Confluence.
+                                    Your BRD has been successfully published to
+                                    Confluence.
                                 </p>
                                 <div className="space-y-1 text-sm">
                                     <div>
-                                        <span className="text-green-600 font-medium">Page Title:</span>{" "}
-                                        <span className="text-green-800">{generatedDoc.confluence.pageTitle}</span>
+                                        <span className="text-green-600 font-medium">
+                                            Page Title:
+                                        </span>{" "}
+                                        <span className="text-green-800">
+                                            {generatedDoc.confluence.pageTitle}
+                                        </span>
                                     </div>
                                     <div>
-                                        <span className="text-green-600 font-medium">Space:</span>{" "}
-                                        <span className="text-green-800">{generatedDoc.confluence.spaceKey}</span>
+                                        <span className="text-green-600 font-medium">
+                                            Space:
+                                        </span>{" "}
+                                        <span className="text-green-800">
+                                            {generatedDoc.confluence.spaceKey}
+                                        </span>
                                     </div>
                                 </div>
                                 <a
@@ -369,13 +477,16 @@ function GenerateBRD() {
                         )}
 
                         <div className="flex justify-center space-x-4">
-                            <button 
-                                onClick={regenerateBRD} 
+                            <button
+                                onClick={regenerateBRD}
                                 className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
                             >
                                 Generate New
                             </button>
-                            <button onClick={createNewBRD} className="btn btn-secondary">
+                            <button
+                                onClick={createNewBRD}
+                                className="btn btn-secondary"
+                            >
                                 Create Another BRD
                             </button>
                         </div>
@@ -385,7 +496,9 @@ function GenerateBRD() {
                 {status === "error" && (
                     <div className="text-center py-12">
                         <ExclamationCircleIcon className="h-16 w-16 text-red-500 mx-auto" />
-                        <p className="mt-4 text-xl font-semibold text-gray-800">Generation Failed</p>
+                        <p className="mt-4 text-xl font-semibold text-gray-800">
+                            Generation Failed
+                        </p>
                         <p className="mt-2 text-gray-600">{errorMessage}</p>
                         <div className="mt-6 space-x-3">
                             <button
@@ -407,10 +520,12 @@ function GenerateBRD() {
                 {status === "cancelled" && (
                     <div className="text-center py-12">
                         <ExclamationCircleIcon className="h-16 w-16 text-yellow-500 mx-auto" />
-                        <p className="mt-4 text-xl font-semibold text-gray-800">Generation Cancelled</p>
+                        <p className="mt-4 text-xl font-semibold text-gray-800">
+                            Generation Cancelled
+                        </p>
                         <p className="mt-2 text-gray-600">{errorMessage}</p>
                         <div className="mt-6 space-x-3">
-                             <button
+                            <button
                                 onClick={retryGeneration}
                                 className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
                             >

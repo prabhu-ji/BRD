@@ -383,14 +383,16 @@ let confluenceGenerator;
 try {
     const configPath = path.join(__dirname, "config", "confluence.json");
     let confluenceConfig = {};
-    
+
     if (fs.existsSync(configPath)) {
         confluenceConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
         console.log("📄 Loaded Confluence configuration from file");
     } else {
-        console.log("⚠️ No Confluence configuration file found, using environment variables");
+        console.log(
+            "⚠️ No Confluence configuration file found, using environment variables"
+        );
     }
-    
+
     confluenceGenerator = new ConfluenceGenerator(confluenceConfig);
 } catch (error) {
     console.error("❌ Error loading Confluence configuration:", error);
@@ -470,7 +472,6 @@ app.post("/api/confluence/create", async (req, res) => {
                 message: "BRD data is required",
             });
         }
-        console.log(brdData);
 
         const result = await confluenceGenerator.createBRDPage(
             brdData,
@@ -642,24 +643,32 @@ app.post(
             }
 
             const shouldPublishToConfluence = publishToConfluence === "true";
-            
+
             // Fallback: Check saved Confluence configuration if client didn't request publishing
             let actuallyPublishToConfluence = shouldPublishToConfluence;
             if (!shouldPublishToConfluence) {
                 try {
-                    const configPath = path.join(__dirname, "config", "confluence.json");
+                    const configPath = path.join(
+                        __dirname,
+                        "config",
+                        "confluence.json"
+                    );
                     if (fs.existsSync(configPath)) {
-                        const savedConfluenceConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+                        const savedConfluenceConfig = JSON.parse(
+                            fs.readFileSync(configPath, "utf8")
+                        );
                         if (savedConfluenceConfig.enabled === true) {
                             actuallyPublishToConfluence = true;
-                            console.log("📄 Using saved Confluence configuration to enable publishing...");
+                            console.log(
+                                "📄 Using saved Confluence configuration to enable publishing..."
+                            );
                         }
                     }
                 } catch (error) {
                     console.error("Error reading Confluence config:", error);
                 }
             }
-            
+
             const confluenceOpts = JSON.parse(confluenceOptions);
 
             // Parse technical data if it exists
