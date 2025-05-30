@@ -1,99 +1,57 @@
-const { Graphviz } = require("@hpcc-js/wasm-graphviz");
 const AttachmentUploader = require("./AttachmentUploader");
 const Logger = require("../utils/Logger");
 
 /**
- * Handles GraphViz diagram processing, rendering, and uploading
+ * Handles GraphViz diagram processing, rendering, and uploading (MOCK VERSION)
+ * Returns dummy data instead of actual GraphViz processing
  */
 class GraphVizProcessor {
     /**
-     * Render GraphViz DOT code to PNG image
+     * Render GraphViz DOT code to PNG image (MOCK)
      * @param {string} dotCode - DOT code to render
      * @param {string} filename - Target filename
-     * @returns {Promise<Object>} - Render result with buffer
+     * @returns {Promise<Object>} - Mock render result with dummy buffer
      */
     static async renderToImage(dotCode, filename) {
         try {
-            Logger.graphvizProcessing(`Rendering diagram: ${filename}`);
-            Logger.debug(`DOT code length: ${dotCode.length} characters`);
-
-            // Preprocess DOT code to improve layout
-            const processedDotCode = this.preprocessDotCode(dotCode);
-            Logger.debug("Processed DOT code:", processedDotCode);
-
-            // Initialize GraphViz renderer
-            const graphviz = await Graphviz.load();
-
-            // Render DOT code to SVG
-            const svgResult = graphviz.dot(processedDotCode, "svg");
-            Logger.success(
-                `SVG generated successfully (${svgResult.length} chars)`
+            Logger.graphvizProcessing(`[MOCK] Rendering diagram: ${filename}`);
+            Logger.debug(
+                `[MOCK] DOT code length: ${dotCode.length} characters`
             );
 
-            // Convert SVG to PNG using Sharp with better sizing
-            const sharp = require("sharp");
+            // Create a dummy PNG buffer (1x1 transparent pixel)
+            const dummyPngBuffer = Buffer.from([
+                0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+                0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x03, 0x20,
+                0x00, 0x00, 0x02, 0x58, 0x08, 0x06, 0x00, 0x00, 0x00, 0x5a,
+                0x7d, 0x85, 0x6f, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+                0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00,
+                0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+                0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+            ]);
 
-            // First, get SVG metadata to calculate proper dimensions
-            const svgBuffer = Buffer.from(svgResult);
-            const metadata = await sharp(svgBuffer).metadata();
-
-            // Calculate optimal dimensions with minimum sizes for readability
-            let targetWidth = 1200; // Increased minimum width
-            let targetHeight = 900; // Increased minimum height
-
-            if (metadata.width && metadata.height) {
-                const aspectRatio = metadata.width / metadata.height;
-
-                // Ensure minimum readable size
-                const minWidth = 800;
-                const minHeight = 600;
-
-                if (aspectRatio > 2) {
-                    // Wide diagram - force more square proportions
-                    targetWidth = Math.max(1200, metadata.width * 0.8);
-                    targetHeight = Math.max(900, targetWidth / 1.5);
-                } else if (aspectRatio < 0.7) {
-                    // Tall diagram
-                    targetHeight = Math.max(1200, metadata.height * 0.8);
-                    targetWidth = Math.max(800, targetHeight * 0.8);
-                } else {
-                    // Normal aspect ratio - ensure good minimum size
-                    targetWidth = Math.max(minWidth, metadata.width * 1.2);
-                    targetHeight = Math.max(minHeight, metadata.height * 1.2);
-                }
-            }
-
-            const pngBuffer = await sharp(svgBuffer)
-                .png({
-                    quality: 95,
-                    compressionLevel: 6,
-                })
-                .resize(Math.round(targetWidth), Math.round(targetHeight), {
-                    fit: "inside",
-                    withoutEnlargement: false,
-                    kernel: sharp.kernel.lanczos3,
-                    background: { r: 255, g: 255, b: 255, alpha: 1 },
-                })
-                .toBuffer();
+            const targetWidth = 800;
+            const targetHeight = 600;
 
             Logger.success(
-                `PNG image generated: ${pngBuffer.length} bytes (${Math.round(
-                    targetWidth
-                )}x${Math.round(targetHeight)})`
+                `[MOCK] PNG image generated: ${dummyPngBuffer.length} bytes (${targetWidth}x${targetHeight})`
             );
 
             return {
                 success: true,
-                buffer: pngBuffer,
+                buffer: dummyPngBuffer,
                 format: "png",
-                size: pngBuffer.length,
+                size: dummyPngBuffer.length,
                 dimensions: {
-                    width: Math.round(targetWidth),
-                    height: Math.round(targetHeight),
+                    width: targetWidth,
+                    height: targetHeight,
                 },
             };
         } catch (error) {
-            Logger.error(`Error rendering GraphViz diagram:`, error.message);
+            Logger.error(
+                `[MOCK] Error rendering GraphViz diagram:`,
+                error.message
+            );
             return {
                 success: false,
                 error: error.message,
@@ -102,136 +60,33 @@ class GraphVizProcessor {
     }
 
     /**
-     * Preprocess DOT code to improve layout and prevent thin diagrams
+     * Preprocess DOT code (MOCK - just returns the input)
      * @param {string} dotCode - Original DOT code
-     * @returns {string} Processed DOT code
+     * @returns {string} Processed DOT code (unchanged in mock)
      */
     static preprocessDotCode(dotCode) {
-        let processed = dotCode.trim();
-
-        // Add graph attributes for better layout if not present
-        if (!processed.includes("rankdir") && !processed.includes("graph [")) {
-            // Force top-to-bottom layout for better vertical wrapping
-            processed = processed.replace(
-                /(digraph\s+\w*\s*{)/i,
-                "$1\n    graph [rankdir=TB, splines=ortho, nodesep=1.2, ranksep=1.5, concentrate=true];"
-            );
-        }
-
-        // Add node attributes for better appearance and size if not present
-        if (!processed.includes("node [")) {
-            processed = processed.replace(
-                /(graph \[.*?\];)/i,
-                '$1\n    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial", fontsize=12, width=2.0, height=0.8, fixedsize=false];'
-            );
-        }
-
-        // Add edge attributes if not present
-        if (!processed.includes("edge [")) {
-            processed = processed.replace(
-                /(node \[.*?\];)/i,
-                '$1\n    edge [fontname="Arial", fontsize=10, color=darkgray, penwidth=2];'
-            );
-        }
-
-        // Force vertical wrapping by analyzing the structure and adding rank constraints
-        processed = this.addVerticalWrapping(processed);
-
-        Logger.debug("Preprocessed DOT code with vertical layout improvements");
-        return processed;
+        Logger.debug("[MOCK] Preprocessed DOT code (no actual processing)");
+        return dotCode.trim();
     }
 
     /**
-     * Add vertical wrapping constraints to prevent thin horizontal layouts
+     * Add vertical wrapping constraints (MOCK - just returns the input)
      * @param {string} dotCode - DOT code to process
-     * @returns {string} DOT code with wrapping constraints
+     * @returns {string} DOT code (unchanged in mock)
      */
     static addVerticalWrapping(dotCode) {
-        // Extract actual node names from edges and node declarations
-        const nodes = new Set();
-
-        // Find all edges (node1 -> node2)
-        const edgeMatches = dotCode.match(
-            /(\w+|\".+?\")\s*->\s*(\w+|\".+?\")/g
-        );
-        if (edgeMatches) {
-            edgeMatches.forEach((edge) => {
-                const parts = edge.split("->").map((part) => part.trim());
-                parts.forEach((part) => {
-                    // Remove quotes and clean up node names
-                    const cleanNode = part.replace(/[\"]/g, "").trim();
-                    if (
-                        cleanNode &&
-                        !cleanNode.includes("[") &&
-                        !cleanNode.includes("=")
-                    ) {
-                        nodes.add(cleanNode);
-                    }
-                });
-            });
-        }
-
-        // Find standalone node declarations
-        const nodeDeclarations = dotCode.match(
-            /^\s*(\w+|\".+?\")\s*(\[.*?\])?\s*;?\s*$/gm
-        );
-        if (nodeDeclarations) {
-            nodeDeclarations.forEach((decl) => {
-                const nodeMatch = decl.match(/^\s*(\w+|\".+?\")/);
-                if (nodeMatch) {
-                    const cleanNode = nodeMatch[1].replace(/[\"]/g, "").trim();
-                    if (
-                        cleanNode &&
-                        !cleanNode.includes("graph") &&
-                        !cleanNode.includes("node") &&
-                        !cleanNode.includes("edge") &&
-                        !cleanNode.includes("=")
-                    ) {
-                        nodes.add(cleanNode);
-                    }
-                }
-            });
-        }
-
-        const nodeArray = Array.from(nodes);
-        Logger.debug(`Found ${nodeArray.length} nodes:`, nodeArray);
-
-        // If we have more than 3 nodes, add rank constraints to force wrapping
-        if (nodeArray.length > 3) {
-            let rankConstraints = "";
-            const maxNodesPerRank = 3;
-
-            for (let i = 0; i < nodeArray.length; i += maxNodesPerRank) {
-                const rankNodes = nodeArray.slice(i, i + maxNodesPerRank);
-                if (rankNodes.length > 1) {
-                    // Quote node names that contain spaces
-                    const quotedNodes = rankNodes.map((node) =>
-                        node.includes(" ") ? `"${node}"` : node
-                    );
-                    rankConstraints += `\n    { rank=same; ${quotedNodes.join(
-                        "; "
-                    )}; }`;
-                }
-            }
-
-            // Insert rank constraints before the closing brace
-            if (rankConstraints) {
-                dotCode = dotCode.replace(/}\s*$/, `${rankConstraints}\n}`);
-                Logger.debug("Added rank constraints for vertical wrapping");
-            }
-        }
-
+        Logger.debug("[MOCK] Added vertical wrapping (no actual processing)");
         return dotCode;
     }
 
     /**
-     * Upload GraphViz diagram as image attachment
+     * Upload GraphViz diagram as image attachment (MOCK)
      * @param {Object} confluenceClient - Confluence API client
      * @param {string} pageId - Page ID to attach to
      * @param {string} dotCode - DOT code
      * @param {string} diagramName - Diagram name
      * @param {Object} auth - Authentication credentials
-     * @returns {Promise<Object>} - Upload result
+     * @returns {Promise<Object>} - Mock upload result
      */
     static async uploadDiagram(
         confluenceClient,
@@ -241,7 +96,9 @@ class GraphVizProcessor {
         auth
     ) {
         try {
-            Logger.graphvizProcessing(`Processing diagram: ${diagramName}`);
+            Logger.graphvizProcessing(
+                `[MOCK] Processing diagram: ${diagramName}`
+            );
 
             // Generate filename
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -250,45 +107,44 @@ class GraphVizProcessor {
                 "_"
             )}_${timestamp}.png`;
 
-            // Render the diagram
+            // Mock render the diagram
             const renderResult = await this.renderToImage(dotCode, filename);
 
             if (!renderResult.success) {
-                Logger.error(`Failed to render diagram: ${renderResult.error}`);
+                Logger.error(
+                    `[MOCK] Failed to render diagram: ${renderResult.error}`
+                );
                 return {
                     success: false,
                     error: `Failed to render diagram: ${renderResult.error}`,
                 };
             }
 
-            // Upload the image
-            const uploadResult = await AttachmentUploader.uploadFile(
-                confluenceClient,
-                pageId,
-                renderResult.buffer,
-                filename,
-                "image/png",
-                auth
-            );
+            // Mock upload the image
+            const mockUploadResult = {
+                success: true,
+                attachmentId: `mock-attachment-${Date.now()}`,
+                url: `/mock/attachments/${filename}`,
+            };
 
-            if (uploadResult.success) {
-                Logger.success(`GraphViz diagram uploaded: ${filename}`);
+            if (mockUploadResult.success) {
+                Logger.success(`[MOCK] GraphViz diagram uploaded: ${filename}`);
                 return {
                     success: true,
                     filename: filename,
-                    attachmentId: uploadResult.attachmentId,
-                    url: uploadResult.url,
+                    attachmentId: mockUploadResult.attachmentId,
+                    url: mockUploadResult.url,
                     size: renderResult.size,
                 };
             } else {
-                Logger.error(`Upload failed: ${uploadResult.error}`);
+                Logger.error(`[MOCK] Upload failed: ${mockUploadResult.error}`);
                 return {
                     success: false,
-                    error: `Upload error: ${uploadResult.error}`,
+                    error: `Upload error: ${mockUploadResult.error}`,
                 };
             }
         } catch (error) {
-            Logger.error(`Error in uploadDiagram:`, error.message);
+            Logger.error(`[MOCK] Error in uploadDiagram:`, error.message);
             return {
                 success: false,
                 error: error.message,
@@ -297,12 +153,12 @@ class GraphVizProcessor {
     }
 
     /**
-     * Process multiple GraphViz diagrams
+     * Process multiple GraphViz diagrams (MOCK)
      * @param {Object} confluenceClient - Confluence API client
      * @param {string} pageId - Page ID to attach to
      * @param {Array} diagrams - Array of diagram objects
      * @param {Object} auth - Authentication credentials
-     * @returns {Promise<Object>} - Processing results
+     * @returns {Promise<Object>} - Mock processing results
      */
     static async processMultipleDiagrams(
         confluenceClient,
@@ -313,7 +169,7 @@ class GraphVizProcessor {
         const processedDiagrams = [];
         const failedDiagrams = [];
 
-        Logger.info(`Processing ${diagrams.length} GraphViz diagrams`);
+        Logger.info(`[MOCK] Processing ${diagrams.length} GraphViz diagrams`);
 
         for (const diagram of diagrams) {
             try {
@@ -340,7 +196,7 @@ class GraphVizProcessor {
                 }
             } catch (error) {
                 Logger.error(
-                    `Error processing diagram ${diagram.diagramName}:`,
+                    `[MOCK] Error processing diagram ${diagram.diagramName}:`,
                     error.message
                 );
                 failedDiagrams.push({
@@ -354,15 +210,15 @@ class GraphVizProcessor {
             success: failedDiagrams.length === 0,
             diagrams: processedDiagrams,
             errors: failedDiagrams,
-            message: `Processed ${processedDiagrams.length}/${diagrams.length} diagrams successfully`,
+            message: `[MOCK] Processed ${processedDiagrams.length}/${diagrams.length} diagrams successfully`,
         };
     }
 
     /**
-     * Replace GraphViz placeholders in content with rendered diagram images
+     * Replace GraphViz placeholders in content with mock diagram images
      * @param {string} content - Content with placeholders
      * @param {Array} diagrams - Array of processed diagram objects
-     * @returns {string} - Updated content with image references
+     * @returns {string} - Updated content with mock image references
      */
     static replaceGraphvizPlaceholders(content, diagrams) {
         let updatedContent = content;
@@ -373,24 +229,9 @@ class GraphVizProcessor {
                 const placeholderPattern = `<!-- GRAPHVIZ_PLACEHOLDER_${diagramId}:[^>]*-->`;
                 const regex = new RegExp(placeholderPattern, "g");
 
-                // Determine optimal image width based on diagram dimensions
-                let imageWidth = 1000; // Increased default width for better readability
-                if (diagram.dimensions) {
-                    const aspectRatio =
-                        diagram.dimensions.width / diagram.dimensions.height;
-                    if (aspectRatio > 2) {
-                        // Wide diagram - use full width
-                        imageWidth = 1200;
-                    } else if (aspectRatio < 0.8) {
-                        // Tall diagram - use moderate width
-                        imageWidth = 800;
-                    } else {
-                        // Normal diagram - use good readable width
-                        imageWidth = 1000;
-                    }
-                }
+                const imageWidth = 1000; // Default width for mock
 
-                // Create modern Confluence image macro with proper sizing
+                // Create mock Confluence image macro
                 const imageContent = `
 <p style="text-align: center;">
 <ac:image ac:width="${imageWidth}">
@@ -398,16 +239,16 @@ class GraphVizProcessor {
 </ac:image>
 </p>
 <p style="text-align: center; font-size: 0.9em; color: #666; font-style: italic; margin-top: 5px;">
-${diagram.diagramName}
+${diagram.diagramName} [MOCK]
 </p>`;
 
                 updatedContent = updatedContent.replace(regex, imageContent);
                 Logger.success(
-                    `Replaced GraphViz placeholder for: ${diagram.diagramName} (width: ${imageWidth}px)`
+                    `[MOCK] Replaced GraphViz placeholder for: ${diagram.diagramName} (width: ${imageWidth}px)`
                 );
             } catch (error) {
                 Logger.error(
-                    `Error replacing placeholder for ${diagram.diagramName}:`,
+                    `[MOCK] Error replacing placeholder for ${diagram.diagramName}:`,
                     error.message
                 );
             }
@@ -417,9 +258,9 @@ ${diagram.diagramName}
     }
 
     /**
-     * Extract GraphViz diagrams from content generation results
+     * Extract GraphViz diagrams from content generation results (MOCK)
      * @param {Object} contentResult - Content generation result
-     * @returns {Array} - Array of GraphViz diagram objects
+     * @returns {Array} - Array of mock GraphViz diagram objects
      */
     static extractDiagrams(contentResult) {
         const diagrams = [];
@@ -431,13 +272,14 @@ ${diagram.diagramName}
             diagrams.push(...contentResult.graphvizDiagrams);
         }
 
+        Logger.info(`[MOCK] Extracted ${diagrams.length} GraphViz diagrams`);
         return diagrams;
     }
 
     /**
-     * Validate DOT code syntax
+     * Validate DOT code syntax (MOCK - always returns valid)
      * @param {string} dotCode - DOT code to validate
-     * @returns {Object} - Validation result
+     * @returns {Object} - Mock validation result (always valid)
      */
     static validateDotCode(dotCode) {
         try {
@@ -459,14 +301,7 @@ ${diagram.diagramName}
                 };
             }
 
-            // Check for balanced braces
-            const openBraces = (trimmed.match(/{/g) || []).length;
-            const closeBraces = (trimmed.match(/}/g) || []).length;
-
-            if (openBraces !== closeBraces) {
-                return { valid: false, error: "Unbalanced braces in DOT code" };
-            }
-
+            Logger.debug("[MOCK] DOT code validation passed");
             return { valid: true };
         } catch (error) {
             return { valid: false, error: error.message };
