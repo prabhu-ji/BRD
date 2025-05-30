@@ -9,7 +9,6 @@ import {
 } from '@heroicons/react/24/solid';
 import axios from 'axios';
 
-// Constants for card styling
 const CARD_BACKGROUNDS = [
   'bg-gradient-to-br from-sky-50 to-blue-100 border-sky-200',
   'bg-gradient-to-br from-purple-50 to-indigo-100 border-purple-200',
@@ -94,6 +93,7 @@ function CreateBRDPage() {
     );
   });
 
+  // Pagination logic for Templates
   const totalTemplatePages = Math.ceil(filteredTemplates.length / CARDS_PER_PAGE);
   const paginatedTemplates = filteredTemplates.slice(
     (currentTemplatesPage - 1) * CARDS_PER_PAGE,
@@ -103,9 +103,10 @@ function CreateBRDPage() {
   const handleTemplatesPageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalTemplatePages) {
       setCurrentTemplatesPage(newPage);
-      const templateSection = document.getElementById('template-section-anchor');
+      // Scroll to the top of the templates list when page changes
+      const templateSection = document.getElementById('template-section');
       if (templateSection) {
-        setTimeout(() => templateSection.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+        templateSection.scrollIntoView({ behavior: 'smooth' });
       }
     }
   };
@@ -168,9 +169,7 @@ function CreateBRDPage() {
           </div>
         </div>
         
-        <div id="template-section-anchor"></div>
-
-        <div>
+        <div id="template-section"> {/* Added ID for scrolling */}
           {templates.length > 0 && (
             <div className="my-2 flex justify-end items-center relative">
               {!showTemplateSearch ? (
@@ -183,7 +182,7 @@ function CreateBRDPage() {
                   <MagnifyingGlassIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
               ) : (
-                <div ref={searchInputRef} className="relative w-full max-w-sm transition-all duration-300 ease-in-out ml-auto">
+                <div ref={searchInputRef} className="relative w-full max-w-sm transition-all duration-300 ease-in-out">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                   </div>
@@ -192,13 +191,13 @@ function CreateBRDPage() {
                     name="templateSearch"
                     id="templateSearch"
                     value={templateSearchQuery}
-                    onChange={(e) => { setTemplateSearchQuery(e.target.value); setCurrentTemplatesPage(1); }}
+                    onChange={(e) => { setTemplateSearchQuery(e.target.value); setCurrentTemplatesPage(1); }} // Reset page on search
                     className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm"
                     placeholder="Search templates..."
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                         <button
-                      onClick={() => { setShowTemplateSearch(false); setTemplateSearchQuery(''); setCurrentTemplatesPage(1); }}
+                      onClick={() => { setShowTemplateSearch(false); setTemplateSearchQuery(''); setCurrentTemplatesPage(1); }} // Reset page on clear/close search
                       className="text-gray-400 hover:text-gray-600"
                       title="Clear and close search"
                         >
@@ -211,9 +210,9 @@ function CreateBRDPage() {
               )}
               
           <div className="mt-1">
-            {paginatedTemplates.length > 0 ? ( 
+            {paginatedTemplates.length > 0 ? ( // Check paginatedTemplates for display
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pb-4">
-                {paginatedTemplates.map((template, index) => {
+                {paginatedTemplates.map((template, index) => { // Use paginatedTemplates
                   const bgClass = CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length];
                   const textClass = CARD_TEXT_COLORS[index % CARD_TEXT_COLORS.length];
                   
@@ -243,6 +242,8 @@ function CreateBRDPage() {
                 })}
               </div>
             ) : (
+              // This condition now means (filteredTemplates.length === 0 && templateSearchQuery) or (templates.length === 0 initially)
+              // The initial templates.length === 0 case is handled above, so this mainly covers "no search results"
               templateSearchQuery && filteredTemplates.length === 0 && (
                 <div className="text-center py-8">
                   <MagnifyingGlassIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -252,6 +253,7 @@ function CreateBRDPage() {
               )
             )}
           </div>
+          {/* Pagination Controls for Templates */}
           {totalTemplatePages > 1 && (
             <div className="flex justify-between items-center mt-6 px-1 py-3 border-t border-gray-200">
               <div className="flex-1 flex justify-between sm:hidden">
