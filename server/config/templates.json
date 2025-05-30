@@ -410,6 +410,7 @@
     "id": 1748243542042
   },
   {
+    "id": 1748327347330,
     "templateName": "Test Template",
     "overview": [
       {
@@ -460,7 +461,7 @@
         "label": "Last updated by",
         "key": "Last updated by",
         "type": "input",
-        "default": "IN REVIEW"
+        "default": "Purab"
       },
       {
         "label": "Last date updated",
@@ -593,16 +594,6 @@
         "default": "DD/MM/YYYY"
       }
     ],
-    "technical": {
-      "upload_csv": true,
-      "upload_image": true,
-      "upload_doc": false,
-      "labels": {
-        "csv": "Table",
-        "image": "Image",
-        "doc": "Upload Document"
-      }
-    },
     "outputs": {
       "Purpose/Justification": [
         "content"
@@ -633,8 +624,7 @@
         "image",
         "content"
       ]
-    },
-    "id": 1748327347330
+    }
   },
   {
     "templateName": "New Template",

@@ -12,6 +12,7 @@ function HistoryPage() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalHistoryItems, setTotalHistoryItems] = useState(0);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -25,7 +26,9 @@ function HistoryPage() {
           },
         });
         setBrdHistory(response.data.brds || []);
-        setTotalPages(Math.ceil((response.data.totalItems || 0) / RECORDS_PER_PAGE));
+        const totalItems = response.data.totalItems || 0;
+        setTotalHistoryItems(totalItems);
+        setTotalPages(Math.ceil(totalItems / RECORDS_PER_PAGE));
       } catch (err) {
         console.error('Error fetching BRD history:', err);
         setError(err.response?.data?.message || 'Failed to load BRD history.');
@@ -131,27 +134,66 @@ function HistoryPage() {
         </div>
       )}
 
+      {/* Enhanced Pagination Controls for History */}
       {totalPages > 1 && (
-        <div className="mt-6 flex justify-between items-center">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center"
-          >
-            <ChevronLeftIcon className="h-5 w-5 mr-1" />
-            Previous
-          </button>
-          <span className="text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center"
-          >
-            Next
-            <ChevronRightIcon className="h-5 w-5 ml-1" />
-          </button>
+        <div className="flex justify-between items-center mt-6 px-4 py-3 border-t border-gray-200 sm:px-6 bg-white shadow-sm rounded-lg">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              <ChevronLeftIcon className="h-5 w-5 mr-1" />
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+              <ChevronRightIcon className="h-5 w-5 ml-1" />
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{(currentPage - 1) * RECORDS_PER_PAGE + 1}</span>
+                {' '}to <span className="font-medium">{Math.min(currentPage * RECORDS_PER_PAGE, totalHistoryItems)}</span>
+                {' '}of <span className="font-medium">{totalHistoryItems}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+                {[...Array(totalPages)].map((_, i) => (
+                    <button
+                        key={`history-page-${i+1}`}
+                        onClick={() => handlePageChange(i + 1)}
+                        aria-current={currentPage === i + 1 ? 'page' : undefined}
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${ currentPage === i + 1 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        {i + 1}
+                    </button>
+                ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </div>

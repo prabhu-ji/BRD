@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import Modal from '../components/Modal';
+
+const RECORDS_PER_PAGE = 10;
 
 function HomePage() {
   const [inputs, setInputs] = useState({});
@@ -16,11 +18,15 @@ function HomePage() {
   const [dropdownOptions, setDropdownOptions] = useState('');
   const [inputSearchTerm, setInputSearchTerm] = useState('');
   const [showAddInputForm, setShowAddInputForm] = useState(false);
+  const [editingInputKey, setEditingInputKey] = useState(null);
+  const [currentInputsPage, setCurrentInputsPage] = useState(1);
   
   const [newOutputKey, setNewOutputKey] = useState('');
   const [newOutputDescription, setNewOutputDescription] = useState('');
   const [outputSearchTerm, setOutputSearchTerm] = useState('');
   const [showAddOutputForm, setShowAddOutputForm] = useState(false);
+  const [editingOutputKey, setEditingOutputKey] = useState(null);
+  const [currentOutputsPage, setCurrentOutputsPage] = useState(1);
   const [newOutputValues, setNewOutputValues] = useState({
     image: false,
     table: false,
@@ -400,6 +406,19 @@ function HomePage() {
     return keyMatch || typeMatch || descriptionMatch;
   });
 
+  // Pagination logic for Inputs
+  const totalInputPages = Math.ceil(filteredInputs.length / RECORDS_PER_PAGE);
+  const paginatedInputs = filteredInputs.slice(
+    (currentInputsPage - 1) * RECORDS_PER_PAGE,
+    currentInputsPage * RECORDS_PER_PAGE
+  );
+
+  const handleInputsPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalInputPages) {
+      setCurrentInputsPage(newPage);
+    }
+  };
+
   const filteredOutputs = Object.entries(outputs).filter(([key, value]) => {
     const searchTermLower = outputSearchTerm.toLowerCase();
     const keyMatch = key.toLowerCase().includes(searchTermLower);
@@ -407,6 +426,19 @@ function HomePage() {
     const descriptionMatch = value && value.description && value.description.toLowerCase().includes(searchTermLower);
     return keyMatch || typesMatch || descriptionMatch;
   });
+
+  // Pagination logic for Outputs
+  const totalOutputPages = Math.ceil(filteredOutputs.length / RECORDS_PER_PAGE);
+  const paginatedOutputs = filteredOutputs.slice(
+    (currentOutputsPage - 1) * RECORDS_PER_PAGE,
+    currentOutputsPage * RECORDS_PER_PAGE
+  );
+
+  const handleOutputsPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalOutputPages) {
+      setCurrentOutputsPage(newPage);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -496,19 +528,30 @@ function HomePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredInputs.length > 0 ? (
-                  filteredInputs.map(([key, value]) => (
+                {paginatedInputs.length > 0 ? (
+                  paginatedInputs.map(([key, value]) => (
                     <tr key={key}>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{key}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatInputType(value)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        <input 
-                          type="text"
-                          value={value.description || ''}
-                          onChange={(e) => handleInputChange(key, 'description', e.target.value)}
-                          placeholder="Optional description"
-                          className="w-full p-1 border border-gray-300 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500"
-                        />
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-sm">
+                        {editingInputKey === key ? (
+                          <textarea
+                            value={value.description || ''}
+                            onChange={(e) => handleInputChange(key, 'description', e.target.value)}
+                            onBlur={() => setEditingInputKey(null)}
+                            className="w-full p-1 border border-blue-500 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500 h-auto resize-y min-h-[40px]"
+                            rows="3"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            onClick={() => setEditingInputKey(key)} 
+                            title={value.description || 'No description'} 
+                            className="truncate cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          >
+                            {value.description || <span className="italic text-gray-400">No description</span>}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         <button
@@ -524,12 +567,72 @@ function HomePage() {
                 ) : (
                   <tr>
                     <td colSpan="4" className="px-4 py-3 text-center text-sm text-gray-500 italic">
-                      No input fields match your search.
+                      {inputSearchTerm ? 'No input fields match your search.' : 'No input fields configured. Add your first input below.'}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          )}
+          {/* Pagination Controls for Inputs */}
+          {totalInputPages > 1 && (
+            <div className="flex justify-between items-center mt-4 px-4 py-3 border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handleInputsPageChange(currentInputsPage - 1)}
+                  disabled={currentInputsPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => handleInputsPageChange(currentInputsPage + 1)}
+                  disabled={currentInputsPage === totalInputPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{(currentInputsPage - 1) * RECORDS_PER_PAGE + 1}</span>
+                    {' '}to <span className="font-medium">{Math.min(currentInputsPage * RECORDS_PER_PAGE, filteredInputs.length)}</span>
+                    {' '}of <span className="font-medium">{filteredInputs.length}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handleInputsPageChange(currentInputsPage - 1)}
+                      disabled={currentInputsPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    {[...Array(totalInputPages)].map((_, i) => (
+                        <button
+                            key={`input-page-${i+1}`}
+                            onClick={() => handleInputsPageChange(i + 1)}
+                            aria-current={currentInputsPage === i + 1 ? 'page' : undefined}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${ currentInputsPage === i + 1 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                    <button
+                      onClick={() => handleInputsPageChange(currentInputsPage + 1)}
+                      disabled={currentInputsPage === totalInputPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
           )}
         </div>
         
@@ -580,13 +683,13 @@ function HomePage() {
             
             <div className="md:col-span-2">
               <label htmlFor="modalNewInputDescription" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-              <input
-                type="text"
+              <textarea
                 id="modalNewInputDescription"
                 value={newInputDescription}
                 onChange={(e) => setNewInputDescription(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 h-24 resize-y"
                 placeholder="Brief description of the field"
+                rows="3"
               />
             </div>
           </div>
@@ -675,21 +778,32 @@ function HomePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOutputs.length > 0 ? (
-                  filteredOutputs.map(([key, value]) => (
+                {paginatedOutputs.length > 0 ? (
+                  paginatedOutputs.map(([key, value]) => (
                     <tr key={key}>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{key}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {(value.types || []).join(', ').replace(/\b\w/g, l => l.toUpperCase())}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        <input 
-                          type="text"
-                          value={value.description || ''}
-                          onChange={(e) => handleOutputChange(key, 'description', e.target.value)}
-                          placeholder="Optional description"
-                          className="w-full p-1 border border-gray-300 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500"
-                        />
+                      <td className="px-4 py-3 text-sm text-gray-500 max-w-sm">
+                        {editingOutputKey === key ? (
+                          <textarea
+                            value={value.description || ''}
+                            onChange={(e) => handleOutputChange(key, 'description', e.target.value)}
+                            onBlur={() => setEditingOutputKey(null)}
+                            className="w-full p-1 border border-blue-500 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500 h-auto resize-y min-h-[40px]"
+                            rows="3"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            onClick={() => setEditingOutputKey(key)} 
+                            title={value.description || 'No description'} 
+                            className="truncate cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          >
+                            {value.description || <span className="italic text-gray-400">No description</span>}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         <button
@@ -705,12 +819,72 @@ function HomePage() {
                 ) : (
                   <tr>
                     <td colSpan="4" className="px-4 py-3 text-center text-sm text-gray-500 italic">
-                      No output sections match your search.
+                      {outputSearchTerm ? 'No output sections match your search.' : 'No output sections configured. Add your first output below.'}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          )}
+          {/* Pagination Controls for Outputs */}
+          {totalOutputPages > 1 && (
+            <div className="flex justify-between items-center mt-4 px-4 py-3 border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handleOutputsPageChange(currentOutputsPage - 1)}
+                  disabled={currentOutputsPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => handleOutputsPageChange(currentOutputsPage + 1)}
+                  disabled={currentOutputsPage === totalOutputPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing <span className="font-medium">{(currentOutputsPage - 1) * RECORDS_PER_PAGE + 1}</span>
+                    {' '}to <span className="font-medium">{Math.min(currentOutputsPage * RECORDS_PER_PAGE, filteredOutputs.length)}</span>
+                    {' '}of <span className="font-medium">{filteredOutputs.length}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handleOutputsPageChange(currentOutputsPage - 1)}
+                      disabled={currentOutputsPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    {[...Array(totalOutputPages)].map((_, i) => (
+                        <button
+                            key={`output-page-${i+1}`}
+                            onClick={() => handleOutputsPageChange(i + 1)}
+                            aria-current={currentOutputsPage === i + 1 ? 'page' : undefined}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${ currentOutputsPage === i + 1 ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                    <button
+                      onClick={() => handleOutputsPageChange(currentOutputsPage + 1)}
+                      disabled={currentOutputsPage === totalOutputPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
           )}
         </div>
         
@@ -764,13 +938,13 @@ function HomePage() {
             
             <div className="md:col-span-2">
               <label htmlFor="modalNewOutputDescription" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-              <input
-                type="text"
+              <textarea
                 id="modalNewOutputDescription"
                 value={newOutputDescription}
                 onChange={(e) => setNewOutputDescription(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 h-24 resize-y"
                 placeholder="Brief description of the output section"
+                rows="3"
               />
             </div>
           </div>
