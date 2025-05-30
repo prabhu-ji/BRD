@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ArrowUpTrayIcon, CheckCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import Modal from '../components/Modal';
 
 function HomePage() {
   const [inputs, setInputs] = useState({});
@@ -11,9 +12,15 @@ function HomePage() {
   
   const [newInputKey, setNewInputKey] = useState('');
   const [newInputType, setNewInputType] = useState('input');
+  const [newInputDescription, setNewInputDescription] = useState('');
   const [dropdownOptions, setDropdownOptions] = useState('');
+  const [inputSearchTerm, setInputSearchTerm] = useState('');
+  const [showAddInputForm, setShowAddInputForm] = useState(false);
   
   const [newOutputKey, setNewOutputKey] = useState('');
+  const [newOutputDescription, setNewOutputDescription] = useState('');
+  const [outputSearchTerm, setOutputSearchTerm] = useState('');
+  const [showAddOutputForm, setShowAddOutputForm] = useState(false);
   const [newOutputValues, setNewOutputValues] = useState({
     image: false,
     table: false,
@@ -51,8 +58,30 @@ function HomePage() {
           axios.get('/api/config/confluence').catch(e => ({data: null, error: e}))
         ]);
 
-        setInputs(inputsRes.data || {});
-        setOutputs(outputsRes.data || {});
+        // Ensure descriptions are initialized if not present
+        const processInputs = (data) => {
+          if (!data) return {};
+          return Object.entries(data).reduce((acc, [key, value]) => {
+            if (typeof value === 'string') {
+              acc[key] = { type: value, description: '' };
+            } else {
+              acc[key] = { ...value, description: value.description || '' };
+            }
+            return acc;
+          }, {});
+        };
+
+        const processOutputs = (data) => {
+            if (!data) return {};
+            return Object.entries(data).reduce((acc, [key, value]) => {
+                // Assuming value is an array of types, and we add a description property at the same level
+                acc[key] = { types: Array.isArray(value) ? value : (value.types || []), description: value.description || '' };
+                return acc;
+            }, {});
+        };
+
+        setInputs(processInputs(inputsRes.data));
+        setOutputs(processOutputs(outputsRes.data));
         
         if (confluenceRes.data) {
           setConfluenceConfig(confluenceRes.data);
@@ -67,11 +96,11 @@ function HomePage() {
         try {
           if (Object.keys(inputs).length === 0) {
             const savedInputs = localStorage.getItem('brd_inputs');
-            if (savedInputs) setInputs(JSON.parse(savedInputs));
+            if (savedInputs) setInputs(processInputs(JSON.parse(savedInputs)));
           }
           if (Object.keys(outputs).length === 0) {
             const savedOutputs = localStorage.getItem('brd_outputs');
-            if (savedOutputs) setOutputs(JSON.parse(savedOutputs));
+            if (savedOutputs) setOutputs(processOutputs(JSON.parse(savedOutputs)));
           }
           const savedConfluence = localStorage.getItem('brd_confluence_config');
           // Only set from localStorage if not already set from API or if API errored for confluence
@@ -234,7 +263,7 @@ function HomePage() {
       return;
     }
     
-    let value = newInputType;
+    let value;
     if (newInputType === 'dropdown_single' || newInputType === 'dropdown_multi') {
       if (!dropdownOptions.trim()) {
         setSavingStatus({ type: 'error', message: 'Please enter dropdown options' });
@@ -242,24 +271,31 @@ function HomePage() {
       }
       value = {
         type: newInputType,
-        options: dropdownOptions.split(',').map(opt => opt.trim()).filter(opt => opt !== '')
+        options: dropdownOptions.split(',').map(opt => opt.trim()).filter(opt => opt !== ''),
+        description: newInputDescription.trim()
       };
       
       if (value.options.length < 2) {
         setSavingStatus({ type: 'error', message: 'Please enter at least two options' });
         return;
       }
+    } else {
+      value = {
+        type: newInputType,
+        description: newInputDescription.trim()
+      };
     }
-    
-    setInputs(prev => ({
-      ...prev,
+
+    setInputs(prevInputs => ({
+      ...prevInputs,
       [newInputKey]: value
     }));
-    
     setNewInputKey('');
     setNewInputType('input');
+    setNewInputDescription('');
     setDropdownOptions('');
-    setSavingStatus({ type: 'success', message: 'Input added, remember to save your changes!' });
+    setDataChanged(prev => ({ ...prev, inputs: true }));
+    setShowAddInputForm(false);
   };
 
   const handleRemoveInput = (key) => {
@@ -277,37 +313,37 @@ function HomePage() {
       setSavingStatus({ type: 'error', message: validation.message });
       return;
     }
-    
-    const selectedValues = Object.entries(newOutputValues)
-      .filter(([_, selected]) => selected)
-      .map(([value]) => value);
-    
-    if (selectedValues.length === 0) {
-      setSavingStatus({ type: 'error', message: 'Please select at least one content type' });
+
+    const selectedTypes = Object.entries(newOutputValues)
+      .filter(([, isSelected]) => isSelected)
+      .map(([typeKey]) => typeKey);
+
+    if (selectedTypes.length === 0) {
+      setSavingStatus({ type: 'error', message: 'Please select at least one type for the output section (Image, Table, or Content).' });
       return;
     }
     
-    setOutputs(prev => ({
-      ...prev,
-      [newOutputKey]: selectedValues
+    setOutputs(prevOutputs => ({
+      ...prevOutputs,
+      [newOutputKey]: {
+        types: selectedTypes,
+        description: newOutputDescription.trim()
+      }
     }));
-    
     setNewOutputKey('');
-    setNewOutputValues({
-      image: false,
-      table: false,
-      content: false
-    });
-    setSavingStatus({ type: 'success', message: 'Output added, remember to save your changes!' });
+    setNewOutputDescription('');
+    setNewOutputValues({ image: false, table: false, content: false });
+    setDataChanged(prev => ({ ...prev, outputs: true }));
+    setShowAddOutputForm(false);
   };
 
   const handleRemoveOutput = (key) => {
-    setOutputs(prev => {
-      const newOutputs = { ...prev };
+    setOutputs(prevOutputs => {
+      const newOutputs = { ...prevOutputs };
       delete newOutputs[key];
       return newOutputs;
     });
-    setSavingStatus({ type: 'info', message: 'Output removed, remember to save your changes!' });
+    setDataChanged(prev => ({ ...prev, outputs: true }));
   };
 
   const toggleOutputValue = (value) => {
@@ -315,25 +351,62 @@ function HomePage() {
       ...prev,
       [value]: !prev[value]
     }));
+    setDataChanged(prev => ({ ...prev, inputs: true }));
+  };
+
+  const handleOutputChange = (key, field, value) => {
+    setOutputs(prevOutputs => ({
+      ...prevOutputs,
+      [key]: {
+        ...prevOutputs[key],
+        [field]: value
+      }
+    }));
+    setDataChanged(prev => ({ ...prev, outputs: true }));
   };
 
   // Format input type for display
-  const formatInputType = (type) => {
-    if (typeof type === 'object') {
-      const typeName = type.type === 'dropdown_single' ? 'Dropdown (Single)' : 'Dropdown (Multi)';
-      return `${typeName}: [${type.options.join(', ')}]`;
+  const formatInputType = (typeOrObject) => {
+    if (typeof typeOrObject === 'string') {
+      return typeOrObject.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
-    
-    const typeMap = {
-      'input': 'Text',
-      'textarea': 'Textarea',
-      'date': 'Date',
-      'upload_image': 'Image Upload',
-      'upload_csv': 'CSV Upload'
-    };
-    
-    return typeMap[type] || type;
+    if (typeOrObject && typeOrObject.type) {
+      let formatted = typeOrObject.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      if (typeOrObject.options) {
+        formatted += ` (Options: ${typeOrObject.options.length})`;
+      }
+      return formatted;
+    }
+    return 'Unknown';
   };
+
+  const handleInputChange = (key, field, value) => {
+    setInputs(prevInputs => ({
+      ...prevInputs,
+      [key]: {
+        ...prevInputs[key],
+        [field]: value
+      }
+    }));
+    setDataChanged(prev => ({ ...prev, inputs: true }));
+  };
+
+  const filteredInputs = Object.entries(inputs).filter(([key, value]) => {
+    const searchTermLower = inputSearchTerm.toLowerCase();
+    const keyMatch = key.toLowerCase().includes(searchTermLower);
+    const typeString = typeof value === 'string' ? value : value.type;
+    const typeMatch = typeString.toLowerCase().includes(searchTermLower);
+    const descriptionMatch = value && value.description && value.description.toLowerCase().includes(searchTermLower);
+    return keyMatch || typeMatch || descriptionMatch;
+  });
+
+  const filteredOutputs = Object.entries(outputs).filter(([key, value]) => {
+    const searchTermLower = outputSearchTerm.toLowerCase();
+    const keyMatch = key.toLowerCase().includes(searchTermLower);
+    const typesMatch = value && value.types && value.types.some(t => t.toLowerCase().includes(searchTermLower));
+    const descriptionMatch = value && value.description && value.description.toLowerCase().includes(searchTermLower);
+    return keyMatch || typesMatch || descriptionMatch;
+  });
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -355,177 +428,309 @@ function HomePage() {
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Inputs Configuration</h2>
-          <button
-            onClick={handleSaveInputs}
-            disabled={!dataChanged.inputs || Object.keys(inputs).length === 0 || inputsSaving}
-            className={`p-2 rounded-full ${
-              !dataChanged.inputs || Object.keys(inputs).length === 0
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : inputsSaving
-                  ? 'bg-blue-100 text-blue-400 cursor-wait'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            title="Save Inputs Configuration"
-          >
-            {inputsSaving ? (
-              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <ArrowUpTrayIcon className="h-5 w-5" />
-            )}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowAddInputForm(prev => !prev)}
+              className="p-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              title={showAddInputForm ? "Hide Add Input Form" : "Show Add Input Form"}
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handleSaveInputs}
+              disabled={!dataChanged.inputs || Object.keys(inputs).length === 0 || inputsSaving}
+              className={`p-2 rounded-full ${
+                !dataChanged.inputs || Object.keys(inputs).length === 0
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : inputsSaving
+                    ? 'bg-blue-100 text-blue-400 cursor-wait'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title="Save Inputs Configuration"
+            >
+              {inputsSaving ? (
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <ArrowUpTrayIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
         
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2 mb-5 min-h-[40px]">
-            {Object.entries(inputs).length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No input fields configured. Add your first input below.</p>
-            ) : (
-              Object.entries(inputs).map(([key, type]) => (
-                <div key={key} className="flex items-center p-2 bg-blue-50 rounded-md text-sm border border-blue-100">
-                  <span className="font-medium text-blue-900">{key}</span>
-                  <span className="mx-1 text-blue-500">:</span>
-                  <span className="text-blue-700">{formatInputType(type)}</span>
-                  <button
-                    onClick={() => handleRemoveInput(key)}
-                    className="ml-2 text-red-500 hover:text-red-700 p-1"
-                    title="Remove Input"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex items-end gap-3 flex-wrap p-4 bg-gray-50 rounded-lg">
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Field Name *
-              </label>
+        {/* Search bar for inputs */}
+        <div className="mb-4 relative">
+          <input
+            type="text"
+            placeholder="Search input fields..."
+            className="w-full p-2 pl-10 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            value={inputSearchTerm}
+            onChange={(e) => setInputSearchTerm(e.target.value)}
+          />
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+        </div>
+
+        {/* Inputs Table */}
+        <div className="mb-6 overflow-x-auto">
+          {Object.keys(inputs).length === 0 ? (
+            <p className="text-sm text-gray-500 italic py-3">No input fields configured. Add your first input below.</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Field Name
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredInputs.length > 0 ? (
+                  filteredInputs.map(([key, value]) => (
+                    <tr key={key}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{key}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatInputType(value)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        <input 
+                          type="text"
+                          value={value.description || ''}
+                          onChange={(e) => handleInputChange(key, 'description', e.target.value)}
+                          placeholder="Optional description"
+                          className="w-full p-1 border border-gray-300 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleRemoveInput(key)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="Remove Input"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-3 text-center text-sm text-gray-500 italic">
+                      No input fields match your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        <Modal isOpen={showAddInputForm} onClose={() => setShowAddInputForm(false)} title="Add New Input Field">
+          {/* Add New Input Field Form Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div>
+              <label htmlFor="modalNewInputKey" className="block text-sm font-medium text-gray-700 mb-1">Field Name</label>
               <input
                 type="text"
+                id="modalNewInputKey"
                 value={newInputKey}
                 onChange={(e) => setNewInputKey(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="e.g., client_name"
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., Client ID"
               />
             </div>
             
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type *
-              </label>
+            <div>
+              <label htmlFor="modalNewInputType" className="block text-sm font-medium text-gray-700 mb-1">Field Type</label>
               <select
+                id="modalNewInputType"
                 value={newInputType}
                 onChange={(e) => setNewInputType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="input">Input (text)</option>
-                <option value="textarea">Textarea</option>
+                <option value="input">Text Input</option>
+                <option value="textarea">Text Area</option>
                 <option value="date">Date</option>
-                <option value="dropdown_single">Dropdown (Single)</option>
-                <option value="dropdown_multi">Dropdown (Multi)</option>
-                <option value="upload_image">Upload Image</option>
-                <option value="upload_csv">Upload CSV</option>
+                <option value="dropdown_single">Dropdown (Single Select)</option>
+                <option value="dropdown_multi">Dropdown (Multi Select)</option>
               </select>
             </div>
-            
+
             {(newInputType === 'dropdown_single' || newInputType === 'dropdown_multi') && (
-              <div className="w-full sm:w-auto">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Options (comma separated) *
-                </label>
+              <div className="md:col-span-2">
+                <label htmlFor="modalDropdownOptions" className="block text-sm font-medium text-gray-700 mb-1">Dropdown Options (comma-separated)</label>
                 <input
                   type="text"
+                  id="modalDropdownOptions"
                   value={dropdownOptions}
                   onChange={(e) => setDropdownOptions(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="Option 1, Option 2, Option 3"
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Option1, Option2, Option3"
                 />
               </div>
             )}
             
+            <div className="md:col-span-2">
+              <label htmlFor="modalNewInputDescription" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+              <input
+                type="text"
+                id="modalNewInputDescription"
+                value={newInputDescription}
+                onChange={(e) => setNewInputDescription(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Brief description of the field"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
             <button
+              type="button"
               onClick={handleAddInput}
-              className="h-10 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center mt-auto"
+              className="h-10 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
             >
               <PlusIcon className="h-4 w-4 mr-1" />
               Add Input
             </button>
           </div>
-        </div>
+        </Modal>
       </div>
 
       {/* Outputs Section */}
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Outputs Configuration</h2>
-          <button
-            onClick={handleSaveOutputs}
-            disabled={!dataChanged.outputs || Object.keys(outputs).length === 0 || outputsSaving}
-            className={`p-2 rounded-full ${
-              !dataChanged.outputs || Object.keys(outputs).length === 0
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : outputsSaving
-                  ? 'bg-blue-100 text-blue-400 cursor-wait'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            title="Save Outputs Configuration"
-          >
-            {outputsSaving ? (
-              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <ArrowUpTrayIcon className="h-5 w-5" />
-            )}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowAddOutputForm(prev => !prev)}
+              className="p-2 rounded-full bg-green-600 text-white hover:bg-green-700"
+              title={showAddOutputForm ? "Hide Add Output Form" : "Show Add Output Form"}
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handleSaveOutputs}
+              disabled={!dataChanged.outputs || Object.keys(outputs).length === 0 || outputsSaving}
+              className={`p-2 rounded-full ${
+                !dataChanged.outputs || Object.keys(outputs).length === 0
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : outputsSaving
+                    ? 'bg-blue-100 text-blue-400 cursor-wait'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title="Save Outputs Configuration"
+            >
+              {outputsSaving ? (
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <ArrowUpTrayIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
         
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2 mb-5 min-h-[40px]">
-            {Object.entries(outputs).length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No output sections configured. Add your first output below.</p>
-            ) : (
-              Object.entries(outputs).map(([key, values]) => (
-                <div key={key} className="flex items-center p-2 bg-green-50 rounded-md text-sm border border-green-100">
-                  <span className="font-medium text-green-900">{key}</span>
-                  <span className="mx-1 text-green-500">:</span>
-                  <span className="text-green-700">[{values.join(', ')}]</span>
-                  <button
-                    onClick={() => handleRemoveOutput(key)}
-                    className="ml-2 text-red-500 hover:text-red-700 p-1"
-                    title="Remove Output"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-          
-          <div className="flex items-end gap-3 flex-wrap p-4 bg-gray-50 rounded-lg">
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Section Name *
-              </label>
+        {/* Search bar for outputs */}
+        <div className="mb-4 relative">
+          <input
+            type="text"
+            placeholder="Search output sections..."
+            className="w-full p-2 pl-10 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            value={outputSearchTerm}
+            onChange={(e) => setOutputSearchTerm(e.target.value)}
+          />
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+        </div>
+
+        {/* Outputs Table */}
+        <div className="mb-6 overflow-x-auto">
+          {Object.keys(outputs).length === 0 ? (
+            <p className="text-sm text-gray-500 italic py-3">No output sections configured. Add your first output below.</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Section Name
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Types
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredOutputs.length > 0 ? (
+                  filteredOutputs.map(([key, value]) => (
+                    <tr key={key}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{key}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        {(value.types || []).join(', ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        <input 
+                          type="text"
+                          value={value.description || ''}
+                          onChange={(e) => handleOutputChange(key, 'description', e.target.value)}
+                          placeholder="Optional description"
+                          className="w-full p-1 border border-gray-300 rounded-md text-xs focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleRemoveOutput(key)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="Remove Output"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-3 text-center text-sm text-gray-500 italic">
+                      No output sections match your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        <Modal isOpen={showAddOutputForm} onClose={() => setShowAddOutputForm(false)} title="Add New Output Section">
+          {/* Add New Output Section Form Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div>
+              <label htmlFor="modalNewOutputKey" className="block text-sm font-medium text-gray-700 mb-1">Section Name</label>
               <input
                 type="text"
+                id="modalNewOutputKey"
                 value={newOutputKey}
                 onChange={(e) => setNewOutputKey(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="e.g., Feature_Screens"
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., Data Mapping"
               />
             </div>
             
-            <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Content Types *
-              </label>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Content Types</label>
               <div className="flex gap-4 p-2 border border-gray-300 rounded-md bg-white">
                 <label className="flex items-center">
                   <input
@@ -557,15 +762,29 @@ function HomePage() {
               </div>
             </div>
             
+            <div className="md:col-span-2">
+              <label htmlFor="modalNewOutputDescription" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+              <input
+                type="text"
+                id="modalNewOutputDescription"
+                value={newOutputDescription}
+                onChange={(e) => setNewOutputDescription(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Brief description of the output section"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
             <button
+              type="button"
               onClick={handleAddOutput}
-              className="h-10 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center mt-auto"
+              className="h-10 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center"
             >
               <PlusIcon className="h-4 w-4 mr-1" />
-              Add Output
+              Add Output Section
             </button>
           </div>
-        </div>
+        </Modal>
       </div>
 
       {/* Confluence Configuration Section */}
