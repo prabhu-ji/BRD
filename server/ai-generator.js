@@ -1431,7 +1431,7 @@ ${contextGuidance.general}
         return content;
     }
 
-    // Generate Graphviz diagram code - FIXED TO ENFORCE GRAPHVIZ FORMAT
+    // Generate Mermaid diagram code - UPDATED TO ENFORCE MERMAID FORMAT
     async generateDiagram(outputName, context, examples, brdData) {
         const prompt = this.buildEnhancedDiagramPrompt(
             outputName,
@@ -1447,49 +1447,82 @@ ${contextGuidance.general}
                 );
             }
 
-            // Build the full prompt with system message for diagrams
-            const systemPrompt = `You are a technical architect specializing in Graphviz DOT notation diagrams. 
+            // Enhanced system prompt specifically for diagrams with STRICT syntax requirements
+            const diagramSystemPrompt = `You are a technical architect specializing in Mermaid diagram syntax version 11.6.0.
 
-STRICT REQUIREMENTS:
-1. ONLY generate Graphviz DOT notation - NO Mermaid, NO other formats
-2. Always start with "digraph" or "graph"
-3. Use proper DOT syntax with nodes and edges
-4. Create CONCISE, FOCUSED system integration diagrams
-5. AVOID obvious, unnecessary steps (like "authentication" unless critical)
-6. Focus on BUSINESS-SPECIFIC data flow and key decision points
-7. Maximum 6-8 nodes for clarity and simplicity
-8. Use meaningful business terminology, not generic tech terms
-9. Return ONLY valid DOT code that can be rendered
+CRITICAL MERMAID SYNTAX REQUIREMENTS - FOLLOW EXACTLY:
 
-DIAGRAM STYLE REQUIREMENTS:
-- Use compact, business-focused node labels
-- Show only critical integration points
-- Emphasize data transformation and business logic
-- Avoid redundant "API calls" and "responses" unless they add business value
-- Use color coding for different system types
-- Include business context in edge labels
+1. PURE MERMAID OUTPUT ONLY:
+   - Generate ONLY valid Mermaid 11.6.0 syntax code
+   - NO explanatory text, NO comments, NO descriptions
+   - NO text after the diagram code
+   - NO markdown code blocks (no \`\`\`)
+   - START directly with diagram type (flowchart, sequenceDiagram, etc.)
 
-FORBIDDEN:
-- Mermaid syntax (graph TD, flowchart, etc.)
-- Generic "API Gateway", "Database", "Service" labels
-- Obvious steps like "Send Request -> Receive Response"
-- More than 8 nodes in the diagram
-- Legend or documentation nodes (keep it clean)
-- Any other diagram formats`;
+2. STRICT MERMAID 11.6.0 SYNTAX RULES:
+   a) Node Names: Use camelCase only (DataProcessor, HRTermBot, AttendanceModule)
+   b) NO underscores in node names: HR_Term_Bot → HRTermBot
+   c) NO mixed syntax patterns in same diagram
+   d) Use :::className for styling (NOT "class NodeName className")
 
-            const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+3. EDGE LABEL RESTRICTIONS (CRITICAL):
+   - Use ONLY ASCII characters in edge labels: A-Z, a-z, 0-9, space, comma, period, dash
+   - NO Unicode symbols: ≥, ≤, →, ©, ®, %, €, •, etc.
+   - Keep labels under 30 characters
+   - Use simple business terms: "Send Data", "Process Records", "Filter Active"
+   
+4. VALID PATTERNS ONLY:
+   
+   Pattern A - Simple styled nodes:
+   flowchart TD
+       classDef system fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+       classDef process fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+       SourceSystem:::system -->|Send Data| ProcessingLayer:::process
+       ProcessingLayer:::process -->|Clean Records| TargetSystem:::system
+
+   Pattern B - Shaped nodes:
+   flowchart TD
+       A[Source System] -->|Send Data| B(Processing Layer)
+       B -->|Clean Records| C[Target System]
+
+5. FORBIDDEN PATTERNS:
+   ❌ A:::style([Shape]) - mixing style and shape
+   ❌ A:::style --> B and then A[Label] - redefining nodes
+   ❌ class NodeName className - invalid Mermaid 11.6.0 syntax
+   ❌ Special characters in labels: |Date ≥ Jan 2020|
+   ❌ Long complex labels: |Sync Inactive employees with Date of Exit ≥ 1st Jan 2020|
+   ❌ Any text after diagram code
+
+6. OUTPUT REQUIREMENTS:
+   - Maximum 6 nodes for clarity
+   - Focus on business value, not technical implementation details
+   - Use business terminology from the integration context
+   - NO explanatory text after the diagram
+   - END diagram with last connection or classDef statement
+
+EXAMPLE VALID OUTPUT:
+flowchart TD
+    classDef system fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef process fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    Darwinbox:::system -->|Retrieve Data| AttendanceModule:::process
+    AttendanceModule:::process -->|Filter Records| CoreModule:::process
+    CoreModule:::process -->|Send Results| HRTermBot:::system
+
+Generate ONLY the Mermaid code following these rules. NO additional text, explanations, or comments.`;
+
+            const fullPrompt = `${diagramSystemPrompt}\n\n${prompt}`;
 
             // Use rate-limited API call
             const result = await this.makeRateLimitedAPICall(
                 async () => {
-                    console.log(`🎨 Generating diagram for: ${outputName}`);
+                    console.log(`🎨 Generating Mermaid diagram for: ${outputName}`);
                     return await openai.chat.completions.create({
                         messages: [{ role: "user", content: fullPrompt }],
                         model: "gpt-4",
-                        max_tokens: 1000,
+                        max_tokens: 800, // Reduced to prevent long outputs
                         n: 1,
-                        stop: null,
-                        temperature: 0.1, // Very low for consistent diagram structure
+                        stop: ["\n\n", "```", "In this diagram", "This diagram", "The diagram"], // Stop tokens to prevent explanations
+                        temperature: 0.05, // Very low for consistent syntax
                     });
                 },
                 { outputName, types: ["diagram"] }
@@ -1497,15 +1530,15 @@ FORBIDDEN:
 
             let diagramCode = result.choices[0].message.content || "";
 
-            // Post-process to ensure valid DOT notation
-            diagramCode = this.postProcessDiagramCode(diagramCode, context);
+            // AGGRESSIVE post-processing to ensure clean Mermaid code
+            diagramCode = this.aggressivelyCleanDiagramCode(diagramCode, context);
 
-            console.log(`✅ Diagram generated for ${outputName}`);
+            console.log(`✅ Mermaid diagram generated for ${outputName}`);
 
             return {
-                type: "graphviz",
+                type: "mermaid",
                 code: diagramCode,
-                format: "dot",
+                format: "mermaid",
             };
         } catch (error) {
             console.error(
@@ -1520,380 +1553,307 @@ FORBIDDEN:
             );
 
             return {
-                type: "graphviz",
+                type: "mermaid",
                 code: fallbackDiagram,
-                format: "dot",
+                format: "mermaid",
                 error: error.message,
                 fallback: true,
             };
         }
     }
 
-    // Enhanced diagram prompt - IMPROVED WITH BUSINESS CONTEXT AND API DETAILS
-    buildEnhancedDiagramPrompt(outputName, context, examples, brdData) {
-        // Extract business-specific details for diagram labeling
-        const businessContext = this.extractBusinessContextForDiagram(
-            context,
-            brdData
-        );
-        const apiDetails = this.extractApiDetailsForDiagram(context);
+    // NEW: Aggressively clean diagram code to ensure valid Mermaid syntax
+    aggressivelyCleanDiagramCode(diagramCode, context) {
+        // Step 1: Extract only the Mermaid diagram part
+        let cleaned = diagramCode.trim();
 
-        return `
-Generate a Graphviz DOT diagram for "${outputName}" showing ${context.mode} ${
-            context.direction
-        } integration.
+        // Remove markdown code block syntax
+        cleaned = cleaned.replace(/```[\w]*\n?/g, "");
+        cleaned = cleaned.replace(/```/g, "");
 
-INTEGRATION DETAILS:
-- Mode: ${context.mode}
-- Direction: ${context.direction}
-- Client: ${context.client}
-- Vendor: ${context.vendor}
-- Business Use Case: ${context.businessUseCase || "Standard integration"}
-- Business Logic: ${context.businessLogic || "Standard data processing"}
-- Modules: ${
-            context.modules && context.modules.length > 0
-                ? context.modules && context.modules.length > 0
-                    ? context.modules.join(", ")
-                    : "Core modules"
-                : "Core modules"
-        }
-
-${businessContext}
-
-${apiDetails}
-
-DIAGRAM REQUIREMENTS:
-${this.getDiagramRequirements(outputName, context)}
-
-BUSINESS-SPECIFIC LABELING INSTRUCTIONS:
-- Use business use case "${
-            context.businessUseCase || "integration"
-        }" to label key processes
-- Include specific business logic steps: "${
-            context.businessLogic || "data processing"
-        }"
-- Reference actual modules in node labels: ${
-            context.modules && context.modules.length > 0
-                ? context.modules && context.modules.length > 0
-                    ? context.modules.join(", ")
-                    : "Core modules"
-                : "core modules"
-        }
-- Show data flow that supports the business requirement
-- Use meaningful business terminology in edge labels
-
-CRITICAL: Generate ONLY Graphviz DOT notation syntax. Start with "digraph" and use proper DOT syntax.
-
-Example structure:
-digraph integration_flow {
-    rankdir=LR;
-    node [shape=box, style=rounded];
-    // your nodes and edges here with business-specific labels
-}
-
-Generate the complete DOT code now:`.trim();
-    }
-
-    // NEW: Extract business context for diagram labeling
-    extractBusinessContextForDiagram(context, brdData) {
-        let businessDetails = "BUSINESS CONTEXT FOR DIAGRAM:";
-
-        if (context.businessUseCase) {
-            businessDetails += `\n- Primary Business Purpose: ${context.businessUseCase}`;
-            businessDetails += `\n- Label key nodes with business purpose (e.g., "${context.businessUseCase} Processing")`;
-        }
-
-        if (context.businessLogic) {
-            businessDetails += `\n- Business Logic Flow: ${context.businessLogic}`;
-            businessDetails += `\n- Include business logic steps as intermediate nodes`;
-        }
-
-        if (context.modules && context.modules.length > 0) {
-            businessDetails += `\n- Affected Modules: ${context.modules.join(
-                ", "
-            )}`;
-            businessDetails += `\n- Show module-specific processing nodes (e.g., "${context.modules[0]} Module")`;
-        }
-
-        return businessDetails;
-    }
-
-    // NEW: Extract API details for diagram labeling
-    extractApiDetailsForDiagram(context) {
-        if (!context.hasApiDocs || !context.apiSummary) {
-            return `
-API CONTEXT FOR DIAGRAM:
-- No specific API documentation available
-- Use generic API integration patterns
-- Include standard authentication and data exchange nodes`;
-        }
-
-        const apiSummary = context.apiSummary;
-        let apiDetails = `
-API CONTEXT FOR DIAGRAM:
-- Available APIs: ${apiSummary.totalEndpoints} endpoints
-- Authentication: ${apiSummary.authType || "Standard"}
-- Modules: ${apiSummary.availableModules.join(", ")}`;
-
-        if (
-            apiSummary.sampleEndpoints &&
-            apiSummary.sampleEndpoints.length > 0
-        ) {
-            apiDetails += `\n- Key Endpoints to Reference:`;
-            apiSummary.sampleEndpoints.slice(0, 3).forEach((endpoint) => {
-                apiDetails += `\n  • ${endpoint.method} ${endpoint.path}`;
-                if (endpoint.description) {
-                    apiDetails += ` (${endpoint.description})`;
+        // Step 2: Split by lines and identify where Mermaid code ends
+        const lines = cleaned.split('\n');
+        const mermaidLines = [];
+        let foundDiagramType = false;
+        
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            
+            // Start collecting lines after we find diagram type
+            if (!foundDiagramType && (trimmedLine.includes('flowchart') || trimmedLine.includes('sequenceDiagram') || trimmedLine.includes('classDiagram'))) {
+                foundDiagramType = true;
+                mermaidLines.push(line);
+            }
+            // Continue collecting valid Mermaid syntax lines
+            else if (foundDiagramType) {
+                // Stop if we hit explanatory text
+                if (trimmedLine.match(/^(This diagram|In this diagram|The diagram|Description|Explanation)/i)) {
+                    break;
                 }
-            });
-            apiDetails += `\n- Use specific endpoint names in diagram nodes when relevant`;
+                // Stop if we hit obvious prose text
+                if (trimmedLine.includes('represents') || trimmedLine.includes('shows how') || trimmedLine.includes('illustrates')) {
+                    break;
+                }
+                // Stop if line starts with markdown or list formatting
+                if (trimmedLine.match(/^[-*#]/) && !trimmedLine.includes('-->') && !trimmedLine.includes(':::')) {
+                    break;
+                }
+                // Keep valid Mermaid lines
+                if (trimmedLine && (
+                    trimmedLine.includes('classDef') ||
+                    trimmedLine.includes('-->') ||
+                    trimmedLine.includes(':::') ||
+                    trimmedLine.includes('---') ||
+                    trimmedLine.includes('-.->') ||
+                    trimmedLine.match(/^\s*[A-Za-z]\w*\s*[\[\(]/) || // Node definitions
+                    trimmedLine.match(/^\s*participant\s/) || // Sequence diagram participants
+                    trimmedLine.match(/^\s*\w+\s*->>/) // Sequence diagram messages
+                )) {
+                    mermaidLines.push(line);
+                }
+            }
+        }
+        
+        cleaned = mermaidLines.join('\n');
+
+        // Step 3: Apply existing preprocessing
+        const MermaidProcessor = require('./attachments/MermaidProcessor');
+        cleaned = MermaidProcessor.preprocessMermaidCode(cleaned);
+
+        // Step 4: Final validation and fallback if needed
+        const validation = MermaidProcessor.validateMermaidCode(cleaned);
+        if (!validation.valid) {
+            console.log(`⚠️ Generated diagram still has syntax errors: ${validation.error}`);
+            console.log("🔧 Using enhanced default diagram");
+            return this.getEnhancedDefaultDiagram(context, {});
         }
 
-        apiDetails += `\n- Include "${
-            apiSummary.authType || "API"
-        } Authentication" node`;
-        apiDetails += `\n- Show API-specific data processing flows`;
-
-        return apiDetails;
+        console.log("✅ Mermaid diagram code validated and cleaned successfully");
+        return cleaned;
     }
 
-    // Post-process diagram code to ensure Graphviz format
-    postProcessDiagramCode(diagramCode, context) {
-        // Clean up the code
-        diagramCode = diagramCode.trim();
+    // Generate specific output type - ENHANCED FOR MULTIPLE TYPES
+    async generateOutput(outputName, outputTypes, context, brdData) {
+        const outputKey = this.getOutputKey(outputName);
+        const examples = this.examples[outputKey] || [];
 
-        // Remove any markdown code block formatting
-        diagramCode = diagramCode.replace(/```[\w]*\n?/g, "");
-        diagramCode = diagramCode.replace(/```/g, "");
+        // Initialize result structure for multiple content types
+        const result = {
+            types: outputTypes,
+            content: {},
+        };
 
-        // If it doesn't look like valid DOT notation, generate default
-        if (
-            !diagramCode.includes("digraph") &&
-            !diagramCode.includes("graph")
-        ) {
-            console.log(
-                "⚠️ Generated diagram not in DOT format, using default"
-            );
-            return this.getDefaultDiagram(context);
+        // Generate content for each requested type
+        for (const type of outputTypes) {
+            try {
+                switch (type) {
+                    case "content":
+                        console.log(
+                            `📝 Processing text content for: ${outputName}`
+                        );
+
+                        // Check if uploaded TEXT content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "content",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded text content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI text content for: ${outputName}`
+                            );
+                            try {
+                                const textContent =
+                                    await this.generateTextContent(
+                                        outputName,
+                                        context,
+                                        examples,
+                                        brdData
+                                    );
+                                result.content.text = textContent.content;
+                                if (textContent.error)
+                                    result.content.textError =
+                                        textContent.error;
+                                if (textContent.fallback)
+                                    result.content.textFallback =
+                                        textContent.fallback;
+                            } catch (textError) {
+                                console.log(
+                                    `⚠️ Text generation failed for ${outputName}: ${textError.message}`
+                                );
+                                // Don't add any content for failed text generation
+                                result.content.textError = textError.message;
+                            }
+                        }
+                        break;
+
+                    case "image":
+                    case "diagram":
+                        console.log(`🎨 Processing diagram for: ${outputName}`);
+
+                        // Check if uploaded IMAGE content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "image",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded image content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI diagram for: ${outputName}`
+                            );
+                            const diagramContent = await this.generateDiagram(
+                                outputName,
+                                context,
+                                examples,
+                                brdData
+                            );
+                            result.content.diagram = {
+                                code: diagramContent.code,
+                                format: diagramContent.format || "dot",
+                            };
+                            if (diagramContent.error)
+                                result.content.diagramError =
+                                    diagramContent.error;
+                            if (diagramContent.fallback)
+                                result.content.diagramFallback =
+                                    diagramContent.fallback;
+                        }
+                        break;
+
+                    case "table":
+                        console.log(`📊 Processing table for: ${outputName}`);
+
+                        // Check if uploaded TABLE content already exists
+                        if (
+                            this.hasUploadedContentForType(
+                                outputName,
+                                "table",
+                                brdData
+                            )
+                        ) {
+                            console.log(
+                                `📋 Using uploaded table content for: ${outputName} (skipping AI generation)`
+                            );
+                            // Don't add any content - uploaded content will be handled by PageContentBuilder
+                        } else {
+                            console.log(
+                                `🤖 Generating AI table content for: ${outputName}`
+                            );
+                            try {
+                                const tableContent = await this.generateTable(
+                                    outputName,
+                                    context,
+                                    examples,
+                                    brdData
+                                );
+                                // Tables can return text content or structured data
+                                if (tableContent.type === "text") {
+                                    result.content.table = tableContent.content;
+                                } else {
+                                    result.content.table = tableContent;
+                                }
+                                if (tableContent.error)
+                                    result.content.tableError =
+                                        tableContent.error;
+                                if (tableContent.fallback)
+                                    result.content.tableFallback = "";
+                            } catch (tableError) {
+                                console.log(
+                                    `⚠️ Table generation failed for ${outputName}: ${tableError.message}`
+                                );
+                                // Don't add any content for failed table generation
+                                result.content.tableError = tableError.message;
+                            }
+                        }
+                        break;
+
+                    default:
+                        console.warn(
+                            `⚠️ Unknown content type: ${type} for ${outputName}`
+                        );
+                        break;
+                }
+            } catch (error) {
+                console.error(
+                    `❌ Error generating ${type} content for ${outputName}:`,
+                    error
+                );
+                result.content[`${type}Error`] = error.message;
+            }
         }
 
-        // Ensure proper structure
-        if (!diagramCode.includes("{") || !diagramCode.includes("}")) {
-            console.log("⚠️ Invalid DOT structure, using default");
-            return this.getDefaultDiagram(context);
+        // If only one type requested, maintain backward compatibility by also setting legacy fields
+        if (outputTypes.length === 1) {
+            const singleType = outputTypes[0];
+            if (singleType === "content" && result.content.text) {
+                result.type = "text";
+                // Don't overwrite content object - add legacy content field alongside
+                result.legacyContent = result.content.text;
+            } else if (
+                (singleType === "image" || singleType === "diagram") &&
+                result.content.diagram
+            ) {
+                result.type = "graphviz";
+                result.code = result.content.diagram.code;
+                result.format = result.content.diagram.format;
+            } else if (singleType === "table" && result.content.table) {
+                result.type = "table";
+                // Don't overwrite content object - add legacy content field alongside
+                result.legacyContent = result.content.table;
+            }
         }
 
-        return diagramCode;
-    }
-
-    // Enhanced diagram requirements
-    getDiagramRequirements(outputName, context) {
-        const baseRequirements = `
-- MAXIMUM 6 nodes for clarity - focus on business value
-- Show ONLY critical integration points, skip obvious API calls
-- Use business terminology: "${
-            context.businessUseCase || "integration"
-        }" instead of generic terms
-- Include ${context.client} and ${context.vendor} systems as main nodes
-- Show data transformation and business logic processing
-- Use rankdir=LR for left-to-right layout
-- Apply color coding: systems=lightblue, processing=lightgreen, data=lightyellow`;
-
-        if (context.isApiIntegration) {
-            return (
-                baseRequirements +
-                `
-- Show BUSINESS ENDPOINTS only (skip generic "API Gateway")
-- Include authentication ONLY if business-critical
-- Focus on data transformation, not request/response patterns
-- Emphasize: ${context.client} → Business Logic → ${context.vendor}`
-            );
-        } else if (context.isStandardIntegration) {
-            return (
-                baseRequirements +
-                `
-- Show file processing and validation as single nodes
-- Focus on business data transformation, not technical steps
-- Emphasize: Source → Transform → Destination
-- Skip obvious file I/O operations`
-            );
-        } else {
-            return (
-                baseRequirements +
-                `
-- Show custom business processes as transformation nodes
-- Focus on business decision points and data enrichment
-- Emphasize business workflow over technical implementation
-- Skip generic processing steps`
-            );
-        }
-    }
-
-    // Get default diagram with proper Graphviz syntax
-    getDefaultDiagram(context) {
-        const client =
-            context.client.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
-            "client";
-        const vendor =
-            context.vendor.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
-            "vendor";
-        const mode = context.mode.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        const businessUseCase = context.businessUseCase || "Data Integration";
-
-        return `digraph ${mode}_integration {
-    rankdir=LR;
-    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
-    edge [fontname="Arial", fontsize=9];
-    
-    ${client} [label="${context.client}", fillcolor=lightblue];
-    processing [label="${businessUseCase}\\nProcessing", fillcolor=lightgreen];
-    ${vendor} [label="${context.vendor}", fillcolor=lightcoral];
-    
-    ${
-        context.direction === "Inbound"
-            ? `${client} -> processing [label="Business Data"];
-           processing -> ${vendor} [label="Processed Result"];`
-            : `${vendor} -> processing [label="Data Request"];
-           processing -> ${client} [label="Business Data"];`
-    }
-}`;
-    }
-
-    // Enhanced default diagram with better context - IMPROVED WITH BUSINESS KEYWORDS
-    getEnhancedDefaultDiagram(context, brdData) {
-        const formData = brdData.formData || {};
-        const clientLabel = this.extractFieldValue(
-            formData,
-            ["Client", "client"],
-            "Client System"
+        console.log(
+            `✅ Generated content for ${outputName} with types: ${outputTypes.join(
+                ", "
+            )}`
         );
-        const vendorLabel = this.extractFieldValue(
-            formData,
-            ["Vendor", "vendor"],
-            ""
-        );
-
-        const client = clientLabel.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        const vendor = vendorLabel.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        const mode = context.mode.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-
-        // Extract business context for more meaningful labels
-        const businessUseCase = context.businessUseCase || "Integration";
-        const businessLogic = context.businessLogic || "Data Processing";
-        const primaryModule =
-            context.modules.length > 0 ? context.modules[0] : "Core";
-
-        // Determine authentication type from API context or use default
-        const authType = context.apiSummary?.authType || "Bearer Token";
-
-        // Create business-specific node labels
-        const integrationLabel = businessUseCase.includes("Integration")
-            ? businessUseCase
-            : `${businessUseCase} Integration`;
-        const processingLabel = businessLogic.includes("Processing")
-            ? businessLogic
-            : `${businessLogic} Processing`;
-
-        return `digraph ${mode}_integration {
-    rankdir=LR;
-    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10];
-    edge [fontname="Arial", fontsize=9];
-    
-    // Define nodes with business-specific styling and labels
-    ${client} [label="${clientLabel}\\nSystem", fillcolor=lightblue, width=1.5];
-    api [label="${integrationLabel}\\nAPI Layer", fillcolor=lightgreen, width=1.5];
-    auth [label="${authType}\\nAuthentication", fillcolor=yellow, width=1.5];
-    transform [label="${processingLabel}\\n& Validation", fillcolor=orange, width=1.5];
-    module [label="${primaryModule}\\nModule", fillcolor=lightgray, width=1.5];
-    ${vendor} [label="${vendorLabel}\\nSystem", fillcolor=lightcoral, width=1.5];
-    
-    // Define the flow based on direction with business-specific labels
-    ${
-        context.direction === "Inbound"
-            ? `
-    // Inbound flow: ${clientLabel} -> ${vendorLabel}
-    ${client} -> api [label="${businessUseCase}\\nRequest", color=blue];
-    api -> auth [label="Authenticate\\n& Authorize", color=green];
-    auth -> api [label="Access\\nGranted", color=green];
-    api -> transform [label="${businessLogic}\\nExecution", color=purple];
-    transform -> module [label="${primaryModule}\\nUpdate", color=orange];
-    module -> transform [label="Processing\\nComplete", color=orange];
-    transform -> api [label="Business\\nResponse", color=purple];
-    api -> ${client} [label="Success/Error\\nNotification", color=blue];`
-            : `
-    // Outbound flow: ${vendorLabel} -> ${clientLabel}
-    ${vendor} -> api [label="${businessUseCase}\\nTrigger", color=red];
-    api -> auth [label="Authenticate\\n& Authorize", color=green];
-    auth -> api [label="Access\\nGranted", color=green];
-    api -> module [label="${primaryModule}\\nData Request", color=orange];
-    module -> transform [label="Data\\nRetrieval", color=orange];
-    transform -> api [label="${businessLogic}\\nProcessing", color=purple];
-    api -> ${client} [label="Processed\\nData", color=blue];
-    ${client} -> api [label="Delivery\\nConfirmation", color=blue];`
-    }
-    
-    // Add business context labels for clarity
-    label="${integrationLabel}\\n${context.mode} ${context.direction} Flow";
-    labelloc=t;
-    fontsize=12;
-    fontname="Arial Bold";
-    
-    // Add legend for business context
-    subgraph cluster_legend {
-        label="Business Context";
-        style=dashed;
-        fontsize=10;
-        legend1 [label="Use Case: ${businessUseCase}", shape=plaintext, fontsize=8];
-        legend2 [label="Logic: ${businessLogic}", shape=plaintext, fontsize=8];
-        legend3 [label="Module: ${primaryModule}", shape=plaintext, fontsize=8];
-    }
-}`;
+        return result;
     }
 
-    // FIXED: Section-specific content generation instead of generic table generation
-    async generateTable(outputName, context, examples, brdData) {
-        // For all table content, use the generic table content generator
-        // This ensures proper table structure is returned for all table types
-        return await this.generateGenericTableContent(
+    // Generate text-based content - ENHANCED TO USE MORE LISTS
+    async generateTextContent(outputName, context, examples, brdData) {
+        const prompt = this.buildEnhancedTextPrompt(
             outputName,
             context,
             examples,
             brdData
         );
-    }
-
-    // Generate APIs Used content - Simple description + API details
-    async generateAPIsUsedContent(context, examples, brdData) {
-        const outputKey = "apis_used";
-        const sectionExamples = examples || [];
-
-        if (sectionExamples.length === 0) {
-            return {
-                type: "text",
-                content: "", // Empty if no examples available
-            };
-        }
 
         try {
-            // Use existing text generation but with API-specific context
-            const prompt = this.buildAPIsUsedPrompt(
-                context,
-                sectionExamples,
-                brdData
-            );
-
             if (!openai) {
-                return {
-                    type: "text",
-                    content: "", // No fallback content
-                };
+                throw new Error(
+                    "OpenAI GPT-4 not initialized - check OPENAI_API_KEY"
+                );
             }
 
+            // Build the full prompt with system message
+            const fullPrompt = `${this.getSystemPrompt()}\n\n${prompt}`;
+
+            // Use rate-limited API call
             const result = await this.makeRateLimitedAPICall(
                 async () => {
-                    console.log(`🔌 Generating APIs Used content`);
+                    console.log(
+                        `🤖 Generating text content for: ${outputName}`
+                    );
+                    if (outputName == "Technical Design Specifications") {
+                        console.log("Prompt:", prompt);
+                        console.log("System Prompt:", this.getSystemPrompt());
+                    }
                     return await openai.chat.completions.create({
-                        messages: [{ role: "user", content: prompt }],
+                        messages: [{ role: "user", content: fullPrompt }],
                         model: "gpt-4",
                         max_tokens: 1500,
                         n: 1,
@@ -1901,14 +1861,22 @@ API CONTEXT FOR DIAGRAM:
                         temperature: 0.2,
                     });
                 },
-                { outputName: "APIs Used", types: ["api_content"] }
+                { outputName, types: ["text"] }
             );
 
-            let content = result.choices[0].message.content || "";
+            let content =
+                result.choices[0].message.content ||
+                "Content generation failed";
+
+            // Post-process content to use lists and match style
             content = this.postProcessTextContent(
                 content,
-                "APIs Used",
-                sectionExamples
+                outputName,
+                examples
+            );
+
+            console.log(
+                `✅ Text content generated for ${outputName} (${content.length} chars)`
             );
 
             return {
@@ -1916,208 +1884,11 @@ API CONTEXT FOR DIAGRAM:
                 content: content,
             };
         } catch (error) {
-            console.error(`❌ Error generating APIs Used content:`, error);
-            return {
-                type: "text",
-                content: "", // Empty on error, no fallback
-                error: error.message,
-            };
+            console.error(`❌ Error generating ${outputName}:`, error);
+
+            // Re-throw the error instead of providing fallback content
+            throw error;
         }
-    }
-
-    // Generate Data Mapping content - Disabled automatic CSV display behavior
-    generateDataMappingContent(context, brdData) {
-        // Return empty content - CSV auto-display disabled per user request
-        // Data Mapping Table sections will now be generated by AI like other sections
-        return {
-            type: "text",
-            content: "",
-        };
-    }
-
-    // Generate Technical Design Specifications content
-    async generateTechnicalSpecificationContent(context, examples, brdData) {
-        // Use the passed examples parameter instead of hardcoded lookup
-        const sectionExamples = examples || [];
-
-        // Always provide fallback content if no model available
-        if (!openai) {
-            console.log(
-                "⚠️ No AI model available, using fallback technical specifications"
-            );
-            const fallbackContent = `• ${
-                context.client
-            } sends ${context.direction.toLowerCase()} data to ${
-                context.vendor
-            } via ${context.mode} integration
-• Data is authenticated and validated using standard security protocols
-• ${context.vendor} processes and stores the data in the ${
-                context.modules && context.modules.length > 0
-                    ? context.modules && context.modules.length > 0
-                        ? context.modules.join(", ")
-                        : "Core modules"
-                    : "core"
-            } module
-• Confirmation response is sent back to ${context.client} system`;
-
-            return {
-                type: "text",
-                content: fallbackContent,
-                fallback: true,
-            };
-        }
-
-        // If no examples available, use fallback
-        if (sectionExamples.length === 0) {
-            console.log(
-                "⚠️ No examples available, using fallback technical specifications"
-            );
-            const fallbackContent = `• ${
-                context.client
-            } sends ${context.direction.toLowerCase()} data to ${
-                context.vendor
-            } via ${context.mode} integration
-• Data is authenticated and validated using standard security protocols
-• ${context.vendor} processes and stores the data in the ${
-                context.modules && context.modules.length > 0
-                    ? context.modules && context.modules.length > 0
-                        ? context.modules.join(", ")
-                        : "Core modules"
-                    : "core"
-            } module
-• Confirmation response is sent back to ${context.client} system`;
-
-            return {
-                type: "text",
-                content: fallbackContent,
-                fallback: true,
-            };
-        }
-
-        try {
-            const prompt = this.buildTechnicalSpecificationPrompt(
-                context,
-                sectionExamples,
-                brdData
-            );
-
-            const result = await this.makeRateLimitedAPICall(
-                async () => {
-                    console.log(
-                        `🔧 Generating Technical Design Specifications`
-                    );
-                    return await openai.chat.completions.create({
-                        messages: [{ role: "user", content: prompt }],
-                        model: "gpt-4",
-                        max_tokens: 300, // Severely limit output tokens
-                        n: 1,
-                        stop: null,
-                        temperature: 0.1, // Very low temperature for consistency
-                    });
-                },
-                {
-                    outputName: "Technical Design Specifications",
-                    types: ["technical_content"],
-                }
-            );
-
-            let content = result.choices[0].message.content || "";
-
-            // AGGRESSIVE post-processing for technical specifications
-            content = this.postProcessTechnicalSpecifications(content, context);
-
-            return {
-                type: "text",
-                content: content,
-            };
-        } catch (error) {
-            console.error(
-                `❌ Error generating Technical Design Specifications:`,
-                error
-            );
-
-            // Provide fallback on error
-            const fallbackContent = `• ${
-                context.client
-            } sends ${context.direction.toLowerCase()} data to ${
-                context.vendor
-            } via ${context.mode} integration
-• Data is authenticated and validated using standard security protocols
-• ${context.vendor} processes and stores the data in the ${
-                context.modules && context.modules.length > 0
-                    ? context.modules && context.modules.length > 0
-                        ? context.modules.join(", ")
-                        : "Core modules"
-                    : "core"
-            } module
-• Confirmation response is sent back to ${context.client} system`;
-
-            return {
-                type: "text",
-                content: fallbackContent,
-                error: error.message,
-                fallback: true,
-            };
-        }
-    }
-
-    // NEW: Aggressive post-processing specifically for technical specifications
-    postProcessTechnicalSpecifications(content, context) {
-        // Remove any document structure
-        content = content.replace(/#{1,6}\s+.*$/gm, ""); // Remove headers
-        content = content.replace(/^\d+\.\s+.*$/gm, ""); // Remove numbered sections
-        content = content.replace(/```[\s\S]*?```/g, ""); // Remove code blocks
-
-        // Split into lines and filter
-        let lines = content
-            .split("\n")
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0)
-            .filter(
-                (line) =>
-                    !line.match(
-                        /^(Purpose|Overview|APIs Used|Data Mapping|Technical|Architecture|Dependencies|Assumptions|Error|Rate|Monitoring)/i
-                    )
-            )
-            .filter(
-                (line) =>
-                    line.includes("•") ||
-                    line.includes("-") ||
-                    line.includes("*") ||
-                    line.startsWith("•") ||
-                    line.startsWith("-") ||
-                    line.startsWith("*")
-            );
-
-        // Take only first 4 bullet points
-        lines = lines.slice(0, 4);
-
-        // Ensure proper bullet formatting
-        lines = lines.map((line) => {
-            line = line.replace(/^[•\-\*]\s*/, ""); // Remove existing bullets
-            line = line.replace(/^\d+\.\s*/, ""); // Remove numbers
-
-            // Truncate if too long (over 100 characters)
-            if (line.length > 100) {
-                line = line.substring(0, 97) + "...";
-            }
-
-            return `• ${line}`;
-        });
-
-        // If we don't have enough content, create simple fallback
-        if (lines.length === 0) {
-            return `• ${context.client} sends data to ${context.vendor} via ${
-                context.mode
-            } integration
-• Data is authenticated and validated before processing
-• ${
-                context.vendor
-            } processes and stores the ${context.direction.toLowerCase()} data
-• Confirmation response is sent back to ${context.client}`;
-        }
-
-        return lines.join("\n");
     }
 
     // Generate generic table content for other sections
@@ -2730,6 +2501,124 @@ INTEGRATION CONTEXT:
             `🔍 No uploaded ${contentType} content found for: ${outputName} (has other types)`
         );
         return false;
+    }
+
+    // Enhanced diagram prompt - SIMPLIFIED TO PREVENT MIXED CONTENT
+    buildEnhancedDiagramPrompt(outputName, context, examples, brdData) {
+        return `
+Create a Mermaid flowchart for "${outputName}" showing ${context.mode} ${context.direction} integration.
+
+INTEGRATION DETAILS:
+- Mode: ${context.mode}
+- Direction: ${context.direction}  
+- Client: ${context.client}
+- Vendor: ${context.vendor}
+- Business Use Case: ${context.businessUseCase || "Standard integration"}
+- Modules: ${context.modules && context.modules.length > 0 ? context.modules.join(", ") : "Core modules"}
+
+DIAGRAM REQUIREMENTS:
+- Maximum 5 nodes total
+- Use flowchart TD layout
+- Show data flow from ${context.direction === "Inbound" ? context.client + " to " + context.vendor : context.vendor + " to " + context.client}
+- Use simple, short edge labels (under 25 characters)
+- Use camelCase node names (no underscores)
+- Include classDef styling
+
+EXAMPLE STRUCTURE:
+flowchart TD
+    classDef system fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef process fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    SourceSystem:::system -->|Send Data| ProcessLayer:::process
+    ProcessLayer:::process -->|Clean Data| TargetSystem:::system
+
+Generate ONLY the Mermaid flowchart code - no explanations.`.trim();
+    }
+
+    // Get enhanced default diagram with better context - IMPROVED WITH MERMAID SYNTAX
+    getEnhancedDefaultDiagram(context, brdData) {
+        const formData = brdData.formData || {};
+        const clientLabel = this.extractFieldValue(
+            formData,
+            ["Client", "client"],
+            "Client System"
+        );
+        const vendorLabel = this.extractFieldValue(
+            formData,
+            ["Vendor", "vendor"],
+            "Vendor System"
+        );
+
+        // Extract business context for more meaningful labels
+        const businessUseCase = context.businessUseCase || "Integration";
+        const businessLogic = context.businessLogic || "Data Processing";
+        const primaryModule =
+            context.modules && context.modules.length > 0 ? context.modules[0] : "Core";
+
+        // Determine authentication type from API context or use default
+        const authType = context.apiSummary?.authType || "Bearer Token";
+
+        // Create business-specific node labels
+        const integrationLabel = businessUseCase.includes("Integration")
+            ? businessUseCase
+            : `${businessUseCase} Integration`;
+        const processingLabel = businessLogic.includes("Processing")
+            ? businessLogic
+            : `${businessLogic} Processing`;
+
+        if (context.direction === "Inbound") {
+            return `flowchart TD
+    classDef system fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef process fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    ClientSystem:::system -->|Send Employee Data| AttendanceModule:::process
+    AttendanceModule:::process -->|Filter Records| CoreModule:::process
+    CoreModule:::process -->|Process Data| VendorSystem:::system`;
+        } else {
+            return `flowchart TD
+    classDef system fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef process fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    VendorSystem:::system -->|Retrieve Data| CoreModule:::process
+    CoreModule:::process -->|Transform Data| AttendanceModule:::process
+    AttendanceModule:::process -->|Send Results| ClientSystem:::system`;
+        }
+    }
+
+    // Get default diagram with proper Mermaid syntax
+    getDefaultDiagram(context) {
+        const client =
+            context.client.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
+            "client";
+        const vendor =
+            context.vendor.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() ||
+            "vendor";
+        const businessUseCase = context.businessUseCase || "Data Integration";
+
+        if (context.direction === "Inbound") {
+            return `flowchart LR
+    classDef clientStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef processStyle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef vendorStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    ClientSystem:::clientStyle -->|Send Data| ProcessingLayer:::processStyle
+    ProcessingLayer:::processStyle -->|Process Records| VendorSystem:::vendorStyle`;
+        } else {
+            return `flowchart LR
+    classDef vendorStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef processStyle fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef clientStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    VendorSystem:::vendorStyle -->|Export Data| ProcessingLayer:::processStyle
+    ProcessingLayer:::processStyle -->|Send Results| ClientSystem:::clientStyle`;
+        }
+    }
+
+    // FIXED: Section-specific content generation instead of generic table generation
+    async generateTable(outputName, context, examples, brdData) {
+        // For all table content, use the generic table content generator
+        // This ensures proper table structure is returned for all table types
+        return await this.generateGenericTableContent(
+            outputName,
+            context,
+            examples,
+            brdData
+        );
     }
 }
 

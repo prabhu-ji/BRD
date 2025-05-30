@@ -757,12 +757,19 @@ app.post(
 
             // Publish to Confluence if requested
             let confluenceResult = null;
+            let diagramsArray = []; // Always extract diagrams for frontend
+
             if (actuallyPublishToConfluence) {
                 console.log("📄 Publishing to Confluence...");
                 confluenceResult = await confluenceGenerator.createBRDPage(
                     brdResult.brdData,
                     confluenceOpts
                 );
+
+                // Extract diagrams from Confluence result if available
+                if (confluenceResult && confluenceResult.diagrams) {
+                    diagramsArray = confluenceResult.diagrams;
+                }
 
                 // Save BRD metadata to MongoDB for History page if Confluence creation was successful
                 if (confluenceResult && confluenceResult.success) {
@@ -797,12 +804,102 @@ app.post(
                         // Decide if this error should affect the overall response. For now, just log it.
                     }
                 }
+            } else {
+                // Even when not publishing to Confluence, extract diagrams for frontend
+                console.log(
+                    "📊 Extracting diagrams for frontend (Confluence publishing disabled)..."
+                );
+                try {
+                    // Extract diagrams directly from the generated BRD data
+                    const sections =
+                        brdResult.brdData.sections ||
+                        brdResult.brdData.generatedContent ||
+                        {};
+
+                    console.log(
+                        `🔍 Scanning ${
+                            Object.keys(sections).length
+                        } sections for diagrams...`
+                    );
+                    console.log(
+                        `📋 Available sections:`,
+                        Object.keys(sections)
+                    );
+
+                    for (const [sectionName, sectionContent] of Object.entries(
+                        sections
+                    )) {
+                        console.log(
+                            `🔍 Checking section "${sectionName}":`,
+                            typeof sectionContent
+                        );
+
+                        // Log a preview of the content
+                        if (typeof sectionContent === "string") {
+                            const preview =
+                                sectionContent.substring(0, 200) +
+                                (sectionContent.length > 200 ? "..." : "");
+                            console.log(`  Content preview: "${preview}"`);
+                        } else if (typeof sectionContent === "object") {
+                            console.log(
+                                `  Object keys:`,
+                                Object.keys(sectionContent || {})
+                            );
+                        }
+
+                        // Check if this section contains diagram content
+                        if (isDiagramContent(sectionContent)) {
+                            console.log(
+                                `🎨 Found diagram in section: ${sectionName}`
+                            );
+
+                            const diagramInfo = extractDiagramInfo(
+                                sectionName,
+                                sectionContent
+                            );
+                            if (diagramInfo && diagramInfo.mermaidCode) {
+                                console.log(
+                                    `✅ Successfully extracted diagram: ${diagramInfo.diagramName}`
+                                );
+                                diagramsArray.push({
+                                    diagramId:
+                                        diagramInfo.diagramId ||
+                                        `diagram_${Date.now()}_${Math.random()
+                                            .toString(36)
+                                            .substring(2, 8)}`,
+                                    diagramName:
+                                        diagramInfo.diagramName || sectionName,
+                                    mermaidCode: diagramInfo.mermaidCode,
+                                    type: diagramInfo.type || "mermaid",
+                                    timestamp: new Date().toISOString(),
+                                });
+                            } else {
+                                console.log(
+                                    `❌ Failed to extract diagram info from section: ${sectionName}`
+                                );
+                            }
+                        } else {
+                            console.log(`  → Not a diagram section`);
+                        }
+                    }
+
+                    console.log(
+                        `✅ Extracted ${diagramsArray.length} diagrams for frontend`
+                    );
+                } catch (extractError) {
+                    console.error(
+                        "❌ Error extracting diagrams for frontend:",
+                        extractError.message
+                    );
+                    // Continue without diagrams rather than failing the entire request
+                }
             }
 
-            // Return combined result
+            // Return combined result with diagrams always included
             const finalResult = {
                 ...brdResult,
                 confluence: confluenceResult,
+                diagrams: diagramsArray, // Always include diagrams array for frontend
             };
 
             // Clean up uploaded files after successful generation
@@ -843,35 +940,94 @@ app.post(
     }
 );
 
-// File cleanup utility
-const cleanupFiles = async (files, sessionId) => {
-    try {
-        if (!files || Object.keys(files).length === 0) return;
-
-        console.log(`🧹 Cleaning up uploaded files for session: ${sessionId}`);
-
-        // Delete individual files
-        for (const [type, fileInfo] of Object.entries(files)) {
-            if (fileInfo && fileInfo.path && fs.existsSync(fileInfo.path)) {
-                await fs.unlink(fileInfo.path);
-                console.log(`✅ Deleted file: ${fileInfo.originalName}`);
+// Clean up uploaded files after generation
+async function cleanupFiles(fileMap, sessionId) {
+    console.log(`🧹 Cleaning up uploaded files for session: ${sessionId}`);
+    const cleanupPromises = Object.values(fileMap).map(async (file) => {
+        try {
+            if (file.path && fs.existsSync(file.path)) {
+                await fs.unlink(file.path);
+                console.log(`✅ Deleted file: ${file.originalName}`);
             }
+        } catch (error) {
+            console.error(
+                `❌ Error deleting file ${file.originalName}:`,
+                error.message
+            );
         }
+    });
 
-        // Clean up session directory if empty
-        const sessionDir = path.join(UPLOADS_DIR, sessionId);
-        if (fs.existsSync(sessionDir)) {
-            const remainingFiles = await fs.readdir(sessionDir);
-            if (remainingFiles.length === 0) {
-                await fs.rmdir(sessionDir);
-                console.log(`✅ Deleted empty session directory: ${sessionId}`);
-            }
-        }
-    } catch (error) {
-        console.error("Error during file cleanup:", error);
-        // Don't throw error - cleanup failure shouldn't break the response
+    await Promise.all(cleanupPromises);
+}
+
+// Helper function to detect if content contains a Mermaid diagram
+function isDiagramContent(content) {
+    if (typeof content === "string") {
+        // Check for Mermaid diagram patterns
+        return (
+            content.includes("flowchart") ||
+            content.includes("sequenceDiagram") ||
+            content.includes("classDiagram") ||
+            content.includes("graph TD") ||
+            content.includes("graph LR") ||
+            content.includes("stateDiagram") ||
+            content.includes("erDiagram")
+        );
     }
-};
+
+    if (typeof content === "object" && content !== null) {
+        // Check if it's a diagram object
+        if (content.type === "mermaid" || content.format === "mermaid") {
+            return true;
+        }
+
+        // Check if the content/code property contains Mermaid
+        const code = content.code || content.content || content.mermaid || "";
+        return typeof code === "string" && isDiagramContent(code);
+    }
+
+    return false;
+}
+
+// Helper function to extract diagram information from content
+function extractDiagramInfo(sectionName, content) {
+    let mermaidCode = "";
+    let diagramId = null;
+    let type = "mermaid";
+
+    if (typeof content === "string") {
+        mermaidCode = content.trim();
+    } else if (typeof content === "object" && content !== null) {
+        mermaidCode = content.code || content.content || content.mermaid || "";
+        diagramId = content.diagramId;
+        type = content.type || content.format || "mermaid";
+    }
+
+    // Validate that we have actual Mermaid code
+    if (!mermaidCode || typeof mermaidCode !== "string") {
+        return null;
+    }
+
+    // Clean up the code (remove markdown blocks if present)
+    mermaidCode = mermaidCode
+        .replace(/```[\w]*\n?/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+    // Double check it's still valid Mermaid after cleanup
+    if (!isDiagramContent(mermaidCode)) {
+        return null;
+    }
+
+    return {
+        diagramId:
+            diagramId ||
+            `${sectionName.replace(/[^a-zA-Z0-9]/g, "_")}_${Date.now()}`,
+        diagramName: sectionName,
+        mermaidCode: mermaidCode,
+        type: type,
+    };
+}
 
 // Cleanup old session directories (older than 1 hour)
 const cleanupOldSessions = async () => {

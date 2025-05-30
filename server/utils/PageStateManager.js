@@ -95,9 +95,10 @@ class PageStateManager {
      * @param {Object} pageInfo - Page information
      * @param {Object} imageUploadResult - Image upload results
      * @param {Object} csvUploadResult - CSV upload results
-     * @param {Object} graphvizUploadResult - GraphViz upload results
+     * @param {Object} mermaidUploadResult - Mermaid upload results
+     * @param {Object} graphvizUploadResult - GraphViz upload results (legacy)
      */
-    addToHistory(pageInfo, imageUploadResult = null, csvUploadResult = null, graphvizUploadResult = null) {
+    addToHistory(pageInfo, imageUploadResult = null, csvUploadResult = null, mermaidUploadResult = null, graphvizUploadResult = null) {
         const historyEntry = {
             id: pageInfo.id || this.currentPageId,
             title: pageInfo.title || this.currentPageTitle,
@@ -106,6 +107,7 @@ class PageStateManager {
             url: `${this.baseUrl}/wiki/pages/viewpage.action?pageId=${pageInfo.id || this.currentPageId}`,
             imageUpload: imageUploadResult,
             csvUpload: csvUploadResult,
+            mermaidUpload: mermaidUploadResult,
             graphvizUpload: graphvizUploadResult,
             operation: pageInfo.operation || 'unknown'
         };
@@ -126,15 +128,16 @@ class PageStateManager {
     }
 
     /**
-     * Generate success result object for API responses
+     * Generate success result for Confluence operations
      * @param {string} operation - Operation type ('create' or 'update')
      * @param {string} spaceKey - Confluence space key
      * @param {Object} imageUploadResult - Image upload results
      * @param {Object} csvUploadResult - CSV upload results
-     * @param {Object} graphvizUploadResult - GraphViz upload results
+     * @param {Object} mermaidUploadResult - Mermaid upload results  
+     * @param {Object} graphvizUploadResult - GraphViz upload results (legacy)
      * @returns {Object} Success result object
      */
-    generateSuccessResult(operation, spaceKey, imageUploadResult = null, csvUploadResult = null, graphvizUploadResult = null) {
+    generateSuccessResult(operation, spaceKey, imageUploadResult = null, csvUploadResult = null, mermaidUploadResult = null, graphvizUploadResult = null) {
         const result = {
             success: true,
             pageId: this.currentPageId,
@@ -153,8 +156,23 @@ class PageStateManager {
             result.csvUpload = csvUploadResult;
         }
 
+        if (mermaidUploadResult) {
+            result.mermaidUpload = mermaidUploadResult;
+            // Extract diagrams array for frontend consumption
+            if (mermaidUploadResult.diagrams && Array.isArray(mermaidUploadResult.diagrams)) {
+                result.diagrams = mermaidUploadResult.diagrams;
+            }
+        }
+
         if (graphvizUploadResult) {
             result.graphvizUpload = graphvizUploadResult;
+            // Include legacy GraphViz diagrams in the diagrams array for backward compatibility
+            if (graphvizUploadResult.diagrams && Array.isArray(graphvizUploadResult.diagrams)) {
+                if (!result.diagrams) {
+                    result.diagrams = [];
+                }
+                result.diagrams.push(...graphvizUploadResult.diagrams);
+            }
         }
 
         return result;

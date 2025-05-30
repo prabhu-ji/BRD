@@ -1,5 +1,6 @@
 const HtmlUtils = require("./HtmlUtils");
 const Logger = require("./Logger");
+const ContentRouter = require("../content/ContentRouter");
 
 /**
  * Orchestrates content generation and page building workflow
@@ -17,7 +18,8 @@ class PageContentBuilder {
      */
     async generateConfluenceContent(brdData) {
         let content = "";
-        const graphvizDiagrams = [];
+        const mermaidDiagrams = [];
+        const graphvizDiagrams = []; // Legacy support
 
         // Use modern Confluence layout structure for new editor compatibility
         content += `<ac:layout>
@@ -47,12 +49,15 @@ class PageContentBuilder {
 
             content += sectionResult.content + "\n";
 
-            // Track GraphViz diagrams for later processing
+            // Track diagrams for later processing
             if (sectionResult.diagram) {
-                Logger.graphvizProcessing(
-                    `Found GraphViz diagram in section: ${sectionName}`
-                );
-                graphvizDiagrams.push(sectionResult.diagram);
+                if (sectionResult.diagram.isMermaid) {
+                    Logger.info(`Found Mermaid diagram in section: ${sectionName}`);
+                    mermaidDiagrams.push(sectionResult.diagram);
+                } else if (sectionResult.diagram.isGraphviz) {
+                    Logger.warn(`Found legacy GraphViz diagram in section: ${sectionName}`);
+                    graphvizDiagrams.push(sectionResult.diagram);
+                }
             }
         }
 
@@ -62,13 +67,15 @@ class PageContentBuilder {
 </ac:layout-section>
 </ac:layout>`;
 
-        Logger.contentGenerated(content.length, graphvizDiagrams.length);
+        Logger.contentGenerated(content.length, mermaidDiagrams.length + graphvizDiagrams.length);
 
         return {
             content: content,
-            graphvizDiagrams: graphvizDiagrams,
+            mermaidDiagrams: mermaidDiagrams,
+            graphvizDiagrams: graphvizDiagrams, // Legacy support
             sectionCount: Object.keys(sections).length,
-            hasGraphViz: graphvizDiagrams.length > 0,
+            hasMermaid: mermaidDiagrams.length > 0,
+            hasGraphViz: graphvizDiagrams.length > 0, // Legacy support
         };
     }
 
@@ -88,50 +95,34 @@ class PageContentBuilder {
             return this.generateMultiTypeContent(key, value, technicalData);
         }
 
-        // Handle legacy single-type structure (backward compatibility)
-        const detectedType = contentType || this.detectContentType(key, value);
-        let result = "";
-        let diagramInfo = null;
+        // Use ContentRouter for content processing (including diagrams)
+        const routerResult = ContentRouter.route(key, value, contentType);
+        let result = routerResult.content;
+        let diagramInfo = routerResult.diagram;
 
-        // Route content generation based on detected type
-        switch (detectedType) {
-            case "content":
-                if (value.text) {
-                    const textHtml = this.generateTextContentOnly(value.text);
-                    result = textHtml;
-                } else if (value.textFallback) {
-                    result = `<p><em>Content temporarily unavailable - fallback content used</em></p>\n`;
-                }
-                break;
-            case "table":
-                result = this.generateTableContent(key, value);
-                break;
-            case "diagram":
-            case "graphviz":
-                const diagramResult = this.generateDiagramContent(key, value);
-                if (
-                    typeof diagramResult === "object" &&
-                    diagramResult.isGraphviz
-                ) {
-                    result = diagramResult.content;
-                    diagramInfo = {
-                        diagramId: diagramResult.diagramId,
-                        diagramName: diagramResult.diagramName,
-                        dotCode: diagramResult.dotCode,
-                    };
-                } else {
-                    result = diagramResult.content || diagramResult;
-                }
-                break;
-            case "list":
-                result = this.generateListContent(key, value);
-                break;
-            case "code":
-                result = this.generateCodeContent(key, value);
-                break;
-            default:
-                result = this.generateTextContent(key, value);
-                break;
+        // Handle legacy single-type fallback cases
+        if (!result && !diagramInfo) {
+            switch (contentType || this.detectContentType(key, value)) {
+                case "content":
+                    if (value.text) {
+                        result = this.generateTextContentOnly(value.text);
+                    } else if (value.textFallback) {
+                        result = `<p><em>Content temporarily unavailable - fallback content used</em></p>\n`;
+                    }
+                    break;
+                case "table":
+                    result = this.generateTableContent(key, value);
+                    break;
+                case "list":
+                    result = this.generateListContent(key, value);
+                    break;
+                case "code":
+                    result = this.generateCodeContent(key, value);
+                    break;
+                default:
+                    result = this.generateTextContent(key, value);
+                    break;
+            }
         }
 
         // Add technical data if available
@@ -203,15 +194,28 @@ class PageContentBuilder {
                         const diagramResult = this.generateDiagramContentOnly(
                             content.diagram
                         );
-                        if (diagramResult.isGraphviz) {
-                            combinedContent += diagramResult.content;
+                        combinedContent += diagramResult.content;
+                        
+                        // Set diagram info based on type
+                        if (diagramResult.isMermaid) {
+                            diagramInfo = {
+                                diagramId: diagramResult.diagramId,
+                                diagramName: diagramResult.diagramName,
+                                mermaidCode: diagramResult.mermaidCode,
+                                type: diagramResult.type,
+                                isMermaid: true,
+                                isGraphviz: false
+                            };
+                        } else if (diagramResult.isGraphviz) {
                             diagramInfo = {
                                 diagramId: diagramResult.diagramId,
                                 diagramName: diagramResult.diagramName,
                                 dotCode: diagramResult.dotCode,
+                                mermaidCode: diagramResult.mermaidCode, // For transition
+                                type: diagramResult.type,
+                                isMermaid: false,
+                                isGraphviz: true
                             };
-                        } else {
-                            combinedContent += diagramResult.content;
                         }
                     }
                     break;
@@ -293,12 +297,26 @@ class PageContentBuilder {
      */
     generateDiagramContentOnly(diagramContent) {
         let code = "";
+        let isMermaid = false;
         let isGraphviz = false;
 
         if (typeof diagramContent === "object" && diagramContent !== null) {
             code = diagramContent.code || diagramContent.content || "";
-            // Check if it's GraphViz content
+            
+            // Check if it's Mermaid content first (new primary format)
             if (
+                diagramContent.format === "mermaid" ||
+                code.includes("flowchart") ||
+                code.includes("graph TD") ||
+                code.includes("graph LR") ||
+                code.includes("sequenceDiagram") ||
+                code.includes("classDiagram") ||
+                code.includes("stateDiagram")
+            ) {
+                isMermaid = true;
+            }
+            // Check if it's GraphViz content (legacy support)
+            else if (
                 diagramContent.format === "dot" ||
                 code.includes("digraph") ||
                 code.includes("->")
@@ -307,15 +325,47 @@ class PageContentBuilder {
             }
         } else if (typeof diagramContent === "string") {
             code = diagramContent;
-            if (code.includes("digraph") || code.includes("->")) {
+            
+            // Check for Mermaid patterns first
+            if (
+                code.includes("flowchart") ||
+                code.includes("graph TD") ||
+                code.includes("graph LR") ||
+                code.includes("sequenceDiagram") ||
+                code.includes("classDiagram") ||
+                code.includes("stateDiagram")
+            ) {
+                isMermaid = true;
+            }
+            // Check for GraphViz patterns (legacy)
+            else if (code.includes("digraph") || code.includes("->")) {
                 isGraphviz = true;
             }
         }
 
-        if (isGraphviz) {
+        if (isMermaid) {
+            const diagramId = `mermaid_${Date.now()}_${Math.random()
+                .toString(36)
+                .substring(2, 8)}`;
+            const diagramName = "Multi-type Diagram";
+            const content = `<!-- MERMAID_PLACEHOLDER_${diagramId}: ${Buffer.from(
+                code
+            ).toString("base64")} -->`;
+
+            return {
+                content,
+                isMermaid: true,
+                isGraphviz: false,
+                diagramId,
+                diagramName,
+                mermaidCode: code,
+                type: 'mermaid'
+            };
+        } else if (isGraphviz) {
             const diagramId = `graphviz_${Date.now()}_${Math.random()
                 .toString(36)
                 .substring(2, 8)}`;
+            const diagramName = "Multi-type Diagram";
             const content = `<!-- GRAPHVIZ_PLACEHOLDER_${diagramId}: ${Buffer.from(
                 code
             ).toString("base64")} -->`;
@@ -323,18 +373,22 @@ class PageContentBuilder {
             return {
                 content,
                 isGraphviz: true,
+                isMermaid: false,
                 diagramId,
-                diagramName: "Multi-type Diagram",
+                diagramName,
                 dotCode: code,
+                mermaidCode: code, // Also provide as mermaidCode for transition
+                type: 'graphviz'
             };
         } else {
+            // Not a recognized diagram format, display as code block
             const content = `<ac:structured-macro ac:name="code">
     <ac:parameter ac:name="language">text</ac:parameter>
     <ac:parameter ac:name="title">Diagram</ac:parameter>
     <ac:plain-text-body><![CDATA[${code}]]></ac:plain-text-body>
 </ac:structured-macro>`;
 
-            return { content, isGraphviz: false };
+            return { content, isMermaid: false, isGraphviz: false };
         }
     }
 

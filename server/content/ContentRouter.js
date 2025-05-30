@@ -37,20 +37,25 @@ class ContentRouter {
                 result = TableContentGenerator.generate(key, value);
                 break;
             case "diagram":
-            case "graphviz":
+            case "mermaid":
+            case "graphviz": // Legacy support
                 const diagramResult = DiagramContentGenerator.generate(
                     key,
                     value
                 );
                 if (
                     typeof diagramResult === "object" &&
-                    diagramResult.isGraphviz
+                    (diagramResult.isMermaid || diagramResult.isGraphviz)
                 ) {
                     result = diagramResult.content;
                     diagramInfo = {
                         diagramId: diagramResult.diagramId,
                         diagramName: diagramResult.diagramName,
-                        dotCode: diagramResult.dotCode,
+                        mermaidCode: diagramResult.mermaidCode,
+                        dotCode: diagramResult.dotCode, // Legacy support
+                        type: diagramResult.type,
+                        isMermaid: diagramResult.isMermaid || false,
+                        isGraphviz: diagramResult.isGraphviz || false
                     };
                 } else {
                     result = diagramResult.content || diagramResult;
@@ -92,7 +97,8 @@ class ContentRouter {
             table: TableContentGenerator,
             list: ListContentGenerator,
             diagram: DiagramContentGenerator,
-            graphviz: DiagramContentGenerator,
+            mermaid: DiagramContentGenerator,
+            graphviz: DiagramContentGenerator, // Legacy support
             code: CodeContentGenerator,
         };
     }

@@ -82,6 +82,7 @@ class ContentTypeDetector {
             if (value.content) return value.content;
             if (value.code) return value.code;
             if (value.diagram) return value.diagram;
+            if (value.mermaid) return value.mermaid;
             if (value.graphviz) return value.graphviz;
             if (value.dot) return value.dot;
         }
@@ -108,7 +109,36 @@ class ContentTypeDetector {
     }
 
     /**
-     * Determine if content is GraphViz diagram
+     * Determine if content is Mermaid diagram
+     * @param {*} value - Content to check
+     * @returns {boolean} - True if Mermaid content
+     */
+    static isMermaidContent(value) {
+        if (typeof value === "object" && value !== null) {
+            if (value.type === "mermaid" || value.language === "mermaid") {
+                return true;
+            }
+        }
+        
+        if (typeof value === "string") {
+            // Check for Mermaid diagram types
+            const mermaidPatterns = [
+                'flowchart', 'graph TD', 'graph LR', 'graph BT', 'graph RL',
+                'sequenceDiagram', 'classDiagram', 'stateDiagram',
+                'erDiagram', 'journey', 'gantt', 'pie',
+                'gitgraph', 'quadrantChart', 'requirementDiagram'
+            ];
+            
+            return mermaidPatterns.some(pattern => 
+                value.includes(pattern)
+            );
+        }
+        
+        return false;
+    }
+
+    /**
+     * Determine if content is GraphViz diagram (legacy support)
      * @param {*} value - Content to check
      * @returns {boolean} - True if GraphViz content
      */
@@ -126,6 +156,35 @@ class ContentTypeDetector {
         }
         
         return false;
+    }
+
+    /**
+     * Determine if content is any type of diagram (Mermaid or GraphViz)
+     * @param {*} value - Content to check
+     * @returns {Object} - Detection result with type information
+     */
+    static detectDiagramType(value) {
+        if (this.isMermaidContent(value)) {
+            return {
+                isDiagram: true,
+                type: 'mermaid',
+                language: 'mermaid'
+            };
+        }
+        
+        if (this.isGraphVizContent(value)) {
+            return {
+                isDiagram: true,
+                type: 'graphviz',
+                language: 'dot'
+            };
+        }
+        
+        return {
+            isDiagram: false,
+            type: null,
+            language: null
+        };
     }
 }
 

@@ -3,10 +3,13 @@ const Logger = require("./utils/Logger");
 const PageStateManager = require("./utils/PageStateManager");
 const ConfluenceApiClient = require("./utils/ConfluenceApiClient");
 const PageContentBuilder = require("./utils/PageContentBuilder");
+const fs = require("fs");
+const path = require("path");
 
 // Import attachment processing modules
 const ImageAttachmentProcessor = require("./attachments/ImageAttachmentProcessor");
 const CSVAttachmentProcessor = require("./attachments/CSVAttachmentProcessor");
+const MermaidProcessor = require("./attachments/MermaidProcessor");
 const GraphVizProcessor = require("./attachments/GraphVizProcessor");
 
 /**
@@ -147,15 +150,45 @@ class ConfluenceGenerator {
                 contentResult
             );
 
-            // Update content with GraphViz diagrams if needed
+            let finalContent = contentResult.content;
+
+            // Update content with Mermaid diagrams if needed
+            if (
+                attachmentResults.mermaidUpload?.success &&
+                attachmentResults.mermaidUpload.diagrams.length > 0
+            ) {
+                finalContent = MermaidProcessor.replaceMermaidPlaceholders(
+                    finalContent,
+                    attachmentResults.mermaidUpload.diagrams
+                );
+            }
+
+            // Update content with legacy GraphViz diagrams if needed
             if (
                 attachmentResults.graphvizUpload?.success &&
                 attachmentResults.graphvizUpload.diagrams.length > 0
             ) {
-                await this.updatePageContentWithDiagrams(
-                    contentResult.content,
+                finalContent = GraphVizProcessor.replaceGraphvizPlaceholders(
+                    finalContent,
                     attachmentResults.graphvizUpload.diagrams
                 );
+            }
+
+            // Update page with final content if diagrams were processed
+            if (finalContent !== contentResult.content) {
+                const updatePayload = this.contentBuilder.createUpdatePayload(
+                    this.pageStateManager.currentPageTitle,
+                    finalContent,
+                    this.pageStateManager.currentPageVersion + 1
+                );
+
+                const updateResponse = await this.apiClient.updatePage(
+                    this.pageStateManager.currentPageId,
+                    updatePayload
+                );
+
+                this.pageStateManager.updateCurrentPageFromResponse(updateResponse.data);
+                Logger.info("Page content updated with rendered diagrams");
             }
 
             // Add to history
@@ -163,6 +196,7 @@ class ConfluenceGenerator {
                 { ...response.data, operation: "create" },
                 attachmentResults.imageUpload,
                 attachmentResults.csvUpload,
+                attachmentResults.mermaidUpload,
                 attachmentResults.graphvizUpload
             );
 
@@ -174,6 +208,7 @@ class ConfluenceGenerator {
                 this.config.spaceKey,
                 attachmentResults.imageUpload,
                 attachmentResults.csvUpload,
+                attachmentResults.mermaidUpload,
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
@@ -224,16 +259,55 @@ class ConfluenceGenerator {
                 contentResult
             );
 
-            // Update content with GraphViz diagrams if needed
+            let finalContent = contentResult.content;
+
+            // Update content with Mermaid diagrams if needed
+            if (
+                attachmentResults.mermaidUpload?.success &&
+                attachmentResults.mermaidUpload.diagrams.length > 0
+            ) {
+                finalContent = MermaidProcessor.replaceMermaidPlaceholders(
+                    finalContent,
+                    attachmentResults.mermaidUpload.diagrams
+                );
+            }
+
+            // Update content with legacy GraphViz diagrams if needed
             if (
                 attachmentResults.graphvizUpload?.success &&
                 attachmentResults.graphvizUpload.diagrams.length > 0
             ) {
-                await this.updatePageContentWithDiagrams(
-                    contentResult.content,
+                finalContent = GraphVizProcessor.replaceGraphvizPlaceholders(
+                    finalContent,
                     attachmentResults.graphvizUpload.diagrams
                 );
             }
+
+            // Update page with final content if diagrams were processed
+            if (finalContent !== contentResult.content) {
+                const updatePayload = this.contentBuilder.createUpdatePayload(
+                    this.pageStateManager.currentPageTitle,
+                    finalContent,
+                    this.pageStateManager.currentPageVersion + 1
+                );
+
+                const updateResponse = await this.apiClient.updatePage(
+                    this.pageStateManager.currentPageId,
+                    updatePayload
+                );
+
+                this.pageStateManager.updateCurrentPageFromResponse(updateResponse.data);
+                Logger.info("Page content updated with rendered diagrams");
+            }
+
+            // Add to history
+            this.pageStateManager.addToHistory(
+                { ...response.data, operation: "update" },
+                attachmentResults.imageUpload,
+                attachmentResults.csvUpload,
+                attachmentResults.mermaidUpload,
+                attachmentResults.graphvizUpload
+            );
 
             Logger.success("Page updated successfully");
             Logger.pageUrl(this.pageStateManager.getCurrentPageUrl());
@@ -243,6 +317,7 @@ class ConfluenceGenerator {
                 this.config.spaceKey,
                 attachmentResults.imageUpload,
                 attachmentResults.csvUpload,
+                attachmentResults.mermaidUpload,
                 attachmentResults.graphvizUpload
             );
         } catch (error) {
@@ -304,10 +379,30 @@ class ConfluenceGenerator {
             }
         }
 
-        // Process GraphViz diagrams
-        if (contentResult.graphvizDiagrams?.length > 0) {
+        // Process Mermaid diagrams (primary)
+        if (contentResult.mermaidDiagrams?.length > 0) {
             Logger.info(
-                `Processing ${contentResult.graphvizDiagrams.length} GraphViz diagrams...`
+                `Processing ${contentResult.mermaidDiagrams.length} Mermaid diagrams...`
+            );
+            results.mermaidUpload =
+                await MermaidProcessor.processMultipleDiagrams(
+                    this.apiClient.getClient(),
+                    this.pageStateManager.currentPageId,
+                    contentResult.mermaidDiagrams,
+                    this.apiClient.getAuth()
+                );
+
+            if (results.mermaidUpload.success) {
+                Logger.success(
+                    `Successfully processed ${results.mermaidUpload.diagrams.length} Mermaid diagrams`
+                );
+            }
+        }
+
+        // Process GraphViz diagrams (legacy support during transition)
+        if (contentResult.graphvizDiagrams?.length > 0) {
+            Logger.warn(
+                `Processing ${contentResult.graphvizDiagrams.length} legacy GraphViz diagrams...`
             );
             results.graphvizUpload =
                 await GraphVizProcessor.processMultipleDiagrams(
@@ -319,7 +414,7 @@ class ConfluenceGenerator {
 
             if (results.graphvizUpload.success) {
                 Logger.success(
-                    `Successfully processed ${results.graphvizUpload.diagrams.length} GraphViz diagrams`
+                    `Successfully processed ${results.graphvizUpload.diagrams.length} legacy GraphViz diagrams`
                 );
             }
         }

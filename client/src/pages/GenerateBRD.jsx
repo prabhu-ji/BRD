@@ -5,6 +5,7 @@ import {
     ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import axios from "axios";
+import MermaidSourceViewer from "../components/MermaidSourceViewer";
 
 // Constants
 const LOCAL_STORAGE_BRD_INPUT_KEY = "brd_generation_data";
@@ -476,12 +477,15 @@ function GenerateBRD() {
                             </div>
                         )}
 
+                        {/* Show Mermaid source code if available */}
+                        <MermaidSourceViewer diagrams={generatedDoc.diagrams} />
+
                         <div className="flex justify-center space-x-4">
                             <button
                                 onClick={regenerateBRD}
                                 className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 transition duration-150"
                             >
-                                Generate New
+                                Generate Again
                             </button>
                             <button
                                 onClick={createNewBRD}
